@@ -26,7 +26,7 @@ namespace RDLevelEditorAccess
             // 使用静态事件订阅。
             // 即使 EditorAccess 这个实例被销毁，这个静态方法的订阅依然存在于内存中！
             SceneManager.sceneLoaded += StaticOnSceneLoaded;
-            var harmoney = new Harmony("com.hzt.rd-editor-access"");
+            var harmoney = new Harmony("com.hzt.rd-editor-access");
                 harmoney.PatchAll();
         }
 
@@ -159,7 +159,12 @@ namespace RDLevelEditorAccess
             // 1. 查找所有可见的 UI 元素 (Graphic 是 Text, Image 的基类)
             //    我们不使用 Selectable，因为我们也想读取纯文本标签
             var allControls = rootObject.GetComponentsInChildren<Graphic>()
-                .Where(g => g.gameObject.activeInHierarchy) // 只找看得见的
+                .Where(g => g.gameObject.activeInHierarchy)
+                .Where(g => {
+                    if (g.GetComponent<Selectable>() != null) return true;
+                    if (g is Text || g is TMPro.TMP_Text) return true;
+                    return false;
+                })
                 .ToList();
 
             if (allControls.Count == 0) return;
