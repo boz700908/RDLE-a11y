@@ -379,9 +379,51 @@ namespace RDLevelEditorAccess
                 currentTab = scnEditor.instance.currentTab;
                 Narration.Say(RDString.Get($"editor.{currentTab.ToString().ToLower().Replace("song", "sounds")}"),NarrationCategory.Navigation);
             }
+            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                if (scnEditor.instance.selectedControls.Count <= 0)
+                {
+                    chooseNearestEvent();
+                }
+            }
+        }
+
+        private void chooseNearestEvent()
+        {
+            var allEvent = scnEditor.instance.eventControls;
+            Debug.Log($"事件数量： {allEvent.Count}， 当前小结： {scnEditor.instance.startBar}");
+            foreach (var ev in allEvent)
+            {
+                if (ev.levelEvent.tab != currentTab) continue;
+                if (ev.levelEvent.bar != scnEditor.instance.startBar + 1) continue;
+                scnEditor.instance.SelectEventControl(ev, true);
+                return;
+            }
+            Narration.Say("无可用事件", NarrationCategory.Navigation);
         }
     }
 
+    public static class ModUtils
+    {
+        public static string eventNameI18n(LevelEvent_Base ev)
+        {
+            string text = ev.type.ToString();
+            return RDString.Get("editor." + text);
+        }
+        public static string eventSelectI18n(LevelEvent_Base ev)
+        {
+            return eventNameI18n(ev);
+        }
+    }
 
-
+    [HarmonyPatch(typeof(scnEditor))]
+    public static class  EditorPatch
+    {
+        [HarmonyPatch("SelectEventControl")]
+        [HarmonyPostfix]
+        public static void SelectEventControlPostfix(LevelEventControl_Base newControl)
+        {
+            Narration.Say(ModUtils.eventSelectI18n(newControl.levelEvent), NarrationCategory.Navigation);
+        }
+    }
 }
