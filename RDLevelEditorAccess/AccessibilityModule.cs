@@ -23,9 +23,6 @@ namespace RDLevelEditorAccess
 
             _pipeServer = new PipeServer();
             
-            // 尝试连接 Helper（异步尝试，不阻塞）
-            // 实际连接会在用户按 Ctrl+Enter 时进行
-            
             Debug.Log("[RDEditorAccess] AccessibilityBridge 已初始化");
         }
 
@@ -40,9 +37,19 @@ namespace RDLevelEditorAccess
             if (levelEvent == null) return;
 
             Debug.Log($"[RDEditorAccess] 打开事件编辑器: {levelEvent.type}");
-            
-            // 通过管道发送打开编辑器消息
-            _pipeServer?.SendOpenEditor(levelEvent);
+
+            // 1. 快速尝试连接（200ms）
+            if (!_pipeServer.TryConnect(200))
+            {
+                // 2. 启动 Helper 并等待连接（500ms）
+                if (!_pipeServer.TryStartHelperAndConnect(500))
+                {
+                    return; // 已经提示用户
+                }
+            }
+
+            // 3. 发送打开编辑器消息
+            _pipeServer.SendOpenEditor(levelEvent);
             
             Narration.Say($"正在打开 {levelEvent.type} 属性编辑器", NarrationCategory.Instruction);
         }

@@ -24,15 +24,62 @@ namespace RDLevelEditorAccess.IPC
         private StreamReader _reader;
         private StreamWriter _writer;
         private Thread _receiveThread;
-        private Thread _connectionThread;
         private bool _isConnected;
-        private bool _isConnecting;
         private LevelEvent_Base _currentEvent;
-        private readonly object _lock = new object();
 
-        public bool IsConnected
+        public bool IsConnected => _isConnected;
+
+        /// <summary>
+        /// 快速尝试连接，不阻塞太久
+        /// </summary>
+        public bool TryConnect(int timeoutMs = 200)
         {
-            get { lock (_lock) { return _isConnected; } }
+            if (_isConnected) return true;
+
+            try
+            {
+                _pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.None);
+                _pipeClient.Connect(timeoutMs);
+
+                _reader = new StreamReader(_pipeClient);
+                _writer = new StreamWriter(_pipeClient) { AutoFlush = true };
+
+                _isConnected = true;
+                Debug.Log("[Pipe] 已连接到 Helper");
+
+                // 启动接收线程
+                _receiveThread = new Thread(ReceiveLoop);
+                _receiveThread.IsBackground = true;
+                _receiveThread.Start();
+
+                return true;
+            }
+            catch (Exception)
+            {
+                // 快速失败，不记录日志
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 启动 Helper 并等待连接
+        /// </summary>
+        public bool TryStartHelperAndConnect(int timeoutMs = 500)
+        {
+            // 先尝试启动 Helper
+            TryStartHelper();
+
+            // 等待 Helper 启动后连接（轮询）
+            var startTime = DateTime.Now;
+            while ((DateTime.Now - startTime).TotalMilliseconds < timeoutMs)
+            {
+                if (TryConnect(200)) return true;
+                Thread.Sleep(50);
+            }
+
+            Debug.LogWarning("[Pipe] 启动 Helper 后仍无法连接");
+            Narration.Say("无法启动事件编辑器", NarrationCategory.Notification);
+            return false;
         }
 
         public void TryStartHelper()
@@ -62,29 +109,19 @@ namespace RDLevelEditorAccess.IPC
             }
         }
 
-        public bool Connect(int timeoutMs = 2000)
+        public bool Connect(int timeoutMs = 5000)
         {
-            lock (_lock)
-            {
-                if (_isConnected) return true;
-                if (_isConnecting) return false;
-                _isConnecting = true;
-            }
+            if (_isConnected) return true;
 
             try
             {
-                Debug.Log("[Pipe] 尝试连接 Helper...");
-                
-                _pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+                _pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.None);
                 _pipeClient.Connect(timeoutMs);
 
                 _reader = new StreamReader(_pipeClient);
                 _writer = new StreamWriter(_pipeClient) { AutoFlush = true };
 
-                lock (_lock)
-                {
-                    _isConnected = true;
-                }
+                _isConnected = true;
                 Debug.Log("[Pipe] 已连接到 Helper");
 
                 // 启动接收线程
@@ -96,13 +133,7 @@ namespace RDLevelEditorAccess.IPC
             }
             catch (TimeoutException)
             {
-                Debug.LogWarning("[Pipe] 连接超时，尝试启动 Helper...");
-                TryStartHelper();
-                return false;
-            }
-            catch (IOException ex)
-            {
-                Debug.LogWarning($"[Pipe] IO 异常: {ex.Message}，尝试启动 Helper...");
+                Debug.LogWarning("[Pipe] 连接超时，Helper 可能未启动");
                 TryStartHelper();
                 return false;
             }
@@ -111,55 +142,22 @@ namespace RDLevelEditorAccess.IPC
                 Debug.LogError($"[Pipe] 连接失败: {ex.Message}");
                 return false;
             }
-            finally
-            {
-                lock (_lock)
-                {
-                    _isConnecting = false;
-                }
-            }
-        }
-
-        public bool TryConnectWithRetry(int maxRetries = 3, int retryDelayMs = 1000)
-        {
-            for (int i = 0; i < maxRetries; i++)
-            {
-                if (Connect(1500))
-                {
-                    return true;
-                }
-                
-                if (i < maxRetries - 1)
-                {
-                    Debug.Log($"[Pipe] 等待 Helper 启动，{retryDelayMs}ms 后重试... ({i + 1}/{maxRetries})");
-                    Thread.Sleep(retryDelayMs);
-                }
-            }
-
-            Debug.LogWarning("[Pipe] 无法连接到 Helper");
-            Narration.Say("无法连接到事件编辑器，请重启游戏后重试", NarrationCategory.Notification);
-            return false;
         }
 
         public void Disconnect()
         {
-            lock (_lock)
-            {
-                _isConnected = false;
-            }
+            _isConnected = false;
             _pipeClient?.Dispose();
             _pipeClient = null;
         }
 
         public void SendOpenEditor(LevelEvent_Base levelEvent)
         {
-            if (levelEvent == null) return;
-
-            // 先尝试连接（带重试）
-            if (!IsConnected)
+            if (!_isConnected)
             {
-                if (!TryConnectWithRetry())
+                if (!Connect())
                 {
+                    Debug.LogWarning("[Pipe] 无法连接，跳过打开编辑器");
                     return;
                 }
             }
@@ -177,12 +175,11 @@ namespace RDLevelEditorAccess.IPC
             };
 
             SendMessage(message);
-            Debug.Log($"[Pipe] 已发送打开编辑器消息: {levelEvent.type}");
         }
 
         public void SendCloseEditor()
         {
-            if (!IsConnected) return;
+            if (!_isConnected) return;
 
             var message = new PipeMessage
             {
@@ -197,12 +194,6 @@ namespace RDLevelEditorAccess.IPC
         {
             try
             {
-                if (_writer == null)
-                {
-                    Debug.LogWarning("[Pipe] _writer 为空，无法发送消息");
-                    return;
-                }
-
                 string json = message.ToJson();
                 _writer.WriteLine(json);
                 Debug.Log($"[Pipe] 发送消息: {message.Type}");
@@ -210,10 +201,7 @@ namespace RDLevelEditorAccess.IPC
             catch (Exception ex)
             {
                 Debug.LogError($"[Pipe] 发送消息失败: {ex.Message}");
-                lock (_lock)
-                {
-                    _isConnected = false;
-                }
+                _isConnected = false;
             }
         }
 
@@ -221,9 +209,9 @@ namespace RDLevelEditorAccess.IPC
         {
             try
             {
-                while (IsConnected && _pipeClient != null && _pipeClient.IsConnected)
+                while (_isConnected && _pipeClient.IsConnected)
                 {
-                    string json = _reader?.ReadLine();
+                    string json = _reader.ReadLine();
                     if (string.IsNullOrEmpty(json)) break;
 
                     Debug.Log($"[Pipe] 收到消息: {json.Substring(0, Math.Min(50, json.Length))}...");
@@ -234,20 +222,13 @@ namespace RDLevelEditorAccess.IPC
                     ProcessMessage(message);
                 }
             }
-            catch (IOException ex)
-            {
-                Debug.LogWarning($"[Pipe] 接收 IO 异常: {ex.Message}");
-            }
             catch (Exception ex)
             {
                 Debug.LogError($"[Pipe] 接收循环异常: {ex.Message}");
             }
             finally
             {
-                lock (_lock)
-                {
-                    _isConnected = false;
-                }
+                _isConnected = false;
                 Debug.Log("[Pipe] 连接已关闭");
             }
         }
