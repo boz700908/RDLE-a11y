@@ -38,6 +38,7 @@ namespace RDLevelEditorAccess.IPC
             {
                 _pipeClient = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.None);
                 _pipeClient.Connect(timeoutMs);
+                _pipeClient.ReadMode = PipeTransmissionMode.Message;
 
                 _isConnected = true;
                 Debug.Log("[Pipe] 已连接到 Helper");

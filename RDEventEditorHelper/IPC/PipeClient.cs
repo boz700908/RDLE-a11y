@@ -100,6 +100,9 @@ namespace RDEventEditorHelper.IPC
                     _pipeServer.WaitForConnection();
                     Log("主 Mod 已连接!");
 
+                    // 设置读取模式
+                    _pipeServer.ReadMode = PipeTransmissionMode.Message;
+
                     // 保存当前连接
                     _currentPipe = _pipeServer;
 
