@@ -55,11 +55,6 @@ dotnet test --filter "FullyQualifiedName~TestClassName.TestMethodName"
 - Visual Studio provides IntelliSense and built-in code analysis
 - Enable `Treat warnings as errors` in project settings for production builds
 
-### Version Control
-
-- **Always commit after completing a task chain**: Run `git add . && git commit -m "简短中文描述"`
-- Write commit messages in Chinese summarizing what was done
-
 ### Deployment
 
 The project includes `Directory.Build.props` which automatically copies the built DLL to the game's BepInEx plugins folder after a successful build:
@@ -338,3 +333,8 @@ private static void WinFormLoop()
 var harmony = new Harmony("com.your-mod-id");
 harmony.PatchAll();
 ```
+
+## Git Commit Guidelines
+
+- **提交时机**：每次完成一个任务链，务必进行一次 git 提交并以简短的中文语言概括提交内容
+- **提交信息**：使用简洁的中文描述，说明本次修改的主要内容

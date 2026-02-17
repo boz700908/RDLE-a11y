@@ -387,7 +387,10 @@ namespace RDLevelEditorAccess
                     chooseNearestEvent();
                 }
             }
-            if (Input.GetKeyDown(KeyCode.Return) && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
+
+            // Ctrl+Enter: 打开事件属性编辑器
+            if (Input.GetKeyDown(KeyCode.Return) && 
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
             {
                 if (scnEditor.instance.selectedControl != null)
                 {
