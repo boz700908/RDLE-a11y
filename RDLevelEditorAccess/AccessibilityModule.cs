@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using RDLevelEditor;
+using RDLevelEditorAccess.IPC;
 using UnityEngine;
 
 namespace RDLevelEditorAccess
@@ -13,11 +14,18 @@ namespace RDLevelEditorAccess
     public static class AccessibilityBridge
     {
         private static bool _isInitialized;
+        private static PipeServer _pipeServer;
 
         public static void Initialize(GameObject host)
         {
             if (_isInitialized) return;
             _isInitialized = true;
+
+            _pipeServer = new PipeServer();
+            
+            // 尝试连接 Helper（如果未运行会自动启动）
+            _pipeServer.Connect(3000);
+            
             Debug.Log("[RDEditorAccess] AccessibilityBridge 已初始化");
         }
 
@@ -32,7 +40,18 @@ namespace RDLevelEditorAccess
             if (levelEvent == null) return;
 
             Debug.Log($"[RDEditorAccess] 打开事件编辑器: {levelEvent.type}");
-            Narration.Say("事件编辑器功能暂未启用", NarrationCategory.Notification);
+            
+            // 通过管道发送打开编辑器消息
+            _pipeServer?.SendOpenEditor(levelEvent);
+            
+            Narration.Say($"正在打开 {levelEvent.type} 属性编辑器", NarrationCategory.Instruction);
+        }
+
+        public static void Shutdown()
+        {
+            _pipeServer?.Disconnect();
+            _pipeServer = null;
+            _isInitialized = false;
         }
     }
 
