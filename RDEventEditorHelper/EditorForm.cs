@@ -1,30 +1,34 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
-using RDEventEditorHelper.IPC;
 
 namespace RDEventEditorHelper
 {
-    // ===================================================================================
-    // 属性编辑器窗口
-    // ===================================================================================
+    public class PropertyData
+    {
+        public string name;
+        public string displayName;
+        public string value;
+        public string type;
+        public string[] options;
+    }
+
     public class EditorForm : Form
     {
         private FlowLayoutPanel _panel;
-        private Button _btnOk, _btnCancel, _btnApply;
-        private string _currentEventType;
-        private List<PropertyData> _properties;
+        private Button _btnOK, _btnCancel, _btnApply;
+        private string _eventType;
+        private PropertyData[] _properties;
         private Dictionary<string, Control> _controls = new Dictionary<string, Control>();
 
-        public event Action<Dictionary<string, object>> OnApplyChanges;
-        public event Action OnCloseRequested;
+        public event Action<Dictionary<string, string>> OnApply;
+        public event Action<Dictionary<string, string>> OnOK;
+        public event Action OnCancel;
 
         public EditorForm()
         {
             InitializeComponent();
-            this.Visible = false; // 初始隐藏
         }
 
         private void InitializeComponent()
@@ -37,7 +41,6 @@ namespace RDEventEditorHelper
             this.ShowInTaskbar = true;
             this.TopMost = true;
 
-            // 布局容器
             _panel = new FlowLayoutPanel();
             _panel.Dock = DockStyle.Top;
             _panel.Height = 520;
@@ -47,7 +50,6 @@ namespace RDEventEditorHelper
             _panel.Padding = new Padding(10);
             this.Controls.Add(_panel);
 
-            // 按钮面板
             var btnPanel = new FlowLayoutPanel();
             btnPanel.Dock = DockStyle.Bottom;
             btnPanel.Height = 60;
@@ -55,50 +57,33 @@ namespace RDEventEditorHelper
 
             _btnCancel = new Button { Text = "取消(&C)", Width = 100, Height = 35 };
             _btnApply = new Button { Text = "应用(&A)", Width = 100, Height = 35 };
-            _btnOk = new Button { Text = "确定(&O)", Width = 100, Height = 35 };
+            _btnOK = new Button { Text = "确定(&O)", Width = 100, Height = 35 };
 
-            _btnOk.Click += (s, e) => { ApplyChanges(); HideEditor(); };
-            _btnApply.Click += (s, e) => ApplyChanges();
-            _btnCancel.Click += (s, e) => HideEditor();
+            _btnOK.Click += (s, e) => OnOK?.Invoke(GetCurrentUpdates());
+            _btnApply.Click += (s, e) => OnApply?.Invoke(GetCurrentUpdates());
+            _btnCancel.Click += (s, e) => OnCancel?.Invoke();
 
             btnPanel.Controls.Add(_btnCancel);
             btnPanel.Controls.Add(_btnApply);
-            btnPanel.Controls.Add(_btnOk);
+            btnPanel.Controls.Add(_btnOK);
             this.Controls.Add(btnPanel);
 
-            // ESC 关闭
             this.CancelButton = _btnCancel;
-            this.AcceptButton = _btnOk;
+            this.AcceptButton = _btnOK;
 
-            // 关闭时隐藏而非销毁
             this.FormClosing += (s, e) =>
             {
                 e.Cancel = true;
-                HideEditor();
+                OnCancel?.Invoke();
             };
         }
 
-        public void ShowEditor(string eventType, List<PropertyData> properties)
+        public void SetData(string eventType, PropertyData[] properties)
         {
-            _currentEventType = eventType;
+            _eventType = eventType;
             _properties = properties;
-            BuildUI();
-
             this.Text = $"编辑事件: {eventType}";
-            this.Visible = true;
-            this.BringToFront();
-            this.Activate();
-
-            // 聚焦第一个控件
-            if (_panel.Controls.Count > 0)
-                _panel.Controls[0].Focus();
-        }
-
-        public void HideEditor()
-        {
-            this.Visible = false;
-            _controls.Clear();
-            OnCloseRequested?.Invoke();
+            BuildUI();
         }
 
         private void BuildUI()
@@ -106,7 +91,7 @@ namespace RDEventEditorHelper
             _panel.Controls.Clear();
             _controls.Clear();
 
-            if (_properties == null || _properties.Count == 0)
+            if (_properties == null || _properties.Length == 0)
             {
                 var lbl = new Label
                 {
@@ -122,7 +107,7 @@ namespace RDEventEditorHelper
             {
                 var group = new GroupBox
                 {
-                    Text = prop.DisplayName ?? prop.Name,
+                    Text = prop.displayName ?? prop.name,
                     Width = 440,
                     Height = 55,
                     Padding = new Padding(5)
@@ -130,14 +115,14 @@ namespace RDEventEditorHelper
 
                 Control inputCtrl = null;
 
-                switch (prop.Type)
+                switch (prop.type)
                 {
                     case "Int":
                     case "Float":
                     case "String":
                         var txt = new TextBox
                         {
-                            Text = prop.Value?.ToString(),
+                            Text = prop.value ?? "",
                             Width = 400,
                             Top = 20,
                             Left = 10
@@ -149,7 +134,7 @@ namespace RDEventEditorHelper
                         var chk = new CheckBox
                         {
                             Text = "启用",
-                            Checked = prop.Value is bool b && b,
+                            Checked = prop.value == "true",
                             Top = 20,
                             Left = 10,
                             AutoSize = true
@@ -165,10 +150,10 @@ namespace RDEventEditorHelper
                             Left = 10,
                             DropDownStyle = ComboBoxStyle.DropDownList
                         };
-                        if (prop.Options != null)
-                            cmb.Items.AddRange(prop.Options);
-                        if (prop.Value != null)
-                            cmb.SelectedItem = prop.Value.ToString();
+                        if (prop.options != null)
+                            cmb.Items.AddRange(prop.options);
+                        if (!string.IsNullOrEmpty(prop.value))
+                            cmb.SelectedItem = prop.value;
                         else if (cmb.Items.Count > 0)
                             cmb.SelectedIndex = 0;
                         inputCtrl = cmb;
@@ -177,7 +162,7 @@ namespace RDEventEditorHelper
                     default:
                         var lbl = new Label
                         {
-                            Text = $"不支持的类型: {prop.Type}",
+                            Text = $"不支持的类型: {prop.type}",
                             Width = 400,
                             Top = 20,
                             Left = 10
@@ -189,27 +174,26 @@ namespace RDEventEditorHelper
                 if (inputCtrl != null)
                 {
                     group.Controls.Add(inputCtrl);
-                    _controls[prop.Name] = inputCtrl;
+                    _controls[prop.name] = inputCtrl;
                     _panel.Controls.Add(group);
                 }
             }
         }
 
-        private void ApplyChanges()
+        private Dictionary<string, string> GetCurrentUpdates()
         {
-            var updates = new Dictionary<string, object>();
+            var updates = new Dictionary<string, string>();
 
             foreach (var kvp in _controls)
             {
                 string propName = kvp.Key;
                 Control ctrl = kvp.Value;
-
-                object value = null;
+                string value = null;
 
                 if (ctrl is TextBox txt)
                     value = txt.Text;
                 else if (ctrl is CheckBox chk)
-                    value = chk.Checked;
+                    value = chk.Checked ? "true" : "false";
                 else if (ctrl is ComboBox cmb)
                     value = cmb.SelectedItem?.ToString();
 
@@ -217,11 +201,7 @@ namespace RDEventEditorHelper
                     updates[propName] = value;
             }
 
-            if (updates.Count > 0)
-            {
-                OnApplyChanges?.Invoke(updates);
-                Console.WriteLine($"[EditorForm] 已应用 {updates.Count} 个更改");
-            }
+            return updates;
         }
     }
 }

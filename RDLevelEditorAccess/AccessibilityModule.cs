@@ -14,16 +14,22 @@ namespace RDLevelEditorAccess
     public static class AccessibilityBridge
     {
         private static bool _isInitialized;
-        private static PipeServer _pipeServer;
+        private static FileIPC _fileIPC;
 
         public static void Initialize(GameObject host)
         {
             if (_isInitialized) return;
             _isInitialized = true;
 
-            _pipeServer = new PipeServer();
+            _fileIPC = new FileIPC();
+            _fileIPC.Initialize();
             
             Debug.Log("[RDEditorAccess] AccessibilityBridge 已初始化");
+        }
+
+        public static void Update()
+        {
+            _fileIPC?.Update();
         }
 
         public static void EditEvent(LevelEvent_Base levelEvent)
@@ -38,26 +44,14 @@ namespace RDLevelEditorAccess
 
             Debug.Log($"[RDEditorAccess] 打开事件编辑器: {levelEvent.type}");
 
-            // 1. 快速尝试连接（200ms）
-            if (!_pipeServer.TryConnect(200))
-            {
-                // 2. 启动 Helper 并等待连接（500ms）
-                if (!_pipeServer.TryStartHelperAndConnect(500))
-                {
-                    return; // 已经提示用户
-                }
-            }
-
-            // 3. 发送打开编辑器消息
-            _pipeServer.SendOpenEditor(levelEvent);
+            _fileIPC.StartEditing(levelEvent);
             
             Narration.Say($"正在打开 {levelEvent.type} 属性编辑器", NarrationCategory.Instruction);
         }
 
         public static void Shutdown()
         {
-            _pipeServer?.Disconnect();
-            _pipeServer = null;
+            _fileIPC = null;
             _isInitialized = false;
         }
     }

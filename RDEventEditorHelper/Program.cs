@@ -1,51 +1,102 @@
 using System;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
 using System.Windows.Forms;
-using RDEventEditorHelper.IPC;
+using System.Text.Json;
 
 namespace RDEventEditorHelper
 {
     static class Program
     {
+        private static readonly string TempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "temp");
+        private static readonly string SourcePath = Path.Combine(TempDir, "source.json");
+        private static readonly string ResultPath = Path.Combine(TempDir, "result.json");
+        private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RDEventEditorHelper.log");
+
         [STAThread]
         static void Main()
         {
+            Log("=== Helper 启动 ===");
+
+            if (!Directory.Exists(TempDir))
+            {
+                Directory.CreateDirectory(TempDir);
+            }
+
+            if (!File.Exists(SourcePath))
+            {
+                Log($"source.json 不存在，退出");
+                return;
+            }
+
+            string json = File.ReadAllText(SourcePath);
+            File.Delete(SourcePath);
+            Log($"已读取 source.json: {json.Substring(0, Math.Min(100, json.Length))}...");
+
+            var sourceData = JsonSerializer.Deserialize<SourceData>(json);
+            Log($"事件类型: {sourceData.eventType}, 属性数量: {sourceData.properties?.Length ?? 0}");
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // 创建编辑器窗口
             EditorForm editorForm = new EditorForm();
+            editorForm.SetData(sourceData.eventType, sourceData.properties);
 
-            // 创建并启动管道客户端（作为服务器监听）
-            PipeClient listener = new PipeClient();
-            listener.EditorForm = editorForm;
-            listener.Start();
-
-            // 绑定应用更改事件 - 发送给主 Mod
-            editorForm.OnApplyChanges += (updates) =>
+            editorForm.OnApply += (updates) =>
             {
-                var response = new PipeMessage
-                {
-                    Type = MessageType.ApplyChanges,
-                    Updates = updates
-                };
-                listener.SendMessage(response);
+                var result = new ResultData { action = "apply", updates = updates };
+                string resultJson = JsonSerializer.Serialize(result);
+                File.WriteAllText(ResultPath, resultJson);
+                Log("已写入 result.json (apply)");
             };
 
-            // 绑定关闭事件 - 通知主 Mod
-            editorForm.OnCloseRequested += () =>
+            editorForm.OnOK += (updates) =>
             {
-                var response = new PipeMessage
-                {
-                    Type = MessageType.EditorClosed
-                };
-                listener.SendMessage(response);
+                var result = new ResultData { action = "ok", updates = updates };
+                string resultJson = JsonSerializer.Serialize(result);
+                File.WriteAllText(ResultPath, resultJson);
+                Log("已写入 result.json (ok)，退出");
+                Application.Exit();
             };
 
-            // 启动 WinForms 消息循环
+            editorForm.OnCancel += () =>
+            {
+                File.WriteAllText(ResultPath, "{}");
+                Log("已写入空 result.json (cancel)，退出");
+                Application.Exit();
+            };
+
+            Log("显示编辑器窗口");
             Application.Run(editorForm);
 
-            // 退出时停止监听
-            listener.Stop();
+            Log("=== Helper 退出 ===");
+        }
+
+        private static void Log(string msg)
+        {
+            try
+            {
+                using var fs = new FileStream(LogPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                using var sw = new StreamWriter(fs);
+                sw.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {msg}");
+                sw.Flush();
+            }
+            catch { }
+        }
+
+        [System.Serializable]
+        private class SourceData
+        {
+            public string eventType;
+            public global::RDEventEditorHelper.PropertyData[] properties;
+        }
+
+        [System.Serializable]
+        private class ResultData
+        {
+            public string action;
+            public System.Collections.Generic.Dictionary<string, string> updates;
         }
     }
 }

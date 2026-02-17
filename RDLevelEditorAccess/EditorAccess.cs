@@ -90,6 +90,9 @@ namespace RDLevelEditorAccess
                 debugTimer = 0f;
             }
 
+            // --- FileIPC 轮询 ---
+            AccessibilityBridge.Update();
+
             if (scnEditor.instance == null) return;
 
             if (Input.GetKeyDown(KeyCode.F1))
