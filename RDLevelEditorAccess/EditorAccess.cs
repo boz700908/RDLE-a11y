@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using BepInEx;
@@ -72,6 +72,7 @@ namespace RDLevelEditorAccess
         {
             Instance = this;
             inputFieldReader = new InputFieldReader();
+            AccessibilityBridge.Initialize(gameObject);
             Debug.Log("无障碍核心逻辑已启动 (Logic Awake)");
         }
 
@@ -384,6 +385,14 @@ namespace RDLevelEditorAccess
                 if (scnEditor.instance.selectedControls.Count <= 0)
                 {
                     chooseNearestEvent();
+                }
+            }
+            if (Input.GetKeyDown(KeyCode.Return) && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
+            {
+                if (scnEditor.instance.selectedControl != null)
+                {
+                    AccessibilityBridge.EditEvent(scnEditor.instance.selectedControl.levelEvent);
+                    Narration.Say("正在打开属性编辑器", NarrationCategory.Instruction);
                 }
             }
         }
