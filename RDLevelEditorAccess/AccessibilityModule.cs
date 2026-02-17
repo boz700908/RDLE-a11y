@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
@@ -129,7 +129,7 @@ namespace RDLevelEditorAccess
 
             // 获取元数据
             // 如果事件没有缓存 info，临时生成一个
-            LevelEventInfo info = ev.levelEventInfo ?? new LevelEventInfo(ev.GetType());
+            LevelEventInfo info = ev.info ?? new LevelEventInfo(ev.GetType());
 
             foreach (var prop in info.propertiesInfo)
             {
@@ -346,7 +346,7 @@ namespace RDLevelEditorAccess
         private void ApplyToEvent(LevelEvent_Base ev, Dictionary<string, object> updates)
         {
             // 重新获取 info 以确保类型安全
-            var info = ev.levelEventInfo ?? new LevelEventInfo(ev.GetType());
+            var info = ev.info ?? new LevelEventInfo(ev.GetType());
 
             foreach (var update in updates)
             {

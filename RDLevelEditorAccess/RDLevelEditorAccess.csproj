@@ -1,13 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>net9.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Windows.Compatibility" Version="10.0.2" />
-  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="0Harmony">
@@ -22,11 +19,8 @@
     <Reference Include="BepInEx.Harmony">
       <HintPath>..\..\..\..\SteamLibrary\steamapps\common\Rhythm Doctor\BepInEx\core\BepInEx.Harmony.dll</HintPath>
     </Reference>
-    <Reference Include="System.Drawing">
-      <HintPath>C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\9.0.12\System.Drawing.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Windows.Forms">
-      <HintPath>C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\9.0.12\System.Windows.Forms.dll</HintPath>
+    <Reference Include="RDTools">
+      <HintPath>..\..\..\..\SteamLibrary\steamapps\common\Rhythm Doctor\Rhythm Doctor_Data\Managed\RDTools.dll</HintPath>
     </Reference>
     <Reference Include="Unity.TextMeshPro">
       <HintPath>..\..\..\..\SteamLibrary\steamapps\common\Rhythm Doctor\Rhythm Doctor_Data\Managed\Unity.TextMeshPro.dll</HintPath>
