@@ -123,8 +123,7 @@ namespace RDEventEditorHelper
                     Width = 440,
                     Height = 55,
                     Padding = new Padding(5),
-                    AccessibleName = displayName,
-                    AccessibleDescription = $"{displayName} 属性组"
+                    AccessibleName = displayName
                 };
 
                 Control inputCtrl = null;
@@ -140,8 +139,7 @@ namespace RDEventEditorHelper
                             Width = 400,
                             Top = 20,
                             Left = 10,
-                            AccessibleName = displayName,
-                            AccessibleDescription = $"编辑 {displayName}"
+                            AccessibleName = displayName
                         };
                         inputCtrl = txt;
                         break;
@@ -154,8 +152,7 @@ namespace RDEventEditorHelper
                             Top = 20,
                             Left = 10,
                             AutoSize = true,
-                            AccessibleName = displayName,
-                            AccessibleDescription = $"{displayName} 复选框，当前状态：{(prop.value == "true" ? "已启用" : "未启用")}"
+                            AccessibleName = displayName
                         };
                         inputCtrl = chk;
                         break;
@@ -167,8 +164,7 @@ namespace RDEventEditorHelper
                             Top = 20,
                             Left = 10,
                             DropDownStyle = ComboBoxStyle.DropDownList,
-                            AccessibleName = displayName,
-                            AccessibleDescription = $"选择 {displayName}"
+                            AccessibleName = displayName
                         };
                         if (prop.options != null)
                             cmb.Items.AddRange(prop.options);
@@ -186,8 +182,7 @@ namespace RDEventEditorHelper
                             Width = 400,
                             Top = 20,
                             Left = 10,
-                            AccessibleName = displayName,
-                            AccessibleDescription = $"不支持的类型: {prop.type}"
+                            AccessibleName = displayName
                         };
                         inputCtrl = lbl;
                         break;
