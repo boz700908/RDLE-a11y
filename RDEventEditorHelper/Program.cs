@@ -1,9 +1,7 @@
 using System;
 using System.IO;
-using System.Linq;
-using System.Text.Json;
 using System.Windows.Forms;
-using System.Text.Json;
+using Newtonsoft.Json;
 
 namespace RDEventEditorHelper
 {
@@ -26,27 +24,27 @@ namespace RDEventEditorHelper
 
             if (!File.Exists(SourcePath))
             {
-                Log($"source.json 不存在，退出");
+                Log("source.json 不存在，退出");
                 return;
             }
 
             string json = File.ReadAllText(SourcePath);
             File.Delete(SourcePath);
-            Log($"已读取 source.json: {json.Substring(0, Math.Min(100, json.Length))}...");
+            Log($"已读取 source.json: {json.Substring(0, Math.Min(200, json.Length))}...");
 
-            var sourceData = JsonSerializer.Deserialize<SourceData>(json);
-            Log($"事件类型: {sourceData.eventType}, 属性数量: {sourceData.properties?.Length ?? 0}");
+            var sourceData = JsonConvert.DeserializeObject<SourceData>(json);
+            Log($"事件类型: {sourceData?.eventType}, 属性数量: {sourceData?.properties?.Length ?? 0}");
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
             EditorForm editorForm = new EditorForm();
-            editorForm.SetData(sourceData.eventType, sourceData.properties);
+            editorForm.SetData(sourceData?.eventType, sourceData?.properties);
 
             editorForm.OnApply += (updates) =>
             {
                 var result = new ResultData { action = "apply", updates = updates };
-                string resultJson = JsonSerializer.Serialize(result);
+                string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
                 File.WriteAllText(ResultPath, resultJson);
                 Log("已写入 result.json (apply)");
             };
@@ -54,17 +52,15 @@ namespace RDEventEditorHelper
             editorForm.OnOK += (updates) =>
             {
                 var result = new ResultData { action = "ok", updates = updates };
-                string resultJson = JsonSerializer.Serialize(result);
+                string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
                 File.WriteAllText(ResultPath, resultJson);
                 Log("已写入 result.json (ok)，退出");
-                Application.Exit();
             };
 
             editorForm.OnCancel += () =>
             {
                 File.WriteAllText(ResultPath, "{}");
                 Log("已写入空 result.json (cancel)，退出");
-                Application.Exit();
             };
 
             Log("显示编辑器窗口");
@@ -85,14 +81,12 @@ namespace RDEventEditorHelper
             catch { }
         }
 
-        [System.Serializable]
         private class SourceData
         {
             public string eventType;
-            public global::RDEventEditorHelper.PropertyData[] properties;
+            public PropertyData[] properties;
         }
 
-        [System.Serializable]
         private class ResultData
         {
             public string action;

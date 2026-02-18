@@ -21,6 +21,7 @@ namespace RDEventEditorHelper
         private string _eventType;
         private PropertyData[] _properties;
         private Dictionary<string, Control> _controls = new Dictionary<string, Control>();
+        private bool _isClosingByButton = false;
 
         public event Action<Dictionary<string, string>> OnApply;
         public event Action<Dictionary<string, string>> OnOK;
@@ -59,9 +60,19 @@ namespace RDEventEditorHelper
             _btnApply = new Button { Text = "应用(&A)", Width = 100, Height = 35 };
             _btnOK = new Button { Text = "确定(&O)", Width = 100, Height = 35 };
 
-            _btnOK.Click += (s, e) => OnOK?.Invoke(GetCurrentUpdates());
+            _btnOK.Click += (s, e) =>
+            {
+                _isClosingByButton = true;
+                OnOK?.Invoke(GetCurrentUpdates());
+                this.Close();
+            };
             _btnApply.Click += (s, e) => OnApply?.Invoke(GetCurrentUpdates());
-            _btnCancel.Click += (s, e) => OnCancel?.Invoke();
+            _btnCancel.Click += (s, e) =>
+            {
+                _isClosingByButton = true;
+                OnCancel?.Invoke();
+                this.Close();
+            };
 
             btnPanel.Controls.Add(_btnCancel);
             btnPanel.Controls.Add(_btnApply);
@@ -73,8 +84,11 @@ namespace RDEventEditorHelper
 
             this.FormClosing += (s, e) =>
             {
+                if (_isClosingByButton) return;
                 e.Cancel = true;
+                _isClosingByButton = true;
                 OnCancel?.Invoke();
+                this.Close();
             };
         }
 
