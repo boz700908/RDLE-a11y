@@ -187,19 +187,39 @@ namespace RDLevelEditorAccess.IPC
 
             foreach (var update in updates)
             {
-                var propInfo = info.propertiesInfo.FirstOrDefault(p => p.propertyInfo.Name == update.Key);
-                if (propInfo == null) continue;
+                string key = update.Key;
+                string strVal = update.Value;
 
                 try
                 {
+                    // 首先尝试应用基础属性（bar, beat, y, row, active, tag, tagRunNormally）
+                    if (ApplyBaseProperty(ev, key, strVal))
+                    {
+                        continue; // 基础属性已处理，跳过
+                    }
+
+                    // 处理事件特有属性
+                    var propInfo = info.propertiesInfo.FirstOrDefault(p => p.propertyInfo.Name == key);
+                    if (propInfo == null) continue;
+
                     object valToSet = null;
-                    string strVal = update.Value;
 
                     if (propInfo is IntPropertyInfo) valToSet = int.Parse(strVal);
                     else if (propInfo is FloatPropertyInfo) valToSet = float.Parse(strVal);
                     else if (propInfo is BoolPropertyInfo) valToSet = strVal == "true";
                     else if (propInfo is StringPropertyInfo) valToSet = strVal;
                     else if (propInfo is EnumPropertyInfo enumProp) valToSet = Enum.Parse(enumProp.enumType, strVal);
+                    else if (propInfo is Vector2PropertyInfo)
+                    {
+                        // 解析 "x,y" 格式
+                        var parts = strVal.Split(',');
+                        if (parts.Length == 2 &&
+                            float.TryParse(parts[0], out float vx) &&
+                            float.TryParse(parts[1], out float vy))
+                        {
+                            valToSet = new UnityEngine.Vector2(vx, vy);
+                        }
+                    }
                     else valToSet = strVal;
 
                     if (valToSet != null)
@@ -209,15 +229,53 @@ namespace RDLevelEditorAccess.IPC
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[FileIPC] 属性 {update.Key} 转换失败: {ex.Message}");
+                    Debug.LogWarning($"[FileIPC] 属性 {key} 转换失败: {ex.Message}");
                 }
             }
 
-            if (scnEditor.instance.selectedControl != null && 
+            if (scnEditor.instance.selectedControl != null &&
                 scnEditor.instance.selectedControl.levelEvent == ev)
             {
                 scnEditor.instance.selectedControl.UpdateUI();
                 scnEditor.instance.inspectorPanelManager.GetCurrent()?.UpdateUI(ev);
+            }
+        }
+
+        private bool ApplyBaseProperty(LevelEvent_Base ev, string key, string value)
+        {
+            try
+            {
+                switch (key)
+                {
+                    case "bar":
+                        ev.bar = int.Parse(value);
+                        return true;
+                    case "beat":
+                        ev.beat = float.Parse(value);
+                        return true;
+                    case "y":
+                        ev.y = int.Parse(value);
+                        return true;
+                    case "row":
+                        ev.row = int.Parse(value);
+                        return true;
+                    case "active":
+                        ev.active = value == "true";
+                        return true;
+                    case "tag":
+                        ev.tag = string.IsNullOrEmpty(value) ? null : value;
+                        return true;
+                    case "tagRunNormally":
+                        ev.tagRunNormally = value == "true";
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FileIPC] 基础属性 {key} 设置失败: {ex.Message}");
+                return true; // 标记为已处理（虽然是失败的）
             }
         }
 
@@ -254,6 +312,9 @@ namespace RDLevelEditorAccess.IPC
             LevelEventInfo info = ev.info;
             if (info == null) return list;
 
+            // 添加基础属性（位置、行、房间等）
+            AddBaseProperties(ev, list);
+
             foreach (var prop in info.propertiesInfo)
             {
                 if (prop.enableIf != null && !prop.enableIf(ev)) continue;
@@ -287,6 +348,84 @@ namespace RDLevelEditorAccess.IPC
             }
 
             return list;
+        }
+
+        private void AddBaseProperties(LevelEvent_Base ev, List<PropertyData> list)
+        {
+            // Bar (小节)
+            list.Add(new PropertyData
+            {
+                name = "bar",
+                displayName = RDString.Get("editor.bar"),
+                value = ev.bar.ToString(),
+                type = "Int"
+            });
+
+            // Beat (拍子)
+            if (ev.usesBeat)
+            {
+                list.Add(new PropertyData
+                {
+                    name = "beat",
+                    displayName = RDString.Get("editor.beat"),
+                    value = ev.beat.ToString(),
+                    type = "Float"
+                });
+            }
+
+            // Y 位置
+            if (ev.usesY)
+            {
+                list.Add(new PropertyData
+                {
+                    name = "y",
+                    displayName = RDString.Get("editor.y"),
+                    value = ev.y.ToString(),
+                    type = "Int"
+                });
+            }
+
+            // Row (行)
+            if (ev.info.usesRow)
+            {
+                list.Add(new PropertyData
+                {
+                    name = "row",
+                    displayName = RDString.Get("editor.row"),
+                    value = ev.row.ToString(),
+                    type = "Int"
+                });
+            }
+
+            // Active (激活状态)
+            list.Add(new PropertyData
+            {
+                name = "active",
+                displayName = RDString.Get("editor.active"),
+                value = ev.active.ToString().ToLower(),
+                type = "Bool"
+            });
+
+            // Tag (标签)
+            list.Add(new PropertyData
+            {
+                name = "tag",
+                displayName = RDString.Get("editor.tag"),
+                value = ev.tag ?? "",
+                type = "String"
+            });
+
+            // TagRunNormally (标签正常运行)
+            if (!string.IsNullOrEmpty(ev.tag))
+            {
+                list.Add(new PropertyData
+                {
+                    name = "tagRunNormally",
+                    displayName = RDString.Get("editor.tagRunNormally"),
+                    value = ev.tagRunNormally.ToString().ToLower(),
+                    type = "Bool"
+                });
+            }
         }
 
         private string GetLocalizedPropertyName(LevelEvent_Base ev, BasePropertyInfo prop)
