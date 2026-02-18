@@ -17,13 +17,12 @@ namespace RDEventEditorHelper
     public class EditorForm : Form
     {
         private FlowLayoutPanel _panel;
-        private Button _btnOK, _btnCancel, _btnApply;
+        private Button _btnOK, _btnCancel;
         private string _eventType;
         private PropertyData[] _properties;
         private Dictionary<string, Control> _controls = new Dictionary<string, Control>();
         private bool _isClosingByButton = false;
 
-        public event Action<Dictionary<string, string>> OnApply;
         public event Action<Dictionary<string, string>> OnOK;
         public event Action OnCancel;
 
@@ -57,7 +56,6 @@ namespace RDEventEditorHelper
             btnPanel.Padding = new Padding(10);
 
             _btnCancel = new Button { Text = "取消(&C)", Width = 100, Height = 35 };
-            _btnApply = new Button { Text = "应用(&A)", Width = 100, Height = 35 };
             _btnOK = new Button { Text = "确定(&O)", Width = 100, Height = 35 };
 
             _btnOK.Click += (s, e) =>
@@ -66,7 +64,6 @@ namespace RDEventEditorHelper
                 OnOK?.Invoke(GetCurrentUpdates());
                 this.Close();
             };
-            _btnApply.Click += (s, e) => OnApply?.Invoke(GetCurrentUpdates());
             _btnCancel.Click += (s, e) =>
             {
                 _isClosingByButton = true;
@@ -74,9 +71,8 @@ namespace RDEventEditorHelper
                 this.Close();
             };
 
-            btnPanel.Controls.Add(_btnCancel);
-            btnPanel.Controls.Add(_btnApply);
             btnPanel.Controls.Add(_btnOK);
+            btnPanel.Controls.Add(_btnCancel);
             this.Controls.Add(btnPanel);
 
             this.CancelButton = _btnCancel;
@@ -119,12 +115,16 @@ namespace RDEventEditorHelper
 
             foreach (var prop in _properties)
             {
+                string displayName = prop.displayName ?? prop.name;
+
                 var group = new GroupBox
                 {
-                    Text = prop.displayName ?? prop.name,
+                    Text = displayName,
                     Width = 440,
                     Height = 55,
-                    Padding = new Padding(5)
+                    Padding = new Padding(5),
+                    AccessibleName = displayName,
+                    AccessibleDescription = $"{displayName} 属性组"
                 };
 
                 Control inputCtrl = null;
@@ -139,7 +139,9 @@ namespace RDEventEditorHelper
                             Text = prop.value ?? "",
                             Width = 400,
                             Top = 20,
-                            Left = 10
+                            Left = 10,
+                            AccessibleName = displayName,
+                            AccessibleDescription = $"编辑 {displayName}"
                         };
                         inputCtrl = txt;
                         break;
@@ -147,11 +149,13 @@ namespace RDEventEditorHelper
                     case "Bool":
                         var chk = new CheckBox
                         {
-                            Text = "启用",
+                            Text = displayName,
                             Checked = prop.value == "true",
                             Top = 20,
                             Left = 10,
-                            AutoSize = true
+                            AutoSize = true,
+                            AccessibleName = displayName,
+                            AccessibleDescription = $"{displayName} 复选框，当前状态：{(prop.value == "true" ? "已启用" : "未启用")}"
                         };
                         inputCtrl = chk;
                         break;
@@ -162,7 +166,9 @@ namespace RDEventEditorHelper
                             Width = 400,
                             Top = 20,
                             Left = 10,
-                            DropDownStyle = ComboBoxStyle.DropDownList
+                            DropDownStyle = ComboBoxStyle.DropDownList,
+                            AccessibleName = displayName,
+                            AccessibleDescription = $"选择 {displayName}"
                         };
                         if (prop.options != null)
                             cmb.Items.AddRange(prop.options);
@@ -179,7 +185,9 @@ namespace RDEventEditorHelper
                             Text = $"不支持的类型: {prop.type}",
                             Width = 400,
                             Top = 20,
-                            Left = 10
+                            Left = 10,
+                            AccessibleName = displayName,
+                            AccessibleDescription = $"不支持的类型: {prop.type}"
                         };
                         inputCtrl = lbl;
                         break;

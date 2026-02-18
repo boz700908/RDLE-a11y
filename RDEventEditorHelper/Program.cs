@@ -41,14 +41,6 @@ namespace RDEventEditorHelper
             EditorForm editorForm = new EditorForm();
             editorForm.SetData(sourceData?.eventType, sourceData?.properties);
 
-            editorForm.OnApply += (updates) =>
-            {
-                var result = new ResultData { action = "apply", updates = updates };
-                string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
-                File.WriteAllText(ResultPath, resultJson);
-                Log("已写入 result.json (apply)");
-            };
-
             editorForm.OnOK += (updates) =>
             {
                 var result = new ResultData { action = "ok", updates = updates };
