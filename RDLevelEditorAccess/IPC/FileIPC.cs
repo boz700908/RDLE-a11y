@@ -459,7 +459,7 @@ namespace RDLevelEditorAccess.IPC
                 list.Add(new PropertyData
                 {
                     name = "y",
-                    displayName = RDString.Get("editor.y"),
+                    displayName = "Y Position",
                     value = ev.y.ToString(),
                     type = "Int"
                 });
@@ -481,7 +481,7 @@ namespace RDLevelEditorAccess.IPC
             list.Add(new PropertyData
             {
                 name = "active",
-                displayName = RDString.Get("editor.active"),
+                displayName = "Active",
                 value = ev.active.ToString().ToLower(),
                 type = "Bool"
             });
@@ -501,7 +501,7 @@ namespace RDLevelEditorAccess.IPC
                 list.Add(new PropertyData
                 {
                     name = "tagRunNormally",
-                    displayName = RDString.Get("editor.tagRunNormally"),
+                    displayName = "Tag Run Normally",
                     value = ev.tagRunNormally.ToString().ToLower(),
                     type = "Bool"
                 });
