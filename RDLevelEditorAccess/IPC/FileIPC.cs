@@ -220,6 +220,55 @@ namespace RDLevelEditorAccess.IPC
                             valToSet = new UnityEngine.Vector2(vx, vy);
                         }
                     }
+                    else if (propInfo is ColorPropertyInfo)
+                    {
+                        // 使用 ColorOrPalette.FromString 解析颜色
+                        var colorType = Type.GetType("RDLevelEditor.ColorOrPalette");
+                        if (colorType != null)
+                        {
+                            var fromStringMethod = colorType.GetMethod("FromString", new[] { typeof(string) });
+                            if (fromStringMethod != null)
+                            {
+                                valToSet = fromStringMethod.Invoke(null, new object[] { strVal });
+                            }
+                        }
+                    }
+                    else if (propInfo is Float2PropertyInfo)
+                    {
+                        // 解析 "x,y" 格式
+                        var parts = strVal.Split(',');
+                        if (parts.Length == 2 &&
+                            float.TryParse(parts[0], out float fx) &&
+                            float.TryParse(parts[1], out float fy))
+                        {
+                            var float2Type = Type.GetType("RDLevelEditor.Float2");
+                            if (float2Type != null)
+                            {
+                                valToSet = Activator.CreateInstance(float2Type, fx, fy);
+                            }
+                        }
+                    }
+                    else if (propInfo is FloatExpressionPropertyInfo)
+                    {
+                        // 使用 RDEditorUtils.DecodeFloatExpression 解析表达式
+                        valToSet = ParseFloatExpression(strVal);
+                    }
+                    else if (propInfo is FloatExpression2PropertyInfo)
+                    {
+                        // 解析 "x,y" 格式的表达式
+                        var parts = strVal.Split(',');
+                        string xExpr = parts.Length > 0 ? parts[0].Trim() : "";
+                        string yExpr = parts.Length > 1 ? parts[1].Trim() : "";
+                        
+                        var xVal = ParseFloatExpression(xExpr);
+                        var yVal = ParseFloatExpression(yExpr);
+                        
+                        var floatExpr2Type = Type.GetType("RDLevelEditor.FloatExpression2");
+                        if (floatExpr2Type != null && xVal != null && yVal != null)
+                        {
+                            valToSet = Activator.CreateInstance(floatExpr2Type, xVal, yVal);
+                        }
+                    }
                     else valToSet = strVal;
 
                     if (valToSet != null)
@@ -277,6 +326,34 @@ namespace RDLevelEditorAccess.IPC
                 Debug.LogWarning($"[FileIPC] 基础属性 {key} 设置失败: {ex.Message}");
                 return true; // 标记为已处理（虽然是失败的）
             }
+        }
+
+        private object ParseFloatExpression(string expr)
+        {
+            try
+            {
+                // 尝试解析为简单浮点数
+                if (float.TryParse(expr, out float simpleVal))
+                {
+                    var floatExprType = Type.GetType("RDLevelEditor.FloatExpression");
+                    if (floatExprType != null)
+                    {
+                        return Activator.CreateInstance(floatExprType, simpleVal);
+                    }
+                }
+
+                // 使用 RDEditorUtils.DecodeFloatExpression 解析复杂表达式
+                var decodeMethod = Type.GetType("RDLevelEditor.RDEditorUtils")?.GetMethod("DecodeFloatExpression", new[] { typeof(object) });
+                if (decodeMethod != null)
+                {
+                    return decodeMethod.Invoke(null, new object[] { expr });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FileIPC] 解析表达式 '{expr}' 失败: {ex.Message}");
+            }
+            return null;
         }
 
         private void LaunchHelper()
@@ -342,6 +419,9 @@ namespace RDLevelEditorAccess.IPC
                 }
                 else if (prop is ColorPropertyInfo) dto.type = "Color";
                 else if (prop is Vector2PropertyInfo) dto.type = "Vector2";
+                else if (prop is Float2PropertyInfo) dto.type = "Float2";
+                else if (prop is FloatExpressionPropertyInfo) dto.type = "FloatExpression";
+                else if (prop is FloatExpression2PropertyInfo) dto.type = "FloatExpression2";
                 else dto.type = "String";
 
                 list.Add(dto);
@@ -506,6 +586,45 @@ namespace RDLevelEditorAccess.IPC
                 {
                     try { return $"#{UnityEngine.ColorUtility.ToHtmlStringRGB(c)}"; }
                     catch { return c.ToString(); }
+                }
+                // ColorOrPalette 类型
+                if (value?.GetType().Name == "ColorOrPalette")
+                {
+                    try
+                    {
+                        var colorObj = value.GetType().GetProperty("color")?.GetValue(value);
+                        if (colorObj is UnityEngine.Color colorVal)
+                        {
+                            return $"#{UnityEngine.ColorUtility.ToHtmlStringRGB(colorVal)}";
+                        }
+                        var paletteIndex = value.GetType().GetProperty("paletteIndex")?.GetValue(value);
+                        if (paletteIndex != null)
+                        {
+                            return $"pal{paletteIndex}";
+                        }
+                    }
+                    catch { }
+                }
+                // Float2 类型
+                if (value?.GetType().Name == "Float2")
+                {
+                    float x = (float)(value.GetType().GetField("x")?.GetValue(value) ?? 0f);
+                    float y = (float)(value.GetType().GetField("y")?.GetValue(value) ?? 0f);
+                    return $"{x},{y}";
+                }
+                // FloatExpression 类型
+                if (value?.GetType().Name == "FloatExpression")
+                {
+                    return value.ToString();
+                }
+                // FloatExpression2 类型
+                if (value?.GetType().Name == "FloatExpression2")
+                {
+                    var xExpr = value.GetType().GetField("x")?.GetValue(value);
+                    var yExpr = value.GetType().GetField("y")?.GetValue(value);
+                    string xStr = xExpr?.ToString() ?? "";
+                    string yStr = yExpr?.ToString() ?? "";
+                    return $"{xStr},{yStr}";
                 }
                 if (value is Enum e) return e.ToString();
                 if (value is bool b) return b ? "true" : "false";
