@@ -55,6 +55,14 @@ namespace RDEventEditorHelper
                 Log("已写入空 result.json (cancel)，退出");
             };
 
+            editorForm.OnExecute += (methodName) =>
+            {
+                var result = new ResultData { action = "execute", methodName = methodName };
+                string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
+                File.WriteAllText(ResultPath, resultJson);
+                Log($"已写入 result.json (execute: {methodName})，退出");
+            };
+
             Log("显示编辑器窗口");
             Application.Run(editorForm);
 
@@ -83,6 +91,7 @@ namespace RDEventEditorHelper
         {
             public string action;
             public System.Collections.Generic.Dictionary<string, string> updates;
+            public string methodName;  // 当 action 为 "execute" 时使用
         }
     }
 }

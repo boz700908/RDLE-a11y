@@ -166,6 +166,13 @@ namespace RDLevelEditorAccess.IPC
                     return;
                 }
 
+                // 处理操作按钮执行
+                if (resultData?.action == "execute" && !string.IsNullOrEmpty(resultData.methodName))
+                {
+                    ExecuteButtonAction(_currentEvent, resultData.methodName);
+                    return;
+                }
+
                 if (resultData.updates != null)
                 {
                     ApplyUpdates(_currentEvent, resultData.updates);
@@ -175,6 +182,33 @@ namespace RDLevelEditorAccess.IPC
             catch (Exception ex)
             {
                 Debug.LogError($"[FileIPC] 解析 result.json 失败: {ex.Message}");
+            }
+        }
+
+        private void ExecuteButtonAction(LevelEvent_Base ev, string methodName)
+        {
+            if (ev == null || string.IsNullOrEmpty(methodName))
+            {
+                Debug.LogWarning("[FileIPC] 无法执行操作：事件或方法名为空");
+                return;
+            }
+
+            try
+            {
+                var method = ev.GetType().GetMethod(methodName);
+                if (method == null)
+                {
+                    Debug.LogError($"[FileIPC] 找不到方法: {methodName}");
+                    return;
+                }
+
+                Debug.Log($"[FileIPC] 执行操作: {methodName}");
+                method.Invoke(ev, null);
+                Debug.Log($"[FileIPC] 操作执行完成: {methodName}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FileIPC] 执行操作 {methodName} 失败: {ex.Message}");
             }
         }
 
@@ -394,16 +428,33 @@ namespace RDLevelEditorAccess.IPC
 
             foreach (var prop in info.propertiesInfo)
             {
-                // 跳过仅用于 UI 的属性（如 Button 类型的属性）
-                // 这些属性是只读的计算属性，不应该被编辑
-                if (prop.onlyUI) continue;
+                // 检查是否为 Button 类型（通过 controlAttribute 判断）
+                bool isButton = prop.controlAttribute is ButtonAttribute;
+                
+                // 跳过仅用于 UI 的非 Button 属性（如 Description）
+                // Button 类型需要保留，作为操作按钮显示
+                if (prop.onlyUI && !isButton) continue;
 
                 if (prop.enableIf != null && !prop.enableIf(ev)) continue;
 
-                var rawValue = prop.propertyInfo.GetValue(ev);
-
                 // 获取本地化的显示名称
                 string localizedName = GetLocalizedPropertyName(ev, prop);
+
+                // 处理 Button 类型
+                if (isButton)
+                {
+                    var buttonAttr = prop.controlAttribute as ButtonAttribute;
+                    list.Add(new PropertyData
+                    {
+                        name = prop.propertyInfo.Name,
+                        displayName = localizedName,
+                        type = "Button",
+                        methodName = buttonAttr?.methodName
+                    });
+                    continue;
+                }
+
+                var rawValue = prop.propertyInfo.GetValue(ev);
 
                 var dto = new PropertyData
                 {
@@ -653,6 +704,7 @@ namespace RDLevelEditorAccess.IPC
         {
             public string action;
             public Dictionary<string, string> updates;
+            public string methodName;  // 当 action 为 "execute" 时使用
         }
 
         [Serializable]
@@ -663,6 +715,7 @@ namespace RDLevelEditorAccess.IPC
             public string value;
             public string type;
             public string[] options;
+            public string methodName;  // Button 类型专用：要调用的方法名
         }
     }
 }

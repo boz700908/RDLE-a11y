@@ -13,6 +13,7 @@ namespace RDEventEditorHelper
         public string value;
         public string type;
         public string[] options;
+        public string methodName;  // Button 类型专用：要调用的方法名
     }
 
     public class EditorForm : Form
@@ -23,9 +24,11 @@ namespace RDEventEditorHelper
         private PropertyData[] _properties;
         private Dictionary<string, Control> _controls = new Dictionary<string, Control>();
         private bool _isClosingByButton = false;
+        private string _pendingExecuteMethod = null;  // 点击操作按钮时要执行的方法名
 
         public event Action<Dictionary<string, string>> OnOK;
         public event Action OnCancel;
+        public event Action<string> OnExecute;  // 新增：执行操作按钮事件
 
         public EditorForm()
         {
@@ -114,7 +117,20 @@ namespace RDEventEditorHelper
                 return;
             }
 
+            // 分离普通属性和操作按钮
+            var normalProps = new List<PropertyData>();
+            var buttonProps = new List<PropertyData>();
+
             foreach (var prop in _properties)
+            {
+                if (prop.type == "Button")
+                    buttonProps.Add(prop);
+                else
+                    normalProps.Add(prop);
+            }
+
+            // 渲染普通属性
+            foreach (var prop in normalProps)
             {
                 string displayName = prop.displayName ?? prop.name;
 
@@ -316,6 +332,55 @@ namespace RDEventEditorHelper
                     _controls[prop.name] = inputCtrl;
                     _panel.Controls.Add(group);
                 }
+            }
+
+            // 渲染操作按钮（放在单独的分组中）
+            if (buttonProps.Count > 0)
+            {
+                var actionGroup = new GroupBox
+                {
+                    Text = "操作",
+                    Width = 440,
+                    Height = 50 + buttonProps.Count * 40,
+                    Padding = new Padding(10),
+                    Margin = new Padding(3, 10, 3, 3)
+                };
+
+                int btnTop = 20;
+                foreach (var btnProp in buttonProps)
+                {
+                    string displayName = btnProp.displayName ?? btnProp.name;
+                    string methodName = btnProp.methodName;
+
+                    var actionBtn = new Button
+                    {
+                        Text = displayName,
+                        Width = 400,
+                        Height = 35,
+                        Top = btnTop,
+                        Left = 10,
+                        AccessibleName = displayName,
+                        Tag = methodName  // 存储方法名
+                    };
+
+                    actionBtn.Click += (s, e) =>
+                    {
+                        var btn = s as Button;
+                        string method = btn?.Tag as string;
+                        if (!string.IsNullOrEmpty(method))
+                        {
+                            _pendingExecuteMethod = method;
+                            _isClosingByButton = true;
+                            OnExecute?.Invoke(method);
+                            this.Close();
+                        }
+                    };
+
+                    actionGroup.Controls.Add(actionBtn);
+                    btnTop += 40;
+                }
+
+                _panel.Controls.Add(actionGroup);
             }
         }
 
