@@ -394,6 +394,10 @@ namespace RDLevelEditorAccess.IPC
 
             foreach (var prop in info.propertiesInfo)
             {
+                // 跳过仅用于 UI 的属性（如 Button 类型的属性）
+                // 这些属性是只读的计算属性，不应该被编辑
+                if (prop.onlyUI) continue;
+
                 if (prop.enableIf != null && !prop.enableIf(ev)) continue;
 
                 var rawValue = prop.propertyInfo.GetValue(ev);
