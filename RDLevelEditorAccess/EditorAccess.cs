@@ -68,6 +68,21 @@ namespace RDLevelEditorAccess
 
         private InputFieldReader inputFieldReader;
 
+        // ===================================================================================
+        // 虚拟菜单状态
+        // ===================================================================================
+        private enum VirtualMenuState
+        {
+            None,
+            CharacterSelect,      // 角色选择（添加轨道/精灵）
+            EventTypeSelect       // 事件类型选择
+        }
+
+        private VirtualMenuState virtualMenuState = VirtualMenuState.None;
+        private int virtualMenuIndex = 0;
+        private string virtualMenuPurpose = "";  // "row", "sprite", "event"
+        private LevelEventType selectedEventType;
+
         public void Awake()
         {
             Instance = this;
@@ -378,18 +393,29 @@ namespace RDLevelEditorAccess
 
         private void HandleTimelineNavigation()
         {
-            if (scnEditor.instance.currentTab != currentTab)
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            // 虚拟菜单优先处理
+            if (virtualMenuState != VirtualMenuState.None)
             {
-                currentTab = scnEditor.instance.currentTab;
+                HandleVirtualMenu();
+                return;
+            }
+
+            if (editor.currentTab != currentTab)
+            {
+                currentTab = editor.currentTab;
                 Narration.Say(RDString.Get($"editor.{currentTab.ToString().ToLower().Replace("song", "sounds")}"),NarrationCategory.Navigation);
             }
 
             // 上下箭头切换轨道 (仅在 Rows 和 Sprites Tab)
             HandleTrackNavigation();
 
+            // 左右箭头选择事件
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
             {
-                if (scnEditor.instance.selectedControls.Count <= 0)
+                if (editor.selectedControls.Count <= 0)
                 {
                     chooseNearestEvent();
                 }
@@ -399,12 +425,358 @@ namespace RDLevelEditorAccess
             if (Input.GetKeyDown(KeyCode.Return) && 
                 (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
             {
-                if (scnEditor.instance.selectedControl != null)
+                if (editor.selectedControl != null)
                 {
-                    AccessibilityBridge.EditEvent(scnEditor.instance.selectedControl.levelEvent);
+                    AccessibilityBridge.EditEvent(editor.selectedControl.levelEvent);
                     Narration.Say("正在打开属性编辑器", NarrationCategory.Instruction);
                 }
             }
+
+            // Ctrl+Alt+R: 添加轨道
+            if (Input.GetKeyDown(KeyCode.R) && 
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)))
+            {
+                if (editor.currentTab == Tab.Rows)
+                {
+                    StartCharacterSelect("row");
+                }
+                else
+                {
+                    Narration.Say("请在 Rows Tab 中添加轨道", NarrationCategory.Navigation);
+                }
+            }
+
+            // Ctrl+Alt+S: 添加精灵
+            if (Input.GetKeyDown(KeyCode.S) && 
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)))
+            {
+                if (editor.currentTab == Tab.Sprites)
+                {
+                    StartCharacterSelect("sprite");
+                }
+                else
+                {
+                    Narration.Say("请在 Sprites Tab 中添加精灵", NarrationCategory.Navigation);
+                }
+            }
+
+            // Insert: 添加事件
+            if (Input.GetKeyDown(KeyCode.Insert))
+            {
+                StartEventTypeSelect();
+            }
+        }
+
+        /// <summary>
+        /// 处理虚拟菜单导航
+        /// </summary>
+        private void HandleVirtualMenu()
+        {
+            switch (virtualMenuState)
+            {
+                case VirtualMenuState.CharacterSelect:
+                    HandleCharacterSelectMenu();
+                    break;
+                case VirtualMenuState.EventTypeSelect:
+                    HandleEventTypeSelectMenu();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 开始角色选择菜单
+        /// </summary>
+        private void StartCharacterSelect(string purpose)
+        {
+            virtualMenuState = VirtualMenuState.CharacterSelect;
+            virtualMenuPurpose = purpose;
+            virtualMenuIndex = 0;
+            
+            Narration.Say("选择角色，使用上下箭头导航，回车确认，Escape取消", NarrationCategory.Instruction);
+            Narration.Say(GetCharacterName(RDEditorConstants.AvailableCharacters[0]), NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 处理角色选择菜单
+        /// </summary>
+        private void HandleCharacterSelectMenu()
+        {
+            var characters = RDEditorConstants.AvailableCharacters;
+            
+            // 上下箭头导航
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex - 1 + characters.Length) % characters.Length;
+                Narration.Say(GetCharacterName(characters[virtualMenuIndex]), NarrationCategory.Navigation);
+            }
+            else if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex + 1) % characters.Length;
+                Narration.Say(GetCharacterName(characters[virtualMenuIndex]), NarrationCategory.Navigation);
+            }
+            
+            // 首字母跳转
+            foreach (KeyCode key in Enum.GetValues(typeof(KeyCode)))
+            {
+                string keyName = key.ToString();
+                if (keyName.StartsWith("Alpha") || keyName.Length == 1)
+                {
+                    if (Input.GetKeyDown(key))
+                    {
+                        char pressedChar = keyName.Replace("Alpha", "")[0];
+                        for (int i = 0; i < characters.Length; i++)
+                        {
+                            string charName = characters[i].ToString();
+                            if (charName.StartsWith(pressedChar.ToString(), StringComparison.OrdinalIgnoreCase))
+                            {
+                                virtualMenuIndex = i;
+                                Narration.Say(GetCharacterName(characters[virtualMenuIndex]), NarrationCategory.Navigation);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 回车确认
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                Character selectedChar = characters[virtualMenuIndex];
+                
+                if (virtualMenuPurpose == "row")
+                {
+                    AddNewRow(selectedChar);
+                }
+                else if (virtualMenuPurpose == "sprite")
+                {
+                    AddNewSprite(selectedChar);
+                }
+                
+                CloseVirtualMenu();
+            }
+            
+            // Escape 取消
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Narration.Say("已取消", NarrationCategory.Navigation);
+                CloseVirtualMenu();
+            }
+        }
+
+        /// <summary>
+        /// 开始事件类型选择菜单
+        /// </summary>
+        private void StartEventTypeSelect()
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            var eventTypes = GetAvailableEventTypes(editor.currentTab);
+            if (eventTypes == null || eventTypes.Count == 0)
+            {
+                Narration.Say("当前 Tab 没有可用的事件类型", NarrationCategory.Navigation);
+                return;
+            }
+
+            virtualMenuState = VirtualMenuState.EventTypeSelect;
+            virtualMenuIndex = 0;
+
+            Narration.Say("选择事件类型，使用上下箭头导航，回车确认，Escape取消", NarrationCategory.Instruction);
+            Narration.Say(GetEventTypeName(eventTypes[0]), NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 处理事件类型选择菜单
+        /// </summary>
+        private void HandleEventTypeSelectMenu()
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            var eventTypes = GetAvailableEventTypes(editor.currentTab);
+            if (eventTypes == null || eventTypes.Count == 0) return;
+            
+            // 上下箭头导航
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex - 1 + eventTypes.Count) % eventTypes.Count;
+                Narration.Say(GetEventTypeName(eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
+            }
+            else if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex + 1) % eventTypes.Count;
+                Narration.Say(GetEventTypeName(eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
+            }
+            
+            // 首字母跳转
+            foreach (KeyCode key in Enum.GetValues(typeof(KeyCode)))
+            {
+                string keyName = key.ToString();
+                if (keyName.Length == 1 && char.IsLetter(keyName[0]))
+                {
+                    if (Input.GetKeyDown(key))
+                    {
+                        char pressedChar = keyName[0];
+                        for (int i = 0; i < eventTypes.Count; i++)
+                        {
+                            string typeName = eventTypes[i].ToString();
+                            if (typeName.StartsWith(pressedChar.ToString(), StringComparison.OrdinalIgnoreCase))
+                            {
+                                virtualMenuIndex = i;
+                                Narration.Say(GetEventTypeName(eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 回车确认 - 直接创建事件（使用默认值）并打开 Helper
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                selectedEventType = eventTypes[virtualMenuIndex];
+                CloseVirtualMenu();
+                
+                // 使用默认值创建事件
+                int bar = editor.startBar + 1;
+                float beat = 1f;
+                int row = editor.selectedRowIndex >= 0 ? editor.selectedRowIndex : 0;
+                
+                CreateEventAndEdit(selectedEventType, bar, beat, row);
+            }
+            
+            // Escape 取消
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Narration.Say("已取消", NarrationCategory.Navigation);
+                CloseVirtualMenu();
+            }
+        }
+
+        /// <summary>
+        /// 关闭虚拟菜单
+        /// </summary>
+        private void CloseVirtualMenu()
+        {
+            virtualMenuState = VirtualMenuState.None;
+            virtualMenuPurpose = "";
+        }
+
+        /// <summary>
+        /// 添加新轨道
+        /// </summary>
+        private void AddNewRow(Character character)
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            int roomIndex = editor.selectedRowsTabPageIndex;
+            
+            var rowData = new LevelEvent_MakeRow();
+            rowData.rooms = new int[1] { roomIndex };
+            rowData.character = character;
+            
+            editor.AddNewRow(rowData);
+            editor.tabSection_rows.UpdateUI();
+            
+            Narration.Say($"已添加轨道，角色 {GetCharacterName(character)}", NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 添加新精灵
+        /// </summary>
+        private void AddNewSprite(Character character)
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            int roomIndex = editor.selectedSpritesTabPageIndex;
+            
+            var spriteData = new LevelEvent_MakeSprite();
+            spriteData.rooms = new int[1] { roomIndex };
+            spriteData.character = character;
+            
+            editor.AddNewSprite(spriteData);
+            editor.tabSection_sprites.UpdateUI();
+            
+            Narration.Say($"已添加精灵，角色 {GetCharacterName(character)}", NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 创建事件并打开 Helper 编辑
+        /// </summary>
+        private void CreateEventAndEdit(LevelEventType eventType, int bar, float beat, int row)
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            // 使用反射创建事件实例
+            var eventTypeObj = Type.GetType($"RDLevelEditor.LevelEvent_{eventType}");
+            if (eventTypeObj == null)
+            {
+                Narration.Say($"无法创建事件类型 {eventType}", NarrationCategory.Navigation);
+                return;
+            }
+
+            var levelEvent = Activator.CreateInstance(eventTypeObj) as LevelEvent_Base;
+            if (levelEvent == null)
+            {
+                Narration.Say("创建事件失败", NarrationCategory.Navigation);
+                return;
+            }
+
+            // 设置基本属性
+            levelEvent.bar = bar;
+            levelEvent.beat = beat;
+            if (editor.currentTab == Tab.Rows)
+            {
+                levelEvent.row = row;
+            }
+            
+            // 调用 OnCreate
+            levelEvent.OnCreate();
+            
+            // 创建控件
+            var control = editor.CreateEventControl(levelEvent, editor.currentTab);
+            control.UpdateUI();
+            
+            // 选中新创建的事件
+            editor.SelectEventControl(control, true);
+            
+            Narration.Say($"已创建事件 {GetEventTypeName(eventType)}，正在打开属性编辑器", NarrationCategory.Navigation);
+            
+            // 自动打开 Helper 编辑
+            AccessibilityBridge.EditEvent(levelEvent);
+        }
+
+        /// <summary>
+        /// 获取当前 Tab 可用的事件类型
+        /// </summary>
+        private List<LevelEventType> GetAvailableEventTypes(Tab tab)
+        {
+            if (RDEditorConstants.levelEventTabs.ContainsKey(tab))
+            {
+                return RDEditorConstants.levelEventTabs[tab];
+            }
+            return new List<LevelEventType>();
+        }
+
+        /// <summary>
+        /// 获取角色名称（本地化）
+        /// </summary>
+        private string GetCharacterName(Character character)
+        {
+            return RDString.Get($"enum.Character.{character}");
+        }
+
+        /// <summary>
+        /// 获取事件类型名称（本地化）
+        /// </summary>
+        private string GetEventTypeName(LevelEventType eventType)
+        {
+            return RDString.Get($"editor.{eventType}");
         }
 
         /// <summary>
