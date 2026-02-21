@@ -538,9 +538,16 @@ namespace RDLevelEditorAccess
             // 使用 RowHeader.ShowPanel 选择轨道
             RowHeader.ShowPanel(globalIndex);
 
+            // 获取事件数量
+            int eventCount = 0;
+            if (globalIndex >= 0 && globalIndex < editor.eventControls_rows.Count)
+            {
+                eventCount = editor.eventControls_rows[globalIndex].Count;
+            }
+
             // 朗读轨道信息
             string characterName = GetRowCharacterName(rowData);
-            Narration.Say($"轨道 {indexInPage + 1} {characterName}", NarrationCategory.Navigation);
+            Narration.Say($"轨道 {indexInPage + 1} {characterName} {eventCount}事件", NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -555,9 +562,17 @@ namespace RDLevelEditorAccess
             // 使用 SpriteHeader.ShowPanel 选择精灵
             SpriteHeader.ShowPanel(spriteData.spriteId);
 
+            // 获取事件数量
+            int eventCount = 0;
+            int spriteIndex = editor.spritesData.IndexOf(spriteData);
+            if (spriteIndex >= 0 && spriteIndex < editor.eventControls_sprites.Count)
+            {
+                eventCount = editor.eventControls_sprites[spriteIndex].Count;
+            }
+
             // 朗读精灵信息
             string displayName = GetSpriteDisplayName(spriteData);
-            Narration.Say($"精灵 {indexInPage + 1} {displayName}", NarrationCategory.Navigation);
+            Narration.Say($"精灵 {indexInPage + 1} {displayName} {eventCount}事件", NarrationCategory.Navigation);
         }
 
         /// <summary>
