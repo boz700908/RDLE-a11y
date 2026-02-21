@@ -547,7 +547,7 @@ namespace RDLevelEditorAccess
 
             // 朗读轨道信息
             string characterName = GetRowCharacterName(rowData);
-            Narration.Say($"轨道 {indexInPage + 1} {characterName} {eventCount}事件", NarrationCategory.Navigation);
+            Narration.Say($"轨道 {indexInPage} {characterName} {eventCount}事件", NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -572,7 +572,7 @@ namespace RDLevelEditorAccess
 
             // 朗读精灵信息
             string displayName = GetSpriteDisplayName(spriteData);
-            Narration.Say($"精灵 {indexInPage + 1} {displayName} {eventCount}事件", NarrationCategory.Navigation);
+            Narration.Say($"精灵 {indexInPage} {displayName} {eventCount}事件", NarrationCategory.Navigation);
         }
 
         /// <summary>
