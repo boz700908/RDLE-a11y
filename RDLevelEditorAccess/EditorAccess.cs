@@ -378,11 +378,15 @@ namespace RDLevelEditorAccess
 
         private void HandleTimelineNavigation()
         {
-                if (scnEditor.instance.currentTab != currentTab)
+            if (scnEditor.instance.currentTab != currentTab)
             {
                 currentTab = scnEditor.instance.currentTab;
                 Narration.Say(RDString.Get($"editor.{currentTab.ToString().ToLower().Replace("song", "sounds")}"),NarrationCategory.Navigation);
             }
+
+            // 上下箭头切换轨道 (仅在 Rows 和 Sprites Tab)
+            HandleTrackNavigation();
+
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
             {
                 if (scnEditor.instance.selectedControls.Count <= 0)
@@ -402,6 +406,186 @@ namespace RDLevelEditorAccess
                 }
             }
         }
+
+        /// <summary>
+        /// 处理轨道导航（上下箭头切换轨道）
+        /// </summary>
+        private void HandleTrackNavigation()
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            // 仅在 Rows 和 Sprites Tab 时处理
+            if (editor.currentTab != Tab.Rows && editor.currentTab != Tab.Sprites) return;
+
+            bool upPressed = Input.GetKeyDown(KeyCode.UpArrow);
+            bool downPressed = Input.GetKeyDown(KeyCode.DownArrow);
+
+            if (!upPressed && !downPressed) return;
+
+            if (editor.currentTab == Tab.Rows)
+            {
+                HandleRowNavigation(editor, upPressed ? -1 : 1);
+            }
+            else if (editor.currentTab == Tab.Sprites)
+            {
+                HandleSpriteNavigation(editor, upPressed ? -1 : 1);
+            }
+        }
+
+        /// <summary>
+        /// 处理 Row 导航
+        /// </summary>
+        private void HandleRowNavigation(scnEditor editor, int direction)
+        {
+            var pageRows = editor.currentPageRowsData;
+            if (pageRows == null || pageRows.Count == 0)
+            {
+                Narration.Say("无可用轨道", NarrationCategory.Navigation);
+                return;
+            }
+
+            int currentIndex = GetCurrentRowIndexInPage(editor);
+            int newIndex = currentIndex + direction;
+
+            // 边界检查
+            if (newIndex < 0)
+            {
+                Narration.Say("已是第一条轨道", NarrationCategory.Navigation);
+                return;
+            }
+            if (newIndex >= pageRows.Count)
+            {
+                Narration.Say("已是最后一条轨道", NarrationCategory.Navigation);
+                return;
+            }
+
+            // 选择新轨道
+            SelectRowByIndex(newIndex, pageRows);
+        }
+
+        /// <summary>
+        /// 处理 Sprite 导航
+        /// </summary>
+        private void HandleSpriteNavigation(scnEditor editor, int direction)
+        {
+            var pageSprites = editor.currentPageSpritesData;
+            if (pageSprites == null || pageSprites.Count == 0)
+            {
+                Narration.Say("无可用精灵", NarrationCategory.Navigation);
+                return;
+            }
+
+            int currentIndex = GetCurrentSpriteIndexInPage(editor);
+            int newIndex = currentIndex + direction;
+
+            // 边界检查
+            if (newIndex < 0)
+            {
+                Narration.Say("已是第一个精灵", NarrationCategory.Navigation);
+                return;
+            }
+            if (newIndex >= pageSprites.Count)
+            {
+                Narration.Say("已是最后一个精灵", NarrationCategory.Navigation);
+                return;
+            }
+
+            // 选择新精灵
+            SelectSpriteByIndex(newIndex, pageSprites);
+        }
+
+        /// <summary>
+        /// 获取当前选中的 Row 在当前页面中的索引
+        /// </summary>
+        private int GetCurrentRowIndexInPage(scnEditor editor)
+        {
+            if (editor.selectedRowIndex < 0) return -1;
+
+            var pageRows = editor.currentPageRowsData;
+            var selectedRow = editor.rowsData.ElementAtOrDefault(editor.selectedRowIndex);
+            if (selectedRow == null) return -1;
+
+            return pageRows.IndexOf(selectedRow);
+        }
+
+        /// <summary>
+        /// 获取当前选中的 Sprite 在当前页面中的索引
+        /// </summary>
+        private int GetCurrentSpriteIndexInPage(scnEditor editor)
+        {
+            if (string.IsNullOrEmpty(editor.selectedSprite)) return -1;
+
+            var pageSprites = editor.currentPageSpritesData;
+            for (int i = 0; i < pageSprites.Count; i++)
+            {
+                if (pageSprites[i].spriteId == editor.selectedSprite)
+                    return i;
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// 根据索引选择 Row
+        /// </summary>
+        private void SelectRowByIndex(int indexInPage, List<LevelEvent_MakeRow> pageRows)
+        {
+            if (indexInPage < 0 || indexInPage >= pageRows.Count) return;
+
+            var rowData = pageRows[indexInPage];
+            int globalIndex = editor.rowsData.IndexOf(rowData);
+
+            // 使用 RowHeader.ShowPanel 选择轨道
+            RowHeader.ShowPanel(globalIndex);
+
+            // 朗读轨道信息
+            string characterName = GetRowCharacterName(rowData);
+            Narration.Say($"轨道 {indexInPage + 1} {characterName}", NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 根据索引选择 Sprite
+        /// </summary>
+        private void SelectSpriteByIndex(int indexInPage, List<LevelEvent_MakeSprite> pageSprites)
+        {
+            if (indexInPage < 0 || indexInPage >= pageSprites.Count) return;
+
+            var spriteData = pageSprites[indexInPage];
+
+            // 使用 SpriteHeader.ShowPanel 选择精灵
+            SpriteHeader.ShowPanel(spriteData.spriteId);
+
+            // 朗读精灵信息
+            string displayName = GetSpriteDisplayName(spriteData);
+            Narration.Say($"精灵 {indexInPage + 1} {displayName}", NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 获取 Row 的角色名称
+        /// </summary>
+        private string GetRowCharacterName(LevelEvent_MakeRow rowData)
+        {
+            if (rowData.character == Character.Custom)
+            {
+                return rowData.customCharacterName ?? "自定义";
+            }
+            return RDString.Get($"enum.Character.{rowData.character}.short");
+        }
+
+        /// <summary>
+        /// 获取 Sprite 的显示名称
+        /// </summary>
+        private string GetSpriteDisplayName(LevelEvent_MakeSprite spriteData)
+        {
+            if (spriteData.character == Character.Custom)
+            {
+                return spriteData.filename ?? "自定义";
+            }
+            return RDString.Get($"enum.Character.{spriteData.character}.short");
+        }
+
+        // 辅助属性：快捷访问 editor
+        private scnEditor editor => scnEditor.instance;
 
         private void chooseNearestEvent()
         {
@@ -566,6 +750,25 @@ namespace RDLevelEditorAccess
         public static void AddEventControlToSelectionPostfix(LevelEventControl_Base newControl)
         {
             Narration.Say("已选择" + ModUtils.eventSelectI18n(newControl.levelEvent), NarrationCategory.Navigation);
+        }
+    }
+
+    // ===================================================================================
+    // TabSection Patch: 房间切换语音反馈
+    // ===================================================================================
+    [HarmonyPatch(typeof(TabSection))]
+    public static class TabSectionPatch
+    {
+        [HarmonyPatch("ChangePage")]
+        [HarmonyPostfix]
+        public static void ChangePagePostfix(TabSection __instance, int index)
+        {
+            // 只在 Rows 和 Sprites Tab 时朗读房间名称
+            if (__instance.tab == Tab.Rows || __instance.tab == Tab.Sprites)
+            {
+                string roomText = RDString.Get("editor.room");
+                Narration.Say($"{roomText} {index + 1}", NarrationCategory.Navigation);
+            }
         }
     }
 }
