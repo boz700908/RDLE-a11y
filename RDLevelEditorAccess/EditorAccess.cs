@@ -432,40 +432,29 @@ namespace RDLevelEditorAccess
                 }
             }
 
-            // Ctrl+Alt+R: 添加轨道
-            if (Input.GetKeyDown(KeyCode.R) && 
-                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
-                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)))
+            // Insert: 添加事件
+            if (Input.GetKeyDown(KeyCode.Insert) && 
+                !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl))
+            {
+                StartEventTypeSelect();
+            }
+
+            // Ctrl+Insert: 添加轨道/精灵（取决于当前 Tab）
+            if (Input.GetKeyDown(KeyCode.Insert) && 
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
             {
                 if (editor.currentTab == Tab.Rows)
                 {
                     StartCharacterSelect("row");
                 }
-                else
-                {
-                    Narration.Say("请在 Rows Tab 中添加轨道", NarrationCategory.Navigation);
-                }
-            }
-
-            // Ctrl+Alt+S: 添加精灵
-            if (Input.GetKeyDown(KeyCode.S) && 
-                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
-                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)))
-            {
-                if (editor.currentTab == Tab.Sprites)
+                else if (editor.currentTab == Tab.Sprites)
                 {
                     StartCharacterSelect("sprite");
                 }
                 else
                 {
-                    Narration.Say("请在 Sprites Tab 中添加精灵", NarrationCategory.Navigation);
+                    Narration.Say("请在 Rows 或 Sprites Tab 中添加轨道或精灵", NarrationCategory.Navigation);
                 }
-            }
-
-            // Insert: 添加事件
-            if (Input.GetKeyDown(KeyCode.Insert))
-            {
-                StartEventTypeSelect();
             }
         }
 
@@ -574,10 +563,18 @@ namespace RDLevelEditorAccess
             if (editor == null) return;
 
             var eventTypes = GetAvailableEventTypes(editor.currentTab);
+            Debug.Log($"[StartEventTypeSelect] Tab: {editor.currentTab}, 事件类型数量: {eventTypes?.Count ?? 0}");
+            
             if (eventTypes == null || eventTypes.Count == 0)
             {
                 Narration.Say("当前 Tab 没有可用的事件类型", NarrationCategory.Navigation);
                 return;
+            }
+
+            // 打印前几个事件类型用于调试
+            if (eventTypes.Count > 0)
+            {
+                Debug.Log($"[StartEventTypeSelect] 第一个事件类型: {eventTypes[0]}");
             }
 
             virtualMenuState = VirtualMenuState.EventTypeSelect;
@@ -712,10 +709,23 @@ namespace RDLevelEditorAccess
             var editor = scnEditor.instance;
             if (editor == null) return;
 
+            // 构建完整的类型名称
+            string typeName = $"RDLevelEditor.LevelEvent_{eventType}";
+            Debug.Log($"[CreateEventAndEdit] 尝试创建事件，类型名: {typeName}");
+            
             // 使用反射创建事件实例
-            var eventTypeObj = Type.GetType($"RDLevelEditor.LevelEvent_{eventType}");
+            var eventTypeObj = Type.GetType(typeName);
             if (eventTypeObj == null)
             {
+                // 尝试带程序集名称
+                typeName = $"RDLevelEditor.LevelEvent_{eventType}, Assembly-CSharp";
+                Debug.Log($"[CreateEventAndEdit] 重试带程序集: {typeName}");
+                eventTypeObj = Type.GetType(typeName);
+            }
+            
+            if (eventTypeObj == null)
+            {
+                Debug.LogError($"[CreateEventAndEdit] 无法找到类型: LevelEvent_{eventType}");
                 Narration.Say($"无法创建事件类型 {eventType}", NarrationCategory.Navigation);
                 return;
             }
@@ -756,10 +766,16 @@ namespace RDLevelEditorAccess
         /// </summary>
         private List<LevelEventType> GetAvailableEventTypes(Tab tab)
         {
+            Debug.Log($"[GetAvailableEventTypes] 查询 Tab: {tab}");
+            Debug.Log($"[GetAvailableEventTypes] levelEventTabs 键: {string.Join(", ", RDEditorConstants.levelEventTabs.Keys)}");
+            
             if (RDEditorConstants.levelEventTabs.ContainsKey(tab))
             {
-                return RDEditorConstants.levelEventTabs[tab];
+                var result = RDEditorConstants.levelEventTabs[tab];
+                Debug.Log($"[GetAvailableEventTypes] 找到 {result.Count} 个事件类型");
+                return result;
             }
+            Debug.Log($"[GetAvailableEventTypes] Tab {tab} 不在字典中");
             return new List<LevelEventType>();
         }
 
