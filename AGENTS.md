@@ -17,8 +17,22 @@ A Unity C# modding project for **Rhythm Doctor**. Contains two projects:
 
 **CRITICAL**: Check `agents references/` BEFORE starting work. This folder contains decompiled game code.
 
-- `agents references/Assembly-CSharp/RDLevelEditor/` - Level editor classes
-- `agents references/Assembly-CSharp/Narration.cs` - Screen reader API
+```
+agents references/Assembly-CSharp/
+├── RDLevelEditor/           # Level editor classes (170+ files)
+│   ├── scnEditor.cs         # Main editor controller (~4000 lines)
+│   ├── LevelEvent_Base.cs   # Base class for all events
+│   ├── LevelEventInfo.cs    # Event metadata system
+│   ├── BasePropertyInfo.cs  # Property type system
+│   ├── InspectorPanel.cs    # Property panel base
+│   └── Timeline.cs          # Timeline component
+└── Narration.cs             # Screen reader API
+```
+
+Key concepts:
+- **Tab system**: Song(0), Rows(1), Actions(2), Rooms(3), Sprites(4), Windows(5)
+- **onlyUI properties**: Properties marked `onlyUI = true` are NOT saved to level files (Description, Button)
+- **PropertyInfo types**: Bool, Int, Float, String, Enum, Color, SoundData, Nullable, Array
 
 ## Build Commands
 
@@ -32,18 +46,28 @@ dotnet build RDMods.sln -c Release
 # Build single project
 dotnet build RDLevelEditorAccess/RDLevelEditorAccess.csproj
 dotnet build RDEventEditorHelper/RDEventEditorHelper.csproj
+
+# Clean
+dotnet clean RDMods.sln
 ```
 
-**Auto-deployment**: `Directory.Build.props` copies output to game folder automatically.
+**Auto-deployment**: `Directory.Build.props` copies output to game folder automatically:
+- Mod DLL → `{GameDir}/BepInEx/plugins/`
+- Helper EXE → `{GameDir}/`
 
-**Tests**: None currently. To add: `dotnet new xunit -n RDMods.Tests`, then `dotnet test --filter "FullyQualifiedName~ClassName.MethodName"`.
+**Tests**: None currently. To add tests:
+```bash
+dotnet new xunit -n RDMods.Tests -o RDMods.Tests
+dotnet sln add RDMods.Tests/RDMods.Tests.csproj
+dotnet test --filter "FullyQualifiedName~ClassName.MethodName"
+```
 
 ## File Organization
 
 ```
 RDLevelEditorAccess/
-├── EditorAccess.cs           # Plugin entry + AccessLogic (combined)
-├── AccessibilityModule.cs    # AccessibilityBridge API
+├── EditorAccess.cs           # Plugin entry + AccessLogic + Harmony patches
+├── AccessibilityModule.cs    # AccessibilityBridge public API
 ├── CustomUINavigator.cs      # Disables native UI navigation
 ├── InputFieldReader.cs.cs    # Input field text-to-speech
 └── IPC/
@@ -63,12 +87,13 @@ RDEventEditorHelper/
 | Classes | PascalCase | `EditorAccess`, `FileIPC` |
 | Methods | PascalCase | `HandleGeneralUINavigation` |
 | Properties | PascalCase | `Instance`, `TargetEventSystem` |
-| Private fields | camelCase | `allControls`, `_isPolling` |
+| Private fields | camelCase or _prefix | `allControls`, `_isPolling` |
+| Constants | PascalCase or UPPER | `TempDirName`, `SOURCE_FILE` |
 | Parameters | camelCase | `menuName`, `rootObject` |
 
 ### Imports
 
-Order alphabetically within groups:
+Order alphabetically within groups, separated by blank lines:
 
 ```csharp
 using System;
@@ -83,6 +108,13 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
 using RDLevelEditor;
+```
+
+Use aliases for conflicts:
+```csharp
+using Button = UnityEngine.UI.Button;           // In Unity code
+using Button = System.Windows.Forms.Button;     // In WinForms code
+using Debug = UnityEngine.Debug;                // When conflicting
 ```
 
 ### Region Blocks
@@ -104,6 +136,7 @@ Use double-line style for major sections:
 - Chinese comments are standard in this codebase
 - Use XML docs for public APIs
 - Explain "why" not "what"
+- Use `[ModuleName]` prefix in log messages
 
 ```csharp
 /// <summary>
@@ -130,27 +163,32 @@ private bool CheckAndNavigate(GameObject menuObj, string name)
 if (scnEditor.instance == null) return;
 if (menuObj != null && menuObj.activeInHierarchy) { }
 
-// NEVER skip null checks on Unity objects
+// NEVER skip null checks on Unity objects - they can be "fake null"
 ```
 
 ### MonoBehaviour Lifecycle
 
 ```csharp
-private void Awake()
+public class MyComponent : MonoBehaviour
 {
-    Instance = this;  // Singleton pattern
-    // Initialize components
-}
+    public static MyComponent Instance { get; private set; }
 
-private void Update()
-{
-    if (scnEditor.instance == null) return;  // Guard clause first
-    // Per-frame logic
-}
+    private void Awake()
+    {
+        Instance = this;  // Singleton pattern
+        // Initialize components
+    }
 
-private void OnDestroy()
-{
-    if (Instance == this) Instance = null;  // Cleanup singleton
+    private void Update()
+    {
+        if (scnEditor.instance == null) return;  // Guard clause first
+        // Per-frame logic
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;  // Cleanup singleton
+    }
 }
 ```
 
@@ -164,6 +202,7 @@ public static class EditorPatch
     [HarmonyPostfix]
     public static void SelectEventControlPostfix(LevelEventControl_Base newControl)
     {
+        if (newControl?.levelEvent == null) return;  // Always null-check
         Narration.Say(ModUtils.eventSelectI18n(newControl.levelEvent), NarrationCategory.Navigation);
     }
 }
@@ -175,12 +214,18 @@ harmony.PatchAll();
 
 ## WinForms (RDEventEditorHelper)
 
-Use type aliases for conflicts:
-
 ```csharp
 using Button = System.Windows.Forms.Button;
 using Control = System.Windows.Forms.Control;
 using Form = System.Windows.Forms.Form;
+
+// Set accessibility properties for screen readers
+var btn = new Button
+{
+    Text = "确定",
+    AccessibleName = "确定按钮",
+    AccessibleRole = AccessibleRole.PushButton
+};
 ```
 
 ## Error Handling
@@ -208,19 +253,53 @@ Debug.LogException(ex);
 
 ## IPC Protocol
 
-1. Mod writes `temp/source.json` (event type + properties)
-2. Mod launches `RDEventEditorHelper.exe`
+Data flow for external editor:
+
+```
+1. Mod → temp/source.json (event type + properties)
+   {
+     "eventType": "AddClassicBeat",
+     "properties": [
+       { "name": "bar", "type": "Int", "value": "1" },
+       { "name": "btn", "type": "Button", "methodName": "DoSomething" }
+     ]
+   }
+
+2. Mod launches RDEventEditorHelper.exe
+
 3. Helper shows WinForms editor
-4. Helper writes `temp/result.json` (updates or `{}` for cancel)
-5. Mod polls for result, applies changes
+
+4. Helper → temp/result.json
+   - Save: { "action": "save", "updates": { "bar": "2" } }
+   - Execute: { "action": "execute", "methodName": "DoSomething" }
+   - Cancel: {}
+
+5. Mod polls for result, applies changes, deletes result file
+```
 
 ## Git Commits
 
-- **提交时机**: 完成任务链后立即提交
-- **提交信息**: 简短中文描述
+- **Timing**: Commit immediately after completing a task chain
+- **Message**: Short Chinese description
 
 ```
 添加 XX 功能
 修复 XX 问题
 重构 XX 模块
+```
+
+## Accessibility Patterns
+
+Use the game's `Narration` class for screen reader support:
+
+```csharp
+// Navigation feedback (immediate)
+Narration.Say("已选中按钮", NarrationCategory.Navigation);
+
+// Instruction (can be queued)
+Narration.Say("按回车确认", NarrationCategory.Instruction);
+
+// With position info
+Narration.Say("菜单项", NarrationCategory.Navigation, itemIndex: 2, itemsLength: 5, 
+              elementType: ElementType.Button);
 ```
