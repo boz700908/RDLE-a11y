@@ -22,8 +22,11 @@ namespace RDLevelEditorAccess.IPC
         private string _sourcePath;
         private string _resultPath;
         private LevelEvent_Base _currentEvent;
+        private LevelEvent_MakeRow _currentRow;  // 当前编辑的轨道
+        private int _currentRowIndex;  // 当前编辑的轨道索引
         private bool _isPolling;
         private string _sessionToken;  // 会话特征码
+        private string _currentEditType = "event";  // 当前编辑类型: "event" 或 "row"
 
         public void Initialize()
         {
@@ -79,6 +82,157 @@ namespace RDLevelEditorAccess.IPC
             LockKeyboard();
 
             _isPolling = true;
+        }
+
+        /// <summary>
+        /// 开始编辑轨道
+        /// </summary>
+        public void StartRowEditing(LevelEvent_MakeRow rowData, int rowIndex)
+        {
+            if (rowData == null) return;
+
+            _currentRow = rowData;
+            _currentRowIndex = rowIndex;
+            _currentEvent = null;  // 清除事件引用
+            _currentEditType = "row";
+            
+            // 生成新的会话特征码
+            _sessionToken = System.Guid.NewGuid().ToString();
+            Debug.Log($"[FileIPC] 生成会话特征码: {_sessionToken}");
+
+            Debug.Log($"[FileIPC] 开始编辑轨道: 索引 {rowIndex}, 角色 {rowData.character}");
+
+            var properties = ExtractRowProperties(rowData);
+
+            var sourceData = new SourceData
+            {
+                editType = "row",
+                eventType = "MakeRow",
+                token = _sessionToken,
+                properties = properties
+            };
+
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+                string json = JsonSerializer.Serialize(sourceData, options);
+                File.WriteAllText(_sourcePath, json);
+                Debug.Log($"[FileIPC] 已写入 source.json (轨道编辑): {json.Length} 字符");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FileIPC] 写入 source.json 失败: {ex.Message}");
+                return;
+            }
+
+            LaunchHelper();
+            LockKeyboard();
+            _isPolling = true;
+        }
+
+        /// <summary>
+        /// 提取轨道属性
+        /// </summary>
+        private List<PropertyData> ExtractRowProperties(LevelEvent_MakeRow row)
+        {
+            var list = new List<PropertyData>();
+
+            // rowType (Enum)
+            list.Add(new PropertyData
+            {
+                name = "rowType",
+                displayName = "轨道类型",
+                type = "Enum",
+                value = row.rowType.ToString(),
+                options = new[] { "Classic", "Oneshot" }
+            });
+
+            // player (Enum)
+            list.Add(new PropertyData
+            {
+                name = "player",
+                displayName = "玩家",
+                type = "Enum",
+                value = row.player.ToString(),
+                options = new[] { "P1", "P2", "CPU" }
+            });
+
+            // character (Character类型 - 需要特殊处理)
+            var availableChars = RDEditorConstants.AvailableCharacters.Select(c => c.ToString()).ToList();
+            availableChars.Add("Custom");
+            list.Add(new PropertyData
+            {
+                name = "character",
+                displayName = "角色",
+                type = "Character",
+                value = row.character.ToString(),
+                options = availableChars.ToArray(),
+                customName = row.character == Character.Custom ? row.customCharacterName : ""
+            });
+
+            // cpuMarker (Character类型)
+            var cpuChars = RDEditorConstants.AvailableCPUCharacters.Select(c => c.ToString()).ToArray();
+            list.Add(new PropertyData
+            {
+                name = "cpuMarker",
+                displayName = "CPU标记",
+                type = "Enum",
+                value = row.cpuMarker.ToString(),
+                options = cpuChars
+            });
+
+            // hideAtStart (Bool)
+            list.Add(new PropertyData
+            {
+                name = "hideAtStart",
+                displayName = "开始时隐藏",
+                type = "Bool",
+                value = row.hideAtStart ? "true" : "false"
+            });
+
+            // muteBeats (Bool)
+            list.Add(new PropertyData
+            {
+                name = "muteBeats",
+                displayName = "静音节拍",
+                type = "Bool",
+                value = row.muteBeats ? "true" : "false"
+            });
+
+            // muteIn1P (Bool)
+            list.Add(new PropertyData
+            {
+                name = "muteIn1P",
+                displayName = "单人模式静音",
+                type = "Bool",
+                value = row.muteIn1P ? "true" : "false"
+            });
+
+            // pulseSound (SoundData)
+            // 注意：pulseSound 是 SoundData 类型，不是 SoundDataStruct
+            string pulseSoundValue = $"{row.pulseSound?.filename ?? "Shaker"}|{row.pulseSound?.volume ?? 100}|{row.pulseSound?.pitch ?? 100}|{row.pulseSound?.pan ?? 0}|{row.pulseSound?.offset ?? 0}";
+            list.Add(new PropertyData
+            {
+                name = "pulseSound",
+                displayName = "节拍音效",
+                type = "SoundData",
+                value = pulseSoundValue,
+                soundOptions = RDEditorConstants.BeatSounds.Select(s => s.ToString()).ToArray(),
+                allowCustomFile = true,
+                itsASong = false
+            });
+
+            // room (Enum)
+            list.Add(new PropertyData
+            {
+                name = "room",
+                displayName = "房间",
+                type = "Enum",
+                value = row.room.ToString(),
+                options = new[] { "房间1", "房间2", "房间3", "房间4" }
+            });
+
+            return list;
         }
 
         private void LockKeyboard()
@@ -193,13 +347,155 @@ namespace RDLevelEditorAccess.IPC
 
                 if (resultData.updates != null)
                 {
-                    ApplyUpdates(_currentEvent, resultData.updates);
-                    Debug.Log("[FileIPC] 已应用更改");
+                    // 根据编辑类型选择处理方式
+                    if (_currentEditType == "row" && _currentRow != null)
+                    {
+                        ApplyRowUpdates(_currentRow, resultData.updates);
+                        Debug.Log("[FileIPC] 已应用轨道更改");
+                    }
+                    else if (_currentEvent != null)
+                    {
+                        ApplyUpdates(_currentEvent, resultData.updates);
+                        Debug.Log("[FileIPC] 已应用事件更改");
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Debug.LogError($"[FileIPC] 解析 result.json 失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 应用轨道属性修改
+        /// </summary>
+        private void ApplyRowUpdates(LevelEvent_MakeRow row, Dictionary<string, string> updates)
+        {
+            if (row == null || updates == null) return;
+
+            var editor = scnEditor.instance;
+            bool rowTypeChanged = false;
+            RowType oldRowType = row.rowType;
+
+            foreach (var update in updates)
+            {
+                string key = update.Key;
+                string strVal = update.Value;
+
+                try
+                {
+                    switch (key)
+                    {
+                        case "rowType":
+                            var newRowType = (RowType)Enum.Parse(typeof(RowType), strVal);
+                            if (newRowType != row.rowType)
+                            {
+                                rowTypeChanged = true;
+                                // 轨道类型切换需要确认对话框
+                                if (editor != null)
+                                {
+                                    var rowControlsList = editor.eventControls_rows.ElementAtOrDefault(_currentRowIndex);
+                                    if (rowControlsList != null && rowControlsList.Count > 0)
+                                    {
+                                        // 显示确认对话框
+                                        string message = $"切换轨道类型将删除轨道上的所有事件（{rowControlsList.Count}个），是否继续？";
+                                        Debug.Log($"[FileIPC] 轨道类型切换警告: {message}");
+                                        // TODO: 实现确认对话框
+                                        // 暂时直接切换
+                                    }
+                                }
+                                row.rowType = newRowType;
+                                Debug.Log($"[FileIPC] 轨道类型切换: {oldRowType} -> {newRowType}");
+                            }
+                            break;
+
+                        case "player":
+                            row.player = (RDPlayer)Enum.Parse(typeof(RDPlayer), strVal);
+                            break;
+
+                        case "character":
+                            if (strVal == "Custom")
+                            {
+                                row.character = Character.Custom;
+                                // customCharacterName 由单独字段处理
+                            }
+                            else
+                            {
+                                row.character = (Character)Enum.Parse(typeof(Character), strVal);
+                            }
+                            break;
+
+                        case "customCharacterName":
+                            row.customCharacterName = strVal;
+                            break;
+
+                        case "cpuMarker":
+                            row.cpuMarker = (Character)Enum.Parse(typeof(Character), strVal);
+                            break;
+
+                        case "hideAtStart":
+                            row.hideAtStart = strVal == "true";
+                            break;
+
+                        case "muteBeats":
+                            row.muteBeats = strVal == "true";
+                            break;
+
+                        case "muteIn1P":
+                            row.muteIn1P = strVal == "true";
+                            break;
+
+                        case "pulseSound":
+                            // 解析 SoundData 格式
+                            var parts = strVal.Split('|');
+                            if (row.pulseSound != null)
+                            {
+                                row.pulseSound.filename = parts.Length > 0 ? parts[0] : "Shaker";
+                                row.pulseSound.volume = parts.Length > 1 && int.TryParse(parts[1], out int v) ? v : 100;
+                                row.pulseSound.pitch = parts.Length > 2 && int.TryParse(parts[2], out int p) ? p : 100;
+                                row.pulseSound.pan = parts.Length > 3 && int.TryParse(parts[3], out int pn) ? pn : 0;
+                                row.pulseSound.offset = parts.Length > 4 && int.TryParse(parts[4], out int o) ? o : 0;
+                            }
+                            break;
+
+                        case "room":
+                            int newRoom = int.Parse(strVal);
+                            if (newRoom != row.room)
+                            {
+                                // 检查目标房间是否已满
+                                if (editor != null)
+                                {
+                                    int countInRoom = editor.rowsData.Count(r => r.room == newRoom);
+                                    if (countInRoom >= 4)
+                                    {
+                                        Debug.LogWarning($"[FileIPC] 目标房间 {newRoom + 1} 已满，无法移动轨道");
+                                        Narration.Say($"房间 {newRoom + 1} 已满，无法移动轨道", NarrationCategory.Notification);
+                                        break;
+                                    }
+                                }
+                                row.room = newRoom;
+                                Debug.Log($"[FileIPC] 轨道移动到房间 {newRoom + 1}");
+                            }
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[FileIPC] 轨道属性 {key} 转换失败: {ex.Message}");
+                }
+            }
+
+            // 更新 UI
+            if (editor != null)
+            {
+                editor.tabSection_rows?.UpdateUI();
+                
+                // 更新轨道头部显示
+                var inspectorPanel = editor.inspectorPanelManager?.Get<InspectorPanel_MakeRow>();
+                if (inspectorPanel != null && inspectorPanel.currentLevelEvent == row)
+                {
+                    inspectorPanel.UpdateUI(row);
+                }
             }
         }
 
@@ -252,7 +548,13 @@ namespace RDLevelEditorAccess.IPC
 
                     // 处理事件特有属性
                     var propInfo = info.propertiesInfo.FirstOrDefault(p => p.propertyInfo.Name == key);
-                    if (propInfo == null) continue;
+                    if (propInfo == null)
+                    {
+                        Debug.LogWarning($"[FileIPC] 未找到属性: {key}");
+                        continue;
+                    }
+
+                    Debug.Log($"[FileIPC] 处理属性 {key}: propInfo类型={propInfo.GetType().Name}, 值={strVal?.Substring(0, Math.Min(50, strVal?.Length ?? 0)) ?? "null"}");
 
                     object valToSet = null;
 
@@ -321,12 +623,58 @@ namespace RDLevelEditorAccess.IPC
                             valToSet = Activator.CreateInstance(floatExpr2Type, xVal, yVal);
                         }
                     }
+                    else if (propInfo is SoundDataPropertyInfo || 
+                             (propInfo is NullablePropertyInfo nullableProp && 
+                              nullableProp.underlyingPropertyInfo is SoundDataPropertyInfo))
+                    {
+                        Debug.Log($"[FileIPC] 匹配到 SoundData 属性: {key}, 是否可空: {propInfo is NullablePropertyInfo}");
+                        
+                        // 处理空字符串 -> 设置为 null（如果是可空类型）
+                        if (string.IsNullOrEmpty(strVal) && propInfo is NullablePropertyInfo)
+                        {
+                            Debug.Log($"[FileIPC] 设置为 null");
+                            valToSet = null;
+                        }
+                        else
+                        {
+                            // 解析 "filename|volume|pitch|pan|offset" 格式
+                            var parts = strVal.Split('|');
+                            string filename = parts.Length > 0 ? parts[0] : "";
+                            int volume = parts.Length > 1 && int.TryParse(parts[1], out int v) ? v : 100;
+                            int pitch = parts.Length > 2 && int.TryParse(parts[2], out int p) ? p : 100;
+                            int pan = parts.Length > 3 && int.TryParse(parts[3], out int pn) ? pn : 0;
+                            int offset = parts.Length > 4 && int.TryParse(parts[4], out int o) ? o : 0;
+                            
+                            Debug.Log($"[FileIPC] 创建 SoundDataStruct: filename={filename}, volume={volume}, pitch={pitch}, pan={pan}, offset={offset}");
+                            
+                            // 使用 typeof 直接获取类型，避免 Type.GetType 失败
+                            valToSet = new SoundDataStruct(filename, volume, pitch, pan, offset);
+                        }
+                    }
+                    else if (propInfo is NullablePropertyInfo nullableProp2)
+                    {
+                        // 处理其他可空类型
+                        if (string.IsNullOrEmpty(strVal))
+                        {
+                            valToSet = null;
+                        }
+                        else if (nullableProp2.underlyingPropertyInfo is IntPropertyInfo)
+                        {
+                            valToSet = int.Parse(strVal);
+                        }
+                        else if (nullableProp2.underlyingPropertyInfo is FloatPropertyInfo)
+                        {
+                            valToSet = float.Parse(strVal);
+                        }
+                        else
+                        {
+                            valToSet = strVal;
+                        }
+                    }
                     else valToSet = strVal;
 
-                    if (valToSet != null)
-                    {
-                        propInfo.propertyInfo.SetValue(ev, valToSet);
-                    }
+                    // 设置值（null 也是合法值，用于可空类型）
+                    propInfo.propertyInfo.SetValue(ev, valToSet);
                 }
                 catch (Exception ex)
                 {
@@ -369,6 +717,27 @@ namespace RDLevelEditorAccess.IPC
                     case "tagRunNormally":
                         ev.tagRunNormally = value == "true";
                         return true;
+                    // PlaySong 特有属性
+                    case "beatsPerMinute":
+                    case "bpm":
+                        // 使用反射设置，因为属性名可能是 beatsPerMinute 或 bpm
+                        var bpmProp = ev.GetType().GetProperty("beatsPerMinute");
+                        if (bpmProp != null && bpmProp.PropertyType == typeof(float))
+                        {
+                            bpmProp.SetValue(ev, float.Parse(value));
+                            Debug.Log($"[FileIPC] 设置 beatsPerMinute = {value}");
+                            return true;
+                        }
+                        return false;
+                    case "loop":
+                        var loopProp = ev.GetType().GetProperty("loop");
+                        if (loopProp != null && loopProp.PropertyType == typeof(bool))
+                        {
+                            loopProp.SetValue(ev, value == "true");
+                            Debug.Log($"[FileIPC] 设置 loop = {value}");
+                            return true;
+                        }
+                        return false;
                     default:
                         return false;
                 }
@@ -495,12 +864,150 @@ namespace RDLevelEditorAccess.IPC
                 else if (prop is Float2PropertyInfo) dto.type = "Float2";
                 else if (prop is FloatExpressionPropertyInfo) dto.type = "FloatExpression";
                 else if (prop is FloatExpression2PropertyInfo) dto.type = "FloatExpression2";
+                else if (prop is SoundDataPropertyInfo soundProp)
+                {
+                    dto.type = "SoundData";
+                    dto.itsASong = soundProp.itsASong;
+                    
+                    // 提取 SoundAttribute 配置
+                    ExtractSoundAttributeConfig(prop, ev, dto);
+                }
+                else if (prop is NullablePropertyInfo nullableProp)
+                {
+                    // 检查底层类型
+                    var underlying = nullableProp.underlyingPropertyInfo;
+                    if (underlying is SoundDataPropertyInfo underlyingSoundProp)
+                    {
+                        dto.type = "SoundData";
+                        dto.itsASong = underlyingSoundProp.itsASong;
+                        dto.isNullable = true;
+                        
+                        // 提取 SoundAttribute 配置（从 NullablePropertyInfo 获取）
+                        ExtractSoundAttributeConfig(prop, ev, dto);
+                    }
+                    else if (underlying is IntPropertyInfo)
+                    {
+                        dto.type = "Int";
+                        dto.isNullable = true;
+                    }
+                    else if (underlying is FloatPropertyInfo)
+                    {
+                        dto.type = "Float";
+                        dto.isNullable = true;
+                    }
+                    else
+                    {
+                        dto.type = "String";
+                        dto.isNullable = true;
+                    }
+                }
                 else dto.type = "String";
 
                 list.Add(dto);
             }
 
             return list;
+        }
+
+        /// <summary>
+        /// 提取 SoundAttribute 配置（选项列表、是否允许自定义文件）
+        /// </summary>
+        private void ExtractSoundAttributeConfig(BasePropertyInfo prop, LevelEvent_Base ev, PropertyData dto)
+        {
+            // controlAttribute 在 BasePropertyInfo 上，需要从底层类型获取
+            var controlAttr = prop.controlAttribute;
+            if (controlAttr == null && prop is NullablePropertyInfo nullableProp)
+            {
+                controlAttr = nullableProp.underlyingPropertyInfo?.controlAttribute;
+            }
+            
+            if (controlAttr == null)
+            {
+                dto.allowCustomFile = true;
+                Debug.Log($"[FileIPC] SoundAttribute not found, using defaults");
+                return;
+            }
+            
+            // 使用反射获取 SoundAttribute 的字段（避免版本兼容问题）
+            var attrType = controlAttr.GetType();
+            if (attrType.Name != "SoundAttribute")
+            {
+                dto.allowCustomFile = true;
+                Debug.Log($"[FileIPC] ControlAttribute is not SoundAttribute: {attrType.Name}");
+                return;
+            }
+            
+            try
+            {
+                // 获取 customFile 字段
+                var customFileField = attrType.GetField("customFile");
+                if (customFileField != null)
+                {
+                    dto.allowCustomFile = (bool)(customFileField.GetValue(controlAttr) ?? true);
+                }
+                else
+                {
+                    dto.allowCustomFile = true;
+                }
+                
+                // 获取 optionsMethod 字段
+                var optionsMethodField = attrType.GetField("optionsMethod");
+                string optionsMethod = optionsMethodField?.GetValue(controlAttr) as string;
+                
+                // 获取 options 字段
+                var optionsField = attrType.GetField("options");
+                string[] options = optionsField?.GetValue(controlAttr) as string[];
+                
+                // 获取选项列表
+                if (!string.IsNullOrEmpty(optionsMethod))
+                {
+                    dto.soundOptions = GetSoundOptions(ev, optionsMethod, prop.propertyInfo.DeclaringType);
+                }
+                else if (options != null && options.Length > 0)
+                {
+                    dto.soundOptions = options;
+                }
+                
+                Debug.Log($"[FileIPC] SoundAttribute: customFile={dto.allowCustomFile}, optionsMethod={optionsMethod ?? "null"}, optionsCount={dto.soundOptions?.Length ?? 0}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FileIPC] 获取 SoundAttribute 字段失败: {ex.Message}");
+                dto.allowCustomFile = true;
+            }
+        }
+
+        /// <summary>
+        /// 调用事件实例上的选项方法获取音效选项列表
+        /// </summary>
+        private string[] GetSoundOptions(LevelEvent_Base ev, string methodName, Type declaringType)
+        {
+            try
+            {
+                var method = declaringType.GetMethod(methodName, 
+                    System.Reflection.BindingFlags.Public | 
+                    System.Reflection.BindingFlags.NonPublic | 
+                    System.Reflection.BindingFlags.Instance | 
+                    System.Reflection.BindingFlags.Static);
+                    
+                if (method == null)
+                {
+                    Debug.LogWarning($"[FileIPC] 找不到选项方法: {methodName} in {declaringType.Name}");
+                    return null;
+                }
+                
+                // 实例方法需要事件实例，静态方法传 null
+                object instance = method.IsStatic ? null : ev;
+                var result = method.Invoke(instance, new object[0]) as string[];
+                
+                Debug.Log($"[FileIPC] 获取音效选项: {methodName} -> {(result != null ? result.Length + "项" : "null")}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FileIPC] 获取音效选项失败: {ex.Message}");
+                return null;
+            }
         }
 
         private void AddBaseProperties(LevelEvent_Base ev, List<PropertyData> list)
@@ -653,6 +1160,23 @@ namespace RDLevelEditorAccess.IPC
 
             try
             {
+                // 处理 Nullable<T> 类型
+                var valueType = value.GetType();
+                if (valueType.IsGenericType && valueType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                {
+                    var hasValueProp = valueType.GetProperty("HasValue");
+                    var hasValue = hasValueProp != null && (bool)hasValueProp.GetValue(value);
+                    if (!hasValue) return "";  // null 值返回空字符串
+                    
+                    var valueProp = valueType.GetProperty("Value");
+                    if (valueProp != null)
+                    {
+                        value = valueProp.GetValue(value);
+                        if (value == null) return "";
+                        valueType = value.GetType();
+                    }
+                }
+                
                 if (value is UnityEngine.Vector2 v2) return $"{v2.x},{v2.y}";
                 if (value is UnityEngine.Vector3 v3) return $"{v3.x},{v3.y},{v3.z}";
                 if (value is UnityEngine.Color c)
@@ -661,16 +1185,16 @@ namespace RDLevelEditorAccess.IPC
                     catch { return c.ToString(); }
                 }
                 // ColorOrPalette 类型
-                if (value?.GetType().Name == "ColorOrPalette")
+                if (valueType.Name == "ColorOrPalette")
                 {
                     try
                     {
-                        var colorObj = value.GetType().GetProperty("color")?.GetValue(value);
+                        var colorObj = valueType.GetProperty("color")?.GetValue(value);
                         if (colorObj is UnityEngine.Color colorVal)
                         {
                             return $"#{UnityEngine.ColorUtility.ToHtmlStringRGB(colorVal)}";
                         }
-                        var paletteIndex = value.GetType().GetProperty("paletteIndex")?.GetValue(value);
+                        var paletteIndex = valueType.GetProperty("paletteIndex")?.GetValue(value);
                         if (paletteIndex != null)
                         {
                             return $"pal{paletteIndex}";
@@ -679,25 +1203,35 @@ namespace RDLevelEditorAccess.IPC
                     catch { }
                 }
                 // Float2 类型
-                if (value?.GetType().Name == "Float2")
+                if (valueType.Name == "Float2")
                 {
-                    float x = (float)(value.GetType().GetField("x")?.GetValue(value) ?? 0f);
-                    float y = (float)(value.GetType().GetField("y")?.GetValue(value) ?? 0f);
+                    float x = (float)(valueType.GetField("x")?.GetValue(value) ?? 0f);
+                    float y = (float)(valueType.GetField("y")?.GetValue(value) ?? 0f);
                     return $"{x},{y}";
                 }
                 // FloatExpression 类型
-                if (value?.GetType().Name == "FloatExpression")
+                if (valueType.Name == "FloatExpression")
                 {
                     return value.ToString();
                 }
                 // FloatExpression2 类型
-                if (value?.GetType().Name == "FloatExpression2")
+                if (valueType.Name == "FloatExpression2")
                 {
-                    var xExpr = value.GetType().GetField("x")?.GetValue(value);
-                    var yExpr = value.GetType().GetField("y")?.GetValue(value);
+                    var xExpr = valueType.GetField("x")?.GetValue(value);
+                    var yExpr = valueType.GetField("y")?.GetValue(value);
                     string xStr = xExpr?.ToString() ?? "";
                     string yStr = yExpr?.ToString() ?? "";
                     return $"{xStr},{yStr}";
+                }
+                // SoundDataStruct 类型
+                if (valueType.Name == "SoundDataStruct")
+                {
+                    var filename = valueType.GetField("filename")?.GetValue(value);
+                    var volume = valueType.GetField("volume")?.GetValue(value);
+                    var pitch = valueType.GetField("pitch")?.GetValue(value);
+                    var pan = valueType.GetField("pan")?.GetValue(value);
+                    var offset = valueType.GetField("offset")?.GetValue(value);
+                    return $"{filename}|{volume}|{pitch}|{pan}|{offset}";
                 }
                 if (value is Enum e) return e.ToString();
                 if (value is bool b) return b ? "true" : "false";
@@ -713,6 +1247,7 @@ namespace RDLevelEditorAccess.IPC
         [Serializable]
         private class SourceData
         {
+            public string editType;  // "event" 或 "row"
             public string eventType;
             public string token;  // 会话特征码
             public List<PropertyData> properties;
@@ -736,6 +1271,11 @@ namespace RDLevelEditorAccess.IPC
             public string type;
             public string[] options;
             public string methodName;  // Button 类型专用：要调用的方法名
+            public bool itsASong;      // SoundData 类型专用：区分歌曲/音效
+            public bool isNullable;    // 是否为可空类型
+            public string[] soundOptions;   // SoundData 类型专用：预设音效选项列表
+            public bool allowCustomFile;    // SoundData 类型专用：是否允许浏览外部文件
+            public string customName;       // Character 类型专用：自定义角色名称
         }
     }
 }

@@ -432,6 +432,22 @@ namespace RDLevelEditorAccess
                 }
             }
 
+            // Shift+Enter: 编辑当前选中的轨道
+            if (Input.GetKeyDown(KeyCode.Return) && 
+                (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+            {
+                if (editor.currentTab == Tab.Rows && editor.selectedRowIndex >= 0)
+                {
+                    AccessibilityBridge.EditRow(editor.selectedRowIndex);
+                    Narration.Say("正在打开轨道编辑器", NarrationCategory.Instruction);
+                }
+                else if (editor.currentTab == Tab.Sprites && !string.IsNullOrEmpty(editor.selectedSprite))
+                {
+                    // TODO: 精灵编辑支持
+                    Narration.Say("精灵编辑暂不支持", NarrationCategory.Navigation);
+                }
+            }
+
             // Insert: 添加事件
             if (Input.GetKeyDown(KeyCode.Insert) && 
                 !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl))
@@ -836,15 +852,17 @@ namespace RDLevelEditorAccess
             int currentIndex = GetCurrentRowIndexInPage(editor);
             int newIndex = currentIndex + direction;
 
-            // 边界检查
+            // 边界检查 - 到达边界时重新朗读当前轨道信息
             if (newIndex < 0)
             {
-                Narration.Say("已是第一条轨道", NarrationCategory.Navigation);
+                // 已是第一条轨道，重新朗读当前轨道信息
+                ReadCurrentRowInfo(editor, currentIndex, pageRows);
                 return;
             }
             if (newIndex >= pageRows.Count)
             {
-                Narration.Say("已是最后一条轨道", NarrationCategory.Navigation);
+                // 已是最后一条轨道，重新朗读当前轨道信息
+                ReadCurrentRowInfo(editor, currentIndex, pageRows);
                 return;
             }
 
@@ -867,15 +885,17 @@ namespace RDLevelEditorAccess
             int currentIndex = GetCurrentSpriteIndexInPage(editor);
             int newIndex = currentIndex + direction;
 
-            // 边界检查
+            // 边界检查 - 到达边界时重新朗读当前精灵信息
             if (newIndex < 0)
             {
-                Narration.Say("已是第一个精灵", NarrationCategory.Navigation);
+                // 已是第一个精灵，重新朗读当前精灵信息
+                ReadCurrentSpriteInfo(editor, currentIndex, pageSprites);
                 return;
             }
             if (newIndex >= pageSprites.Count)
             {
-                Narration.Say("已是最后一个精灵", NarrationCategory.Navigation);
+                // 已是最后一个精灵，重新朗读当前精灵信息
+                ReadCurrentSpriteInfo(editor, currentIndex, pageSprites);
                 return;
             }
 
@@ -985,6 +1005,50 @@ namespace RDLevelEditorAccess
                 return spriteData.filename ?? "自定义";
             }
             return RDString.Get($"enum.Character.{spriteData.character}.short");
+        }
+
+        /// <summary>
+        /// 重新朗读当前 Row 信息（边界处理时使用）
+        /// </summary>
+        private void ReadCurrentRowInfo(scnEditor editor, int currentIndex, List<LevelEvent_MakeRow> pageRows)
+        {
+            if (currentIndex < 0 || currentIndex >= pageRows.Count) return;
+
+            var rowData = pageRows[currentIndex];
+            int globalIndex = editor.rowsData.IndexOf(rowData);
+
+            // 获取事件数量
+            int eventCount = 0;
+            if (globalIndex >= 0 && globalIndex < editor.eventControls_rows.Count)
+            {
+                eventCount = editor.eventControls_rows[globalIndex].Count;
+            }
+
+            // 朗读轨道信息
+            string characterName = GetRowCharacterName(rowData);
+            Narration.Say($"轨道 {currentIndex} {characterName} {eventCount}事件", NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 重新朗读当前 Sprite 信息（边界处理时使用）
+        /// </summary>
+        private void ReadCurrentSpriteInfo(scnEditor editor, int currentIndex, List<LevelEvent_MakeSprite> pageSprites)
+        {
+            if (currentIndex < 0 || currentIndex >= pageSprites.Count) return;
+
+            var spriteData = pageSprites[currentIndex];
+
+            // 获取事件数量
+            int eventCount = 0;
+            int spriteIndex = editor.spritesData.IndexOf(spriteData);
+            if (spriteIndex >= 0 && spriteIndex < editor.eventControls_sprites.Count)
+            {
+                eventCount = editor.eventControls_sprites[spriteIndex].Count;
+            }
+
+            // 朗读精灵信息
+            string displayName = GetSpriteDisplayName(spriteData);
+            Narration.Say($"精灵 {currentIndex} {displayName} {eventCount}事件", NarrationCategory.Navigation);
         }
 
         // 辅助属性：快捷访问 editor

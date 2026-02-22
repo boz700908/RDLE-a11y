@@ -49,6 +49,31 @@ namespace RDLevelEditorAccess
             Narration.Say($"正在打开 {levelEvent.type} 属性编辑器", NarrationCategory.Instruction);
         }
 
+        public static void EditRow(int rowIndex)
+        {
+            if (!_isInitialized)
+            {
+                Debug.LogError("请先调用 AccessibilityBridge.Initialize() !");
+                return;
+            }
+
+            if (rowIndex < 0) return;
+
+            var editor = scnEditor.instance;
+            if (editor == null || editor.rowsData == null || rowIndex >= editor.rowsData.Count)
+            {
+                Debug.LogWarning($"[RDEditorAccess] 无效的轨道索引: {rowIndex}");
+                return;
+            }
+
+            var rowData = editor.rowsData[rowIndex];
+            Debug.Log($"[RDEditorAccess] 打开轨道编辑器: 轨道 {rowIndex}, 角色 {rowData.character}");
+
+            _fileIPC.StartRowEditing(rowData, rowIndex);
+            
+            Narration.Say($"正在打开轨道 {rowIndex + 1} 属性编辑器", NarrationCategory.Instruction);
+        }
+
         public static void Shutdown()
         {
             _fileIPC = null;

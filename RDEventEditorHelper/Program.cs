@@ -33,16 +33,20 @@ namespace RDEventEditorHelper
             Log($"已读取 source.json: {json.Substring(0, Math.Min(200, json.Length))}...");
 
             var sourceData = JsonConvert.DeserializeObject<SourceData>(json);
-            Log($"事件类型: {sourceData?.eventType}, 特征码: {sourceData?.token}, 属性数量: {sourceData?.properties?.Length ?? 0}");
+            Log($"编辑类型: {sourceData?.editType ?? "event"}, 事件类型: {sourceData?.eventType}, 特征码: {sourceData?.token}, 属性数量: {sourceData?.properties?.Length ?? 0}");
 
             // 保存特征码，必须在所有响应中回传
             string sessionToken = sourceData?.token ?? "";
+            string editType = sourceData?.editType ?? "event";
             
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
             EditorForm editorForm = new EditorForm();
-            editorForm.SetData(sourceData?.eventType, sourceData?.properties);
+            
+            // 根据编辑类型设置标题
+            string title = editType == "row" ? "编辑轨道" : $"编辑事件: {sourceData?.eventType}";
+            editorForm.SetData(sourceData?.eventType, sourceData?.properties, title);
 
             editorForm.OnOK += (updates) =>
             {
@@ -88,6 +92,7 @@ namespace RDEventEditorHelper
 
         private class SourceData
         {
+            public string editType;  // "event" 或 "row"
             public string eventType;
             public string token;  // 会话特征码
             public PropertyData[] properties;
