@@ -1249,18 +1249,18 @@ namespace RDLevelEditorAccess
         [HarmonyPostfix]
         public static void PreviousPagePostfix(Timeline __instance)
         {
-            // 只播报当前位置
-            int bar = scnEditor.instance?.startBar + 1 ?? 1;
-            Narration.Say($"{bar}小节 1拍", NarrationCategory.Navigation);
+            // 使用 playhead 精确位置
+            var barAndBeat = __instance.GetBarAndBeatWithPosX(__instance.playhead.anchoredPosition.x);
+            Narration.Say($"{barAndBeat.bar}小节 {barAndBeat.beat:F1}拍", NarrationCategory.Navigation);
         }
 
         [HarmonyPatch("NextPage")]
         [HarmonyPostfix]
         public static void NextPagePostfix(Timeline __instance)
         {
-            // 只播报当前位置
-            int bar = scnEditor.instance?.startBar + 1 ?? 1;
-            Narration.Say($"{bar}小节 1拍", NarrationCategory.Navigation);
+            // 使用 playhead 精确位置
+            var barAndBeat = __instance.GetBarAndBeatWithPosX(__instance.playhead.anchoredPosition.x);
+            Narration.Say($"{barAndBeat.bar}小节 {barAndBeat.beat:F1}拍", NarrationCategory.Navigation);
         }
     }
 
@@ -1271,18 +1271,24 @@ namespace RDLevelEditorAccess
         [HarmonyPostfix]
         public static void PreviousButtonClickPostfix(scnEditor __instance)
         {
-            // 只播报当前位置
-            int bar = __instance.startBar + 1;
-            Narration.Say($"{bar}小节 1拍", NarrationCategory.Navigation);
+            // 使用 playhead 精确位置
+            if (__instance.timeline != null)
+            {
+                var barAndBeat = __instance.timeline.GetBarAndBeatWithPosX(__instance.timeline.playhead.anchoredPosition.x);
+                Narration.Say($"{barAndBeat.bar}小节 {barAndBeat.beat:F1}拍", NarrationCategory.Navigation);
+            }
         }
 
         [HarmonyPatch("NextButtonClick")]
         [HarmonyPostfix]
         public static void NextButtonClickPostfix(scnEditor __instance)
         {
-            // 只播报当前位置
-            int bar = __instance.startBar + 1;
-            Narration.Say($"{bar}小节 1拍", NarrationCategory.Navigation);
+            // 使用 playhead 精确位置
+            if (__instance.timeline != null)
+            {
+                var barAndBeat = __instance.timeline.GetBarAndBeatWithPosX(__instance.timeline.playhead.anchoredPosition.x);
+                Narration.Say($"{barAndBeat.bar}小节 {barAndBeat.beat:F1}拍", NarrationCategory.Navigation);
+            }
         }
     }
 
