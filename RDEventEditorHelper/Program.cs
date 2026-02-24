@@ -30,7 +30,7 @@ namespace RDEventEditorHelper
 
             string json = File.ReadAllText(SourcePath);
             File.Delete(SourcePath);
-            Log($"已读取 source.json: {json.Substring(0, Math.Min(200, json.Length))}...");
+            Log($"已读取 source.json 内容:\n{json}");
 
             var sourceData = JsonConvert.DeserializeObject<SourceData>(json);
             Log($"编辑类型: {sourceData?.editType ?? "event"}, 事件类型: {sourceData?.eventType}, 特征码: {sourceData?.token}, 属性数量: {sourceData?.properties?.Length ?? 0}");

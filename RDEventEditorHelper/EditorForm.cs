@@ -348,6 +348,10 @@ namespace RDEventEditorHelper
                         var txtHiddenFilename = new TextBox { Text = soundFilename, Width = 1, Top = 0, Left = 0, Name = "Filename", Visible = false };
                         soundPanel.Controls.Add(txtHiddenFilename);
                         
+                        // 保存原始值作为后备（确保用户不修改时保留原值）
+                        var txtOriginalFilename = new TextBox { Text = soundFilename, Width = 1, Top = 0, Left = 0, Name = "OriginalFilename", Visible = false };
+                        soundPanel.Controls.Add(txtOriginalFilename);
+                        
                         if (canBrowseFile)
                         {
                             var btnBrowse = new Button
@@ -419,6 +423,22 @@ namespace RDEventEditorHelper
                         // 填充预设选项
                         if (hasSoundOptions)
                         {
+                            // 只有当 SoundData 可空时，才添加"轨道默认"选项
+                            if (prop.isNullable)
+                            {
+                                // 添加"轨道默认"选项（第一项）
+                                var defaultItem = new ListViewItem("(使用轨道默认)");
+                                defaultItem.SubItems.Add("(默认)");
+                                defaultItem.Tag = "__track_default__";  // 特殊标记
+                                listView.Items.Add(defaultItem);
+                                
+                                // 如果当前没有音效（使用轨道默认），默认选中第一项
+                                if (string.IsNullOrEmpty(soundFilename))
+                                {
+                                    defaultItem.Selected = true;
+                                }
+                            }
+                            
                             foreach (var opt in prop.soundOptions)
                             {
                                 var item = new ListViewItem(opt);
@@ -754,20 +774,40 @@ namespace RDEventEditorHelper
                         
                         string filename = txtFilename?.Text ?? "";
                         
-                        if (string.IsNullOrEmpty(filename))
+                        // 检查是否选中了"轨道默认"选项
+                        var listView = soundPanel.Controls.Find("SoundListView", false).FirstOrDefault() as ListView;
+                        if (listView != null && listView.SelectedItems.Count > 0)
                         {
-                            var listView = soundPanel.Controls.Find("SoundListView", false).FirstOrDefault() as ListView;
-                            if (listView != null && listView.SelectedItems.Count > 0)
+                            string selectedTag = listView.SelectedItems[0].Tag as string;
+                            if (selectedTag == "__track_default__")
                             {
-                                filename = listView.SelectedItems[0].Tag as string ?? listView.SelectedItems[0].Text;
+                                // 选中"轨道默认"，返回空字符串让游戏使用轨道默认音效
+                                value = "";
+                            }
+                            else if (!string.IsNullOrEmpty(filename))
+                            {
+                                // 正常音效
+                                string volume = txtVolume?.Text ?? "100";
+                                string pitch = txtPitch?.Text ?? "100";
+                                string pan = txtPan?.Text ?? "0";
+                                string offset = txtOffset?.Text ?? "0";
+                                value = $"{filename}|{volume}|{pitch}|{pan}|{offset}";
+                            }
+                            else
+                            {
+                                // 用户没有选择任何项，使用原始值作为后备
+                                var txtOriginalFilename = soundPanel.Controls.Find("OriginalFilename", false).FirstOrDefault() as TextBox;
+                                if (txtOriginalFilename != null && !string.IsNullOrEmpty(txtOriginalFilename.Text))
+                                {
+                                    string originalFilename = txtOriginalFilename.Text;
+                                    string volume = txtVolume?.Text ?? "100";
+                                    string pitch = txtPitch?.Text ?? "100";
+                                    string pan = txtPan?.Text ?? "0";
+                                    string offset = txtOffset?.Text ?? "0";
+                                    value = $"{originalFilename}|{volume}|{pitch}|{pan}|{offset}";
+                                }
                             }
                         }
-                        
-                        string volume = txtVolume?.Text ?? "100";
-                        string pitch = txtPitch?.Text ?? "100";
-                        string pan = txtPan?.Text ?? "0";
-                        string offset = txtOffset?.Text ?? "0";
-                        value = $"{filename}|{volume}|{pitch}|{pan}|{offset}";
                     }
                 }
 

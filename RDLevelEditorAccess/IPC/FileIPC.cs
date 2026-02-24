@@ -627,12 +627,12 @@ namespace RDLevelEditorAccess.IPC
                              (propInfo is NullablePropertyInfo nullableProp && 
                               nullableProp.underlyingPropertyInfo is SoundDataPropertyInfo))
                     {
-                        Debug.Log($"[FileIPC] 匹配到 SoundData 属性: {key}, 是否可空: {propInfo is NullablePropertyInfo}");
+                        Debug.Log($"[FileIPC] ★ 接收 SoundData: key={key}, strVal=\"{strVal}\" , 是否可空: {propInfo is NullablePropertyInfo}");
                         
                         // 处理空字符串 -> 设置为 null（如果是可空类型）
                         if (string.IsNullOrEmpty(strVal) && propInfo is NullablePropertyInfo)
                         {
-                            Debug.Log($"[FileIPC] 设置为 null");
+                            Debug.Log($"[FileIPC] ★ 设置为 null (strVal为空)");
                             valToSet = null;
                         }
                         else
@@ -645,7 +645,7 @@ namespace RDLevelEditorAccess.IPC
                             int pan = parts.Length > 3 && int.TryParse(parts[3], out int pn) ? pn : 0;
                             int offset = parts.Length > 4 && int.TryParse(parts[4], out int o) ? o : 0;
                             
-                            Debug.Log($"[FileIPC] 创建 SoundDataStruct: filename={filename}, volume={volume}, pitch={pitch}, pan={pan}, offset={offset}");
+                            Debug.Log($"[FileIPC] ★ 创建 SoundDataStruct: filename={filename}, volume={volume}, pitch={pitch}, pan={pan}, offset={offset}");
                             
                             // 使用 typeof 直接获取类型，避免 Type.GetType 失败
                             valToSet = new SoundDataStruct(filename, volume, pitch, pan, offset);
@@ -1231,7 +1231,9 @@ namespace RDLevelEditorAccess.IPC
                     var pitch = valueType.GetField("pitch")?.GetValue(value);
                     var pan = valueType.GetField("pan")?.GetValue(value);
                     var offset = valueType.GetField("offset")?.GetValue(value);
-                    return $"{filename}|{volume}|{pitch}|{pan}|{offset}";
+                    var result = $"{filename}|{volume}|{pitch}|{pan}|{offset}";
+                    Debug.Log($"[FileIPC] ConvertPropertyValue SoundDataStruct: property=?, result={result}");
+                    return result;
                 }
                 if (value is Enum e) return e.ToString();
                 if (value is bool b) return b ? "true" : "false";
