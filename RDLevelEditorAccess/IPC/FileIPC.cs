@@ -281,6 +281,9 @@ namespace RDLevelEditorAccess.IPC
         {
             if (!_isPolling) return;
 
+            // NEW: 处理validateVisibility请求（与result.json处理独立，不中断轮询和键盘锁定）
+            PollPropertyValidationRequests();
+
             if (File.Exists(_resultPath))
             {
                 try
@@ -366,9 +369,125 @@ namespace RDLevelEditorAccess.IPC
             }
         }
 
-        /// <summary>
-        /// 应用轨道属性修改
-        /// </summary>
+        // NEW: 处理Helper的属性验证请求
+        private void PollPropertyValidationRequests()
+        {
+            string validationPath = Path.Combine(_tempPath, "validateVisibility.json");
+            if (!File.Exists(validationPath)) return;
+
+            try
+            {
+                string json = File.ReadAllText(validationPath);
+                var options = new JsonSerializerOptions { IncludeFields = true };
+                var request = JsonSerializer.Deserialize<PropertyUpdateRequest>(json, options);
+
+                // 获取当前正被编辑的事件（使用selectedControl）
+                var currentEvent = scnEditor.instance?.selectedControl?.levelEvent;
+                if (currentEvent == null)
+                {
+                    // Helper可能在试图验证一个已关闭的对话框的事件，忽略此请求
+                    File.Delete(validationPath);
+                    return;
+                }
+
+                var response = HandlePropertyUpdateRequest(request, currentEvent);
+
+                string responsePath = Path.Combine(_tempPath, "validateVisibilityResponse.json");
+                string responseJson = JsonSerializer.Serialize(response, options);
+                File.WriteAllText(responsePath, responseJson);
+
+                File.Delete(validationPath);  // 处理完删除请求
+                Debug.Log($"[FileIPC] 已处理enableIf验证请求");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FileIPC] Failed to process visibility validation: {ex.Message}");
+                // 错误时也删除文件，避免反复尝试
+                try { File.Delete(validationPath); } catch { }
+            }
+        }
+
+        // NEW: 处理属性更新请求，执行enableIf判断
+        private PropertyUpdateResponse HandlePropertyUpdateRequest(PropertyUpdateRequest request, LevelEvent_Base currentEvent)
+        {
+            if (currentEvent == null)
+                return new PropertyUpdateResponse { token = request.token, visibilityChanges = new Dictionary<string, bool>() };
+
+            var visibilityChanges = new Dictionary<string, bool>();
+
+            // 应用Helper发来的值更新到event对象（临时，不保存）
+            foreach (var kvp in request.updates)
+            {
+                string propName = kvp.Key;
+                string newValue = kvp.Value;
+
+                try
+                {
+                    var prop = currentEvent.GetType().GetProperty(propName);
+                    if (prop != null)
+                    {
+                        var convertedValue = ConvertStringToPropertyValue(newValue, prop.PropertyType);
+                        prop.SetValue(currentEvent, convertedValue);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[FileIPC] Failed to apply property {propName}: {ex.Message}");
+                }
+            }
+
+            // 对所有属性重新评估enableIf条件
+            if (currentEvent.info != null && currentEvent.info.propertiesInfo != null)
+            {
+                foreach (var property in currentEvent.info.propertiesInfo)
+                {
+                    if (property != null && property.enableIf != null)
+                    {
+                        try
+                        {
+                            bool shouldShow = property.enableIf(currentEvent);
+
+                            // 仅返回**状态发生变化**的属性（优化网络消息）
+                            var existingProp = request.currentProperties
+                                .FirstOrDefault(p => p.name == property.propertyInfo.Name);
+                            if (existingProp != null && existingProp.isVisible != shouldShow)
+                            {
+                                visibilityChanges[property.propertyInfo.Name] = shouldShow;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogWarning($"[FileIPC] Failed to evaluate enableIf for {property.propertyInfo.Name}: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            return new PropertyUpdateResponse
+            {
+                token = request.token,
+                visibilityChanges = visibilityChanges
+            };
+        }
+
+        // NEW: 将字符串值转换为目标类型
+        private object ConvertStringToPropertyValue(string value, Type targetType)
+        {
+            if (string.IsNullOrEmpty(value)) return null;
+
+            try
+            {
+                if (targetType == typeof(string)) return value;
+                if (targetType == typeof(bool)) return value == "true";
+                if (targetType == typeof(int)) return int.Parse(value);
+                if (targetType == typeof(float)) return float.Parse(value);
+                if (targetType == typeof(double)) return double.Parse(value);
+                if (targetType.IsEnum) return Enum.Parse(targetType, value);
+            }
+            catch { }
+
+            return value;
+        }
         private void ApplyRowUpdates(LevelEvent_MakeRow row, Dictionary<string, string> updates)
         {
             if (row == null || updates == null) return;
@@ -1277,7 +1396,26 @@ namespace RDLevelEditorAccess.IPC
             public bool isNullable;    // 是否为可空类型
             public string[] soundOptions;   // SoundData 类型专用：预设音效选项列表
             public bool allowCustomFile;    // SoundData 类型专用：是否允许浏览外部文件
+            public bool isVisible = true;   // NEW: 该属性是否应该显示（enableIf判断结果）
             public string customName;       // Character 类型专用：自定义角色名称
+        }
+
+        // NEW: Helper → Mod 请求数据类
+        [Serializable]
+        private class PropertyUpdateRequest
+        {
+            public string token;                   // 关联原有的session token
+            public string action = "validateVisibility";
+            public Dictionary<string, string> updates;  // 修改的属性名 → 新值
+            public PropertyData[] currentProperties;    // 当前的完整属性列表（含所有值）
+        }
+
+        // NEW: Mod → Helper 响应数据类
+        [Serializable]
+        private class PropertyUpdateResponse
+        {
+            public string token;
+            public Dictionary<string, bool> visibilityChanges;  // 属性名 → 是否应该显示
         }
     }
 }

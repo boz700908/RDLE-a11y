@@ -1,7 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace RDEventEditorHelper
@@ -19,6 +24,89 @@ namespace RDEventEditorHelper
         public string[] soundOptions;   // SoundData 类型专用：预设音效选项列表
         public bool allowCustomFile;    // SoundData 类型专用：是否允许浏览外部文件
         public string customName;       // Character 类型专用：自定义角色名称
+        public bool isVisible = true;   // NEW: 该属性是否应该显示（来自Mod的enableIf判断结果）
+    }
+
+    // NEW: Helper → Mod 请求数据类
+    public class PropertyUpdateRequest
+    {
+        public string token;                   // 关联原有的session token
+        public string action = "validateVisibility";
+        public Dictionary<string, string> updates;  // 修改的属性名 → 新值
+        public PropertyData[] currentProperties;    // 当前的完整属性列表（含所有值）
+    }
+
+    // NEW: Mod → Helper 响应数据类
+    public class PropertyUpdateResponse
+    {
+        public string token;
+        public Dictionary<string, bool> visibilityChanges;  // 属性名 → 是否应该显示
+    }
+
+    // NEW: Helper IPC通信助手
+    public static class FileIPC
+    {
+        private static readonly string TempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "temp");
+
+        /// <summary>
+        /// 向Mod发送属性更新请求并等待响应
+        /// </summary>
+        public static PropertyUpdateResponse SendPropertyUpdateRequest(PropertyUpdateRequest request)
+        {
+            string requestPath = Path.Combine(TempDir, "validateVisibility.json");
+
+            // 确保temp目录存在
+            if (!Directory.Exists(TempDir))
+                Directory.CreateDirectory(TempDir);
+
+            try
+            {
+                // 写入请求文件
+                var options = new JsonSerializerOptions { WriteIndented = false, IncludeFields = true };
+                string json = JsonSerializer.Serialize(request, options);
+                File.WriteAllText(requestPath, json);
+
+                // 轮询响应（带超时）
+                var stopwatch = Stopwatch.StartNew();
+                int timeoutMs = 5000;  // 5秒超时
+
+                while (stopwatch.ElapsedMilliseconds < timeoutMs)
+                {
+                    string responsePath = Path.Combine(TempDir, "validateVisibilityResponse.json");
+                    if (File.Exists(responsePath))
+                    {
+                        try
+                        {
+                            string responseJson = File.ReadAllText(responsePath);
+                            var response = JsonSerializer.Deserialize<PropertyUpdateResponse>(responseJson, options);
+
+                            // 删除响应文件
+                            try { File.Delete(responsePath); } catch { }
+
+                            return response;
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[FileIPC] Failed to parse response: {ex.Message}");
+                        }
+                    }
+
+                    Thread.Sleep(50);  // 轮询间隔
+                }
+
+                throw new TimeoutException("Visibility validation request timed out");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[FileIPC] SendPropertyUpdateRequest failed: {ex.Message}");
+                throw;
+            }
+            finally
+            {
+                // 清理请求文件
+                try { if (File.Exists(requestPath)) File.Delete(requestPath); } catch { }
+            }
+        }
     }
 
     public class EditorForm : Form
@@ -30,6 +118,7 @@ namespace RDEventEditorHelper
         private Dictionary<string, Control> _controls = new Dictionary<string, Control>();
         private bool _isClosingByButton = false;
         private string _pendingExecuteMethod = null;  // 点击操作按钮时要执行的方法名
+        private string _token = Guid.NewGuid().ToString();  // NEW: IPC session token
 
         public event Action<Dictionary<string, string>> OnOK;
         public event Action OnCancel;
@@ -103,6 +192,9 @@ namespace RDEventEditorHelper
             _properties = properties;
             this.Text = title ?? $"编辑事件: {eventType}";
             BuildUI();
+
+            // NEW: 获取初始可见性（确保与Mod的enableIf状态一致）
+            InitializeVisibility();
         }
 
         private void BuildUI()
@@ -163,6 +255,12 @@ namespace RDEventEditorHelper
                             Left = 10,
                             AccessibleName = displayName
                         };
+                        // NEW: 附加值改变事件处理
+                        txt.TextChanged += (s, e) =>
+                        {
+                            prop.value = txt.Text;
+                            RequestVisibilityUpdate(prop.name, txt.Text);
+                        };
                         inputCtrl = txt;
                         break;
 
@@ -175,6 +273,13 @@ namespace RDEventEditorHelper
                             Left = 10,
                             AutoSize = true,
                             AccessibleName = displayName
+                        };
+                        // NEW: 附加值改变事件处理
+                        chk.CheckedChanged += (s, e) =>
+                        {
+                            string newValue = chk.Checked ? "true" : "false";
+                            prop.value = newValue;
+                            RequestVisibilityUpdate(prop.name, newValue);
                         };
                         inputCtrl = chk;
                         break;
@@ -194,6 +299,13 @@ namespace RDEventEditorHelper
                             cmb.SelectedItem = prop.value;
                         else if (cmb.Items.Count > 0)
                             cmb.SelectedIndex = 0;
+                        // NEW: 附加值改变事件处理
+                        cmb.SelectedValueChanged += (s, e) =>
+                        {
+                            string newValue = cmb.SelectedItem?.ToString() ?? "";
+                            prop.value = newValue;
+                            RequestVisibilityUpdate(prop.name, newValue);
+                        };
                         inputCtrl = cmb;
                         break;
 
@@ -816,6 +928,121 @@ namespace RDEventEditorHelper
             }
 
             return updates;
+        }
+
+        // ===== NEW: 动态UI可见性处理方法 =====
+
+        private void InitializeVisibility()
+        {
+            var request = new PropertyUpdateRequest
+            {
+                token = _token,
+                action = "validateVisibility",
+                updates = new Dictionary<string, string>(),  // 空，仅查询
+                currentProperties = _properties
+            };
+
+            try
+            {
+                var response = FileIPC.SendPropertyUpdateRequest(request);
+                if (response?.visibilityChanges != null)
+                {
+                    foreach (var kvp in response.visibilityChanges)
+                    {
+                        UpdatePropertyVisibility(kvp.Key, kvp.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to initialize visibility: {ex.Message}");
+                // 继续，使用初始值
+            }
+        }
+
+        private void RequestVisibilityUpdate(string changedPropertyName, string newValue)
+        {
+            // 1. 收集当前的完整PropertyData（包括最新的值）
+            var request = new PropertyUpdateRequest
+            {
+                token = _token,
+                action = "validateVisibility",
+                updates = new Dictionary<string, string> { { changedPropertyName, newValue } },
+                currentProperties = _properties  // 发送完整状态给Mod
+            };
+
+            // 2. 通过FileIPC异步发送
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    var response = FileIPC.SendPropertyUpdateRequest(request);
+                    OnPropertyVisibilityUpdated(response);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to update visibility: {ex.Message}");
+                }
+            });
+        }
+
+        private void OnPropertyVisibilityUpdated(PropertyUpdateResponse response)
+        {
+            if (response?.visibilityChanges == null) return;
+
+            // 在UI线程上执行
+            this.Invoke(() =>
+            {
+                foreach (var kvp in response.visibilityChanges)
+                {
+                    string propName = kvp.Key;
+                    bool shouldShow = kvp.Value;
+
+                    UpdatePropertyVisibility(propName, shouldShow);
+
+                    // 屏幕阅读器通知
+                    AnnounceVisibilityChange(propName, shouldShow);
+                }
+            });
+        }
+
+        private void UpdatePropertyVisibility(string propertyName, bool shouldBeVisible)
+        {
+            if (!_controls.TryGetValue(propertyName, out var control))
+                return;
+
+            // 查找这个控件的GroupBox容器
+            var groupBox = control.Parent as GroupBox;
+            if (groupBox != null)
+            {
+                // 仅改变Visible，不改变任何其他属性
+                // 这样屏幕阅读器焦点不会丢失
+                groupBox.Visible = shouldBeVisible;
+            }
+            else
+            {
+                control.Visible = shouldBeVisible;
+            }
+
+            // 更新PropertyData记录
+            var prop = _properties.FirstOrDefault(p => p.name == propertyName);
+            if (prop != null)
+            {
+                prop.isVisible = shouldBeVisible;
+            }
+        }
+
+        private void AnnounceVisibilityChange(string propertyName, bool shouldShow)
+        {
+            // 通知屏幕阅读器属性的可见性变化
+            // 避免打断当前编辑的流程
+            string message = shouldShow
+                ? $"属性{propertyName}已显示"
+                : $"属性{propertyName}已隐藏";
+
+            // 使用较低优先级的通知（不打断用户当前操作）
+            // 注：具体实现需要根据项目的屏幕阅读器支持库来完成
+            System.Diagnostics.Debug.WriteLine($"[Accessibility] {message}");
         }
 
         private Color ParseColor(string colorStr)
