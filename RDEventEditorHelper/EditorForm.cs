@@ -4,10 +4,10 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Newtonsoft.Json;
 
 namespace RDEventEditorHelper
 {
@@ -62,8 +62,7 @@ namespace RDEventEditorHelper
             try
             {
                 // 写入请求文件
-                var options = new JsonSerializerOptions { WriteIndented = false, IncludeFields = true };
-                string json = JsonSerializer.Serialize(request, options);
+                string json = JsonConvert.SerializeObject(request);
                 File.WriteAllText(requestPath, json);
 
                 // 轮询响应（带超时）
@@ -78,7 +77,7 @@ namespace RDEventEditorHelper
                         try
                         {
                             string responseJson = File.ReadAllText(responsePath);
-                            var response = JsonSerializer.Deserialize<PropertyUpdateResponse>(responseJson, options);
+                            var response = JsonConvert.DeserializeObject<PropertyUpdateResponse>(responseJson);
 
                             // 删除响应文件
                             try { File.Delete(responsePath); } catch { }
