@@ -936,12 +936,14 @@ namespace RDLevelEditorAccess.IPC
             {
                 // 检查是否为 Button 类型（通过 controlAttribute 判断）
                 bool isButton = prop.controlAttribute is ButtonAttribute;
-                
+
                 // 跳过仅用于 UI 的非 Button 属性（如 Description）
                 // Button 类型需要保留，作为操作按钮显示
                 if (prop.onlyUI && !isButton) continue;
 
-                if (prop.enableIf != null && !prop.enableIf(ev)) continue;
+                // 计算初始的可见性状态，但不跳过任何属性
+                // 所有属性都应该被发送到Helper，由Helper动态控制可见性
+                bool shouldBeVisible = prop.enableIf == null || prop.enableIf(ev);
 
                 // 获取本地化的显示名称
                 string localizedName = GetLocalizedPropertyName(ev, prop);
@@ -955,7 +957,8 @@ namespace RDLevelEditorAccess.IPC
                         name = prop.propertyInfo.Name,
                         displayName = localizedName,
                         type = "Button",
-                        methodName = buttonAttr?.methodName
+                        methodName = buttonAttr?.methodName,
+                        isVisible = shouldBeVisible  // 初始可见性
                     });
                     continue;
                 }
@@ -966,7 +969,8 @@ namespace RDLevelEditorAccess.IPC
                 {
                     name = prop.propertyInfo.Name,
                     displayName = localizedName,
-                    value = ConvertPropertyValue(rawValue)
+                    value = ConvertPropertyValue(rawValue),
+                    isVisible = shouldBeVisible  // 初始可见性
                 };
 
                 if (prop is IntPropertyInfo) dto.type = "Int";

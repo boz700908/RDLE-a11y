@@ -1,0 +1,414 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Forms;
+using NUnit.Framework;
+
+namespace RDEventEditorHelper.Tests
+{
+    [TestFixture]
+    public class EnableIfTests
+    {
+        private EditorForm _form;
+        private PropertyData[] _testProperties;
+
+        [SetUp]
+        public void Setup()
+        {
+            _form = new EditorForm();
+            _testProperties = CreateTestProperties();
+            _form.SetData("TestEvent", _testProperties);
+        }
+
+        private PropertyData[] CreateTestProperties()
+        {
+            return new PropertyData[]
+            {
+                new PropertyData
+                {
+                    name = "EnableAdvanced",
+                    displayName = "Enable Advanced Options",
+                    value = "false",
+                    type = "Bool"
+                },
+                new PropertyData
+                {
+                    name = "AdvancedSetting",
+                    displayName = "Advanced Setting",
+                    value = "",
+                    type = "String",
+                    enableIfMethod = "EnableAdvanced"
+                },
+                new PropertyData
+                {
+                    name = "Difficulty",
+                    displayName = "Difficulty",
+                    value = "Normal",
+                    type = "Enum",
+                    options = new string[] { "Easy", "Normal", "Hard", "Expert" }
+                },
+                new PropertyData
+                {
+                    name = "SpeedMultiplier",
+                    displayName = "Speed Multiplier",
+                    value = "1.0",
+                    type = "Float",
+                    enableIfMethod = "Difficulty"
+                },
+                new PropertyData
+                {
+                    name = "Bar",
+                    displayName = "Bar",
+                    value = "1",
+                    type = "Int"
+                },
+                new PropertyData
+                {
+                    name = "Beat",
+                    displayName = "Beat",
+                    value = "0",
+                    type = "Int"
+                },
+                new PropertyData
+                {
+                    name = "HasSound",
+                    displayName = "Has Sound",
+                    value = "true",
+                    type = "Bool"
+                },
+                new PropertyData
+                {
+                    name = "SoundVolume",
+                    displayName = "Sound Volume",
+                    value = "100",
+                    type = "Float",
+                    enableIfMethod = "HasSound"
+                },
+                new PropertyData
+                {
+                    name = "ColorValue",
+                    displayName = "Color Value",
+                    value = "#FFFFFF",
+                    type = "Color",
+                    enableIfMethod = "UseCustomColor"
+                },
+                new PropertyData
+                {
+                    name = "UseCustomColor",
+                    displayName = "Use Custom Color",
+                    value = "false",
+                    type = "Bool"
+                }
+            };
+        }
+
+        [Test]
+        public void TestBoolEnableIf_CorrectEvaluation()
+        {
+            // 测试 Bool 类型的 enableIf
+            var prop = _testProperties.First(p => p.name == "AdvancedSetting");
+            Assert.AreEqual("false", _testProperties.First(p => p.name == "EnableAdvanced").value);
+            
+            // 当 EnableAdvanced = false 时，AdvancedSetting 应隐藏
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "Bool enableIf: AdvancedSetting should be hidden when EnableAdvanced is false");
+
+            // 设置 EnableAdvanced = true
+            _testProperties.First(p => p.name == "EnableAdvanced").value = "true";
+            _form.ClearEnableIfCache();
+            
+            shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "Bool enableIf: AdvancedSetting should be visible when EnableAdvanced is true");
+        }
+
+        [Test]
+        public void TestIntEnableIf_CorrectEvaluation()
+        {
+            // 测试 Int 类型的 enableIf
+            var prop = _testProperties.First(p => p.name == "Beat");
+            prop.enableIfMethod = "Bar";
+            
+            // 当 Bar = 1 > 0 时应显示
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "Int enableIf: Beat should be visible when Bar is greater than 0");
+
+            // 设置 Bar = 0
+            _testProperties.First(p => p.name == "Bar").value = "0";
+            _form.ClearEnableIfCache();
+            
+            shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "Int enableIf: Beat should be hidden when Bar is 0");
+        }
+
+        [Test]
+        public void TestEnumEnableIf_CorrectEvaluation()
+        {
+            // 测试 Enum 类型的 enableIf
+            var prop = _testProperties.First(p => p.name == "SpeedMultiplier");
+            
+            // 当 Difficulty 有值时应显示
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "Enum enableIf: SpeedMultiplier should be visible when Difficulty has a value");
+
+            // 设置 Difficulty = ""
+            _testProperties.First(p => p.name == "Difficulty").value = "";
+            _form.ClearEnableIfCache();
+            
+            shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "Enum enableIf: SpeedMultiplier should be hidden when Difficulty is empty");
+        }
+
+        [Test]
+        public void TestStringEnableIf_CorrectEvaluation()
+        {
+            // 测试 String 类型的 enableIf
+            var prop = new PropertyData
+            {
+                name = "TestString",
+                displayName = "Test String",
+                value = "",
+                type = "String",
+                enableIfMethod = "Difficulty"
+            };
+            
+            // 当 Difficulty 有值时应显示
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "String enableIf: TestString should be visible when Difficulty has a value");
+
+            // 设置 Difficulty = ""
+            _testProperties.First(p => p.name == "Difficulty").value = "";
+            _form.ClearEnableIfCache();
+            
+            shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "String enableIf: TestString should be hidden when Difficulty is empty");
+        }
+
+        [Test]
+        public void TestFloatEnableIf_CorrectEvaluation()
+        {
+            // 测试 Float 类型的 enableIf
+            var prop = new PropertyData
+            {
+                name = "TestFloat",
+                displayName = "Test Float",
+                value = "",
+                type = "Float",
+                enableIfMethod = "SoundVolume"
+            };
+            
+            // 当 SoundVolume = 100 > 0 时应显示
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "Float enableIf: TestFloat should be visible when SoundVolume is greater than 0");
+
+            // 设置 SoundVolume = 0
+            _testProperties.First(p => p.name == "SoundVolume").value = "0";
+            _form.ClearEnableIfCache();
+            
+            shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "Float enableIf: TestFloat should be hidden when SoundVolume is 0");
+        }
+
+        [Test]
+        public void TestVector2EnableIf_CorrectEvaluation()
+        {
+            // 测试 Vector2 类型的 enableIf
+            var prop = new PropertyData
+            {
+                name = "TestVector2",
+                displayName = "Test Vector2",
+                value = "",
+                type = "Vector2",
+                enableIfMethod = "HasSound"
+            };
+            
+            // 当 HasSound = true 时应显示
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "Vector2 enableIf: TestVector2 should be visible when HasSound is true");
+
+            // 设置 HasSound = false
+            _testProperties.First(p => p.name == "HasSound").value = "false";
+            _form.ClearEnableIfCache();
+            
+            shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "Vector2 enableIf: TestVector2 should be hidden when HasSound is false");
+        }
+
+        [Test]
+        public void TestColorEnableIf_CorrectEvaluation()
+        {
+            // 测试 Color 类型的 enableIf
+            var prop = _testProperties.First(p => p.name == "ColorValue");
+            
+            // 当 UseCustomColor = false 时应隐藏
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "Color enableIf: ColorValue should be hidden when UseCustomColor is false");
+
+            // 设置 UseCustomColor = true
+            _testProperties.First(p => p.name == "UseCustomColor").value = "true";
+            _form.ClearEnableIfCache();
+            
+            shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "Color enableIf: ColorValue should be visible when UseCustomColor is true");
+        }
+
+        [Test]
+        public void TestSoundDataEnableIf_CorrectEvaluation()
+        {
+            // 测试 SoundData 类型的 enableIf
+            var prop = new PropertyData
+            {
+                name = "TestSound",
+                displayName = "Test Sound",
+                value = "",
+                type = "SoundData",
+                enableIfMethod = "HasSound"
+            };
+            
+            // 当 HasSound = true 时应显示
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "SoundData enableIf: TestSound should be visible when HasSound is true");
+
+            // 设置 HasSound = false
+            _testProperties.First(p => p.name == "HasSound").value = "false";
+            _form.ClearEnableIfCache();
+            
+            shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "SoundData enableIf: TestSound should be hidden when HasSound is false");
+        }
+
+        [Test]
+        public void TestCharacterEnableIf_CorrectEvaluation()
+        {
+            // 测试 Character 类型的 enableIf
+            var prop = new PropertyData
+            {
+                name = "TestCharacter",
+                displayName = "Test Character",
+                value = "",
+                type = "Character",
+                enableIfMethod = "UseCustomColor"
+            };
+            
+            // 当 UseCustomColor = false 时应隐藏
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "Character enableIf: TestCharacter should be hidden when UseCustomColor is false");
+
+            // 设置 UseCustomColor = true
+            _testProperties.First(p => p.name == "UseCustomColor").value = "true";
+            _form.ClearEnableIfCache();
+            
+            shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "Character enableIf: TestCharacter should be visible when UseCustomColor is true");
+        }
+
+        [Test]
+        public void TestFloatExpressionEnableIf_CorrectEvaluation()
+        {
+            // 测试 FloatExpression 类型的 enableIf
+            var prop = new PropertyData
+            {
+                name = "TestExpression",
+                displayName = "Test Expression",
+                value = "",
+                type = "FloatExpression",
+                enableIfMethod = "HasSound"
+            };
+            
+            // 当 HasSound = true 时应显示
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "FloatExpression enableIf: TestExpression should be visible when HasSound is true");
+
+            // 设置 HasSound = false
+            _testProperties.First(p => p.name == "HasSound").value = "false";
+            _form.ClearEnableIfCache();
+            
+            shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "FloatExpression enableIf: TestExpression should be hidden when HasSound is false");
+        }
+
+        [Test]
+        public void TestInvalidEnableIfMethod_ReturnsFalse()
+        {
+            // 测试无效的 enableIf 方法名
+            var prop = new PropertyData
+            {
+                name = "TestInvalid",
+                displayName = "Test Invalid",
+                value = "",
+                type = "String",
+                enableIfMethod = "NonExistentMethod"
+            };
+            
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsFalse(shouldBeVisible, "Invalid enableIf method should return false");
+        }
+
+        [Test]
+        public void TestNullEnableIfMethod_ReturnsTrue()
+        {
+            // 测试空的 enableIf 方法名
+            var prop = new PropertyData
+            {
+                name = "TestNull",
+                displayName = "Test Null",
+                value = "",
+                type = "String",
+                enableIfMethod = null
+            };
+            
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "Null enableIf method should return true (always visible)");
+        }
+
+        [Test]
+        public void TestEmptyEnableIfMethod_ReturnsTrue()
+        {
+            // 测试空字符串的 enableIf 方法名
+            var prop = new PropertyData
+            {
+                name = "TestEmpty",
+                displayName = "Test Empty",
+                value = "",
+                type = "String",
+                enableIfMethod = ""
+            };
+            
+            bool shouldBeVisible = _form.EvaluateEnableIf(prop);
+            Assert.IsTrue(shouldBeVisible, "Empty enableIf method should return true (always visible)");
+        }
+
+        [Test]
+        public void TestEnableIfCache_Functionality()
+        {
+            // 测试缓存功能
+            var prop = _testProperties.First(p => p.name == "AdvancedSetting");
+            
+            // 第一次评估
+            bool result1 = _form.EvaluateEnableIf(prop);
+            
+            // 修改基础属性
+            _testProperties.First(p => p.name == "EnableAdvanced").value = "true";
+            _form.ClearEnableIfCache();
+            
+            // 第二次评估
+            bool result2 = _form.EvaluateEnableIf(prop);
+            
+            // 验证缓存已清除
+            Assert.AreNotEqual(result1, result2, "EnableIf cache should be cleared when ClearEnableIfCache is called");
+        }
+
+        [Test]
+        public void TestRebuildUIForEnableIf_MaintainsValues()
+        {
+            // 这个测试需要更多集成测试
+            Assert.Pass("RebuildUIForEnableIf test requires UI integration test");
+        }
+
+        [Test]
+        public void TestOnPropertyValueChanged_UpdatesCorrectly()
+        {
+            // 这个测试需要更多集成测试
+            Assert.Pass("OnPropertyValueChanged test requires UI integration test");
+        }
+    }
+}

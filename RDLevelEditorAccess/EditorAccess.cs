@@ -1210,13 +1210,52 @@ namespace RDLevelEditorAccess
         [HarmonyPostfix]
         public static void SelectEventControlPostfix(LevelEventControl_Base newControl)
         {
+            if (newControl?.levelEvent == null) return;
+            
+            var eventType = newControl.levelEvent.type;
+            
+            // 朗读事件名称
             Narration.Say(ModUtils.eventSelectI18n(newControl.levelEvent), NarrationCategory.Navigation);
+            
+            // 添加警告消息（针对特定事件类型）
+            AddEventWarning(eventType);
+        }
+
+        /// <summary>
+        /// 为特定事件类型添加警告消息
+        /// </summary>
+        private static void AddEventWarning(LevelEventType eventType)
+        {
+            // 这些事件可能需要特殊处理或用户注意
+            switch (eventType)
+            {
+                case LevelEventType.Comment:
+                    // 评论事件不直接影响游戏，只读
+                    Narration.Say("（注释事件）", NarrationCategory.Instruction);
+                    break;
+                    
+                case LevelEventType.FinishLevel:
+                    // 结束关卡事件
+                    Narration.Say("（结束关卡）", NarrationCategory.Instruction);
+                    break;
+                    
+                case LevelEventType.CallCustomMethod:
+                    // 自定义方法需要额外配置
+                    Narration.Say("（需要配置自定义方法）", NarrationCategory.Instruction);
+                    break;
+                    
+                case LevelEventType.TagAction:
+                    // 标签操作
+                    Narration.Say("（标签操作）", NarrationCategory.Instruction);
+                    break;
+            }
         }
 
         [HarmonyPatch("AddEventControlToSelection")]
         [HarmonyPostfix]
         public static void AddEventControlToSelectionPostfix(LevelEventControl_Base newControl)
         {
+            if (newControl?.levelEvent == null) return;
             Narration.Say("已选择" + ModUtils.eventSelectI18n(newControl.levelEvent), NarrationCategory.Navigation);
         }
     }
