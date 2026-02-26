@@ -433,7 +433,7 @@ namespace RDLevelEditorAccess
             }
 
             // Shift+Enter: 编辑当前选中的轨道
-            if (Input.GetKeyDown(KeyCode.Return) && 
+            if (Input.GetKeyDown(KeyCode.Return) &&
                 (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
             {
                 if (editor.currentTab == Tab.Rows && editor.selectedRowIndex >= 0)
@@ -445,6 +445,19 @@ namespace RDLevelEditorAccess
                 {
                     // TODO: 精灵编辑支持
                     Narration.Say("精灵编辑暂不支持", NarrationCategory.Navigation);
+                }
+            }
+
+            // NEW: Return (无修饰符)：跳转到选中事件所在的小节并开始播放
+            if (Input.GetKeyDown(KeyCode.Return) &&
+                !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl) &&
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
+            {
+                if (editor.selectedControl != null && editor.selectedControl.levelEvent != null)
+                {
+                    int eventBar = editor.selectedControl.levelEvent.bar;
+                    editor.ScrubToBar(eventBar, playAfterScrubbing: true);
+                    Narration.Say($"跳转到 {RDString.Get("editor.bar")} {eventBar} 并开始播放", NarrationCategory.Notification);
                 }
             }
 
