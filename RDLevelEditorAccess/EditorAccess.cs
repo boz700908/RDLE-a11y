@@ -83,6 +83,9 @@ namespace RDLevelEditorAccess
         private string virtualMenuPurpose = "";  // "row", "sprite", "event"
         private LevelEventType selectedEventType;
 
+        // 编辑光标：时间轴上的虚拟锚点，用于精确控制事件插入/粘贴位置
+        internal BarAndBeat _editCursor = new BarAndBeat(1, 1f);
+
         public void Awake()
         {
             Instance = this;
@@ -485,6 +488,38 @@ namespace RDLevelEditorAccess
                     Narration.Say("请在 Rows 或 Sprites Tab 中添加轨道或精灵", NarrationCategory.Navigation);
                 }
             }
+
+            // ===================================================================================
+            // 编辑光标快捷键
+            // ===================================================================================
+
+            // 斜杠：将编辑光标设置为当前播放头位置
+            if (Input.GetKeyDown(KeyCode.Slash) &&
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
+            {
+                var tl = editor.timeline;
+                _editCursor = tl.GetBarAndBeatWithPosX(tl.playhead.anchoredPosition.x);
+                Narration.Say(FormatBarAndBeat(_editCursor), NarrationCategory.Navigation);
+            }
+
+            // Shift+斜杠：朗读编辑光标当前位置
+            if (Input.GetKeyDown(KeyCode.Slash) &&
+                (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+            {
+                Narration.Say(FormatBarAndBeat(_editCursor) + " 编辑光标", NarrationCategory.Navigation);
+            }
+
+            // 逗号：编辑光标后退 0.1 拍
+            if (Input.GetKeyDown(KeyCode.Comma))
+            {
+                MoveEditCursor(-0.1f);
+            }
+
+            // 句号：编辑光标前进 0.1 拍
+            if (Input.GetKeyDown(KeyCode.Period))
+            {
+                MoveEditCursor(0.1f);
+            }
         }
 
         /// <summary>
@@ -665,8 +700,8 @@ namespace RDLevelEditorAccess
                 selectedEventType = eventTypes[virtualMenuIndex];
                 CloseVirtualMenu();
                 
-                // 使用 playhead 精确位置创建事件
-                var barAndBeat = editor.timeline.GetBarAndBeatWithPosX(editor.timeline.playhead.anchoredPosition.x);
+                // 使用编辑光标位置创建事件
+                var barAndBeat = _editCursor;
                 int bar = barAndBeat.bar;
                 float beat = barAndBeat.beat;
                 int row = editor.selectedRowIndex >= 0 ? editor.selectedRowIndex : 0;
@@ -689,6 +724,45 @@ namespace RDLevelEditorAccess
         {
             virtualMenuState = VirtualMenuState.None;
             virtualMenuPurpose = "";
+        }
+
+        /// <summary>
+        /// 将编辑光标在时间轴上移动 deltaBeat 拍（正数向右，负数向左）。
+        /// 使用像素空间运算以自动处理变速小节（SetCrotchetsPerBar）。
+        /// </summary>
+        private void MoveEditCursor(float deltaBeat)
+        {
+            var editor = scnEditor.instance;
+            if (editor?.timeline == null) return;
+
+            var tl = editor.timeline;
+            int oldBar = _editCursor.bar;
+
+            float cursorX = tl.GetPosXFromBarAndBeat(_editCursor);
+            float newX = Mathf.Max(0f, cursorX + deltaBeat * tl.cellWidth);
+            _editCursor = tl.GetBarAndBeatWithPosX(newX);
+
+            string announcement = _editCursor.bar != oldBar
+                ? FormatBarAndBeat(_editCursor)
+                : FormatBeat(_editCursor.beat);
+            Narration.Say(announcement, NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 将 BarAndBeat 格式化为 "X小节Y拍" 或 "X小节Y.Y拍"。
+        /// </summary>
+        private static string FormatBarAndBeat(BarAndBeat bb)
+        {
+            return $"{bb.bar}小节{FormatBeat(bb.beat)}";
+        }
+
+        /// <summary>
+        /// 将拍号格式化，取整到1位小数并去除尾零。
+        /// </summary>
+        private static string FormatBeat(float beat)
+        {
+            float rounded = Mathf.Round(beat * 10f) / 10f;
+            return rounded % 1f == 0f ? $"{(int)rounded}拍" : $"{rounded:0.#}拍";
         }
 
         /// <summary>
@@ -1393,7 +1467,7 @@ namespace RDLevelEditorAccess
             if (editor?.timeline == null) return;
 
             var timeline = editor.timeline;
-            float playheadX = timeline.playhead.anchoredPosition.x;
+            float playheadX = timeline.GetPosXFromBarAndBeat(AccessLogic.Instance._editCursor);
             float viewWidth = timeline.scrollview.rect.width;
             float contentWidth = timeline.scrollviewContent.sizeDelta.x;
             float scrollableWidth = contentWidth - viewWidth;
