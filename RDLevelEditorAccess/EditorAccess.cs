@@ -496,7 +496,7 @@ namespace RDLevelEditorAccess
             // 斜杠：将编辑光标设置为当前播放头位置
             if (Input.GetKeyDown(KeyCode.Slash) &&
                 !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift) &&
-                !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl))
+                !Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.RightAlt))
             {
                 var tl = editor.timeline;
                 _editCursor = tl.GetBarAndBeatWithPosX(tl.playhead.anchoredPosition.x);
@@ -510,19 +510,13 @@ namespace RDLevelEditorAccess
                 Narration.Say(FormatBarAndBeat(_editCursor) + " 编辑光标", NarrationCategory.Navigation);
             }
 
-            // Ctrl+斜杠：跳转到编辑光标所在小节并播放
-            // 注意：LevelSpeed 在 Ctrl 键按下时返回 0.75，ScrubToBar 会将其捕获为
-            // speedToPlayAfterLoading。场景异步加载完成后才读取该值，因此调用后
-            // 立即通过反射覆盖为 1f，确保以正常速度播放。
+            // Alt+斜杠：跳转到编辑光标所在小节并播放
+            // 使用 Alt 而非 Ctrl，因为 LevelSpeed 在 Ctrl 按下时返回 0.75 会导致播放变慢
             if (Input.GetKeyDown(KeyCode.Slash) &&
-                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)) &&
                 !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
             {
                 editor.ScrubToBar(_editCursor.bar, playAfterScrubbing: true);
-                typeof(scnEditor)
-                    .GetField("speedToPlayAfterLoading",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                    ?.SetValue(editor, 1f);
             }
 
             // 逗号：编辑光标后退 0.1 拍
