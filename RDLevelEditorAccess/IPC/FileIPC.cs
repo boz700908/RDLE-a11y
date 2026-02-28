@@ -400,7 +400,15 @@ namespace RDLevelEditorAccess.IPC
                 var currentEvent = scnEditor.instance?.selectedControl?.levelEvent;
                 if (currentEvent == null)
                 {
-                    // Helper可能在试图验证一个已关闭的对话框的事件，忽略此请求
+                    // 编辑轨道/元数据时没有选中事件，返回空响应
+                    // 不能只删请求不写响应，否则 Helper 会等待 5 秒超时
+                    var emptyResponse = new PropertyUpdateResponse
+                    {
+                        token = request?.token ?? "",
+                        visibilityChanges = new Dictionary<string, bool>()
+                    };
+                    string emptyResponsePath = Path.Combine(_tempPath, "validateVisibilityResponse.json");
+                    File.WriteAllText(emptyResponsePath, JsonSerializer.Serialize(emptyResponse, options));
                     File.Delete(validationPath);
                     return;
                 }
