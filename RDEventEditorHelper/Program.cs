@@ -50,7 +50,7 @@ namespace RDEventEditorHelper
                 : editType == "row"
                     ? "编辑轨道 (Edit Row)"
                     : $"编辑事件 (Edit Event): {sourceData?.eventType}";
-            editorForm.SetData(sourceData?.eventType, sourceData?.properties, title);
+            editorForm.SetData(sourceData?.eventType, sourceData?.properties, title, sourceData?.levelAudioFiles);
 
             editorForm.OnOK += (updates) =>
             {
@@ -100,6 +100,7 @@ namespace RDEventEditorHelper
             public string eventType;
             public string token;  // 会话特征码
             public PropertyData[] properties;
+            public string[] levelAudioFiles;  // 关卡目录中的音频文件名列表
         }
 
         private class ResultData

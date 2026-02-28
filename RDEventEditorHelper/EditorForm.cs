@@ -115,6 +115,7 @@ namespace RDEventEditorHelper
         private Button _btnOK, _btnCancel;
         private string _eventType;
         private PropertyData[] _properties;
+        private string[] _levelAudioFiles;
         private Dictionary<string, Control> _controls = new Dictionary<string, Control>();
         private bool _isClosingByButton = false;
         private string _pendingExecuteMethod = null;  // 点击操作按钮时要执行的方法名
@@ -186,10 +187,11 @@ namespace RDEventEditorHelper
             };
         }
 
-        public void SetData(string eventType, PropertyData[] properties, string title = null)
+        public void SetData(string eventType, PropertyData[] properties, string title = null, string[] levelAudioFiles = null)
         {
             _eventType = eventType;
             _properties = properties;
+            _levelAudioFiles = levelAudioFiles;
             this.Text = title ?? $"编辑事件 (Edit Event): {eventType}";
             BuildUI();
 
@@ -467,7 +469,7 @@ namespace RDEventEditorHelper
                         
                         // 第一行：搜索框 + 浏览按钮
                         var lblSearch = new Label { Text = "搜索 (Search):", Width = 65, Top = 5, Left = 0 };
-                        var txtSearch = new TextBox { Width = hasSoundOptions ? 200 : 320, Top = 3, Left = 70, Name = "SearchBox" };
+                        var txtSearch = new TextBox { Width = hasSoundOptions ? 200 : 320, Top = 3, Left = 70, Name = "SearchBox", AccessibleName = "搜索 (Search)" };
                         
                         // 隐藏的文件名存储（用于保存时获取值）
                         var txtHiddenFilename = new TextBox { Text = soundFilename, Width = 1, Top = 0, Left = 0, Name = "Filename", Visible = false };
@@ -484,7 +486,8 @@ namespace RDEventEditorHelper
                                 Text = "浏览文件... (Browse)",
                                 Width = 100,
                                 Top = 2,
-                                Left = 260
+                                Left = 260,
+                                AccessibleName = "浏览文件 (Browse File)"
                             };
                             btnBrowse.Click += (s, e) =>
                             {
@@ -507,17 +510,20 @@ namespace RDEventEditorHelper
                                                 if (item.Tag as string == fileName)
                                                 {
                                                     item.Selected = true;
+                                                    item.Focused = true;
+                                                    lv.EnsureVisible(lv.Items.IndexOf(item));
                                                     lv.Focus();
                                                     return;
                                                 }
                                             }
-                                            
+
                                             // 添加新项
                                             var newItem = new ListViewItem(fileName);
-                                            newItem.SubItems.Add("(外部)");
                                             newItem.Tag = fileName;
                                             lv.Items.Add(newItem);
                                             newItem.Selected = true;
+                                            newItem.Focused = true;
+                                            lv.EnsureVisible(lv.Items.Count - 1);
                                             lv.Focus();
                                         }
                                     }
@@ -540,10 +546,10 @@ namespace RDEventEditorHelper
                             FullRowSelect = true,
                             HideSelection = false,
                             Name = "SoundListView",
-                            TabIndex = 0
+                            TabIndex = 0,
+                            AccessibleName = displayName
                         };
-                        listView.Columns.Add("音效名称 (Sound Name)", 280);
-                        listView.Columns.Add("类型 (Type)", 100);
+                        listView.Columns.Add("音效名称 (Sound Name)", 400);
                         
                         // 填充预设选项
                         if (hasSoundOptions)
@@ -553,7 +559,6 @@ namespace RDEventEditorHelper
                             {
                                 // 添加"轨道默认"选项（第一项）
                                 var defaultItem = new ListViewItem("(使用轨道默认 / Track Default)");
-                                defaultItem.SubItems.Add("(默认 / Default)");
                                 defaultItem.Tag = "__track_default__";  // 特殊标记
                                 listView.Items.Add(defaultItem);
                                 
@@ -567,13 +572,27 @@ namespace RDEventEditorHelper
                             foreach (var opt in prop.soundOptions)
                             {
                                 var item = new ListViewItem(opt);
-                                item.SubItems.Add("(内置 / Built-in)");
                                 item.Tag = opt;
                                 listView.Items.Add(item);
                                 if (opt == soundFilename) item.Selected = true;
                             }
                         }
                         
+                        // 填充关卡目录音频文件
+                        if (_levelAudioFiles != null)
+                        {
+                            foreach (var audioFile in _levelAudioFiles)
+                            {
+                                bool alreadyInList = listView.Items.Cast<ListViewItem>()
+                                    .Any(i => string.Equals(i.Tag as string, audioFile, StringComparison.OrdinalIgnoreCase));
+                                if (alreadyInList) continue;
+                                var lvItem = new ListViewItem(audioFile);
+                                lvItem.Tag = audioFile;
+                                listView.Items.Add(lvItem);
+                                if (audioFile == soundFilename) lvItem.Selected = true;
+                            }
+                        }
+
                         // 如果当前值不在列表中，添加为外部文件
                         if (!string.IsNullOrEmpty(soundFilename))
                         {
@@ -589,7 +608,6 @@ namespace RDEventEditorHelper
                             if (!found)
                             {
                                 var extItem = new ListViewItem(soundFilename);
-                                extItem.SubItems.Add("(外部 / External)");
                                 extItem.Tag = soundFilename;
                                 listView.Items.Add(extItem);
                                 extItem.Selected = true;
@@ -613,33 +631,48 @@ namespace RDEventEditorHelper
                             this.Close();
                         };
                         
-                        // 搜索过滤
+                        // 搜索过滤（真正移除/添加项目，屏幕阅读器友好）
+                        var allSoundItems = listView.Items.Cast<ListViewItem>().ToList();
                         txtSearch.TextChanged += (s, e) =>
                         {
                             var keyword = txtSearch.Text.ToLower();
+                            listView.BeginUpdate();
+                            listView.Items.Clear();
+                            foreach (var item in allSoundItems)
+                            {
+                                if (string.IsNullOrEmpty(keyword) || item.Text.ToLower().Contains(keyword))
+                                    listView.Items.Add(item);
+                            }
+                            listView.EndUpdate();
+                            // 恢复选中状态
+                            string cur = txtHiddenFilename.Text;
                             foreach (ListViewItem item in listView.Items)
                             {
-                                bool match = string.IsNullOrEmpty(keyword) || 
-                                             item.Text.ToLower().Contains(keyword);
-                                // ListView 没有 Hidden 属性，需要移除/添加或使用其他方式
-                                // 简化处理：使用 BackColor 模拟
-                                item.BackColor = match ? SystemColors.Window : SystemColors.ControlDark;
-                                item.ForeColor = match ? SystemColors.WindowText : SystemColors.GrayText;
+                                if (item.Tag as string == cur)
+                                {
+                                    item.Selected = true;
+                                    item.Focused = true;
+                                    listView.EnsureVisible(listView.Items.IndexOf(item));
+                                    break;
+                                }
                             }
                         };
-                        
+
                         soundPanel.Controls.Add(listView);
-                        
-                        // 确保选中状态生效
+
+                        // 确保选中状态生效，屏幕阅读器焦点跳到选中项
                         listView.Refresh();
                         if (listView.SelectedItems.Count > 0)
                         {
+                            int selectedIdx = listView.SelectedIndices[0];
+                            listView.Items[selectedIdx].Focused = true;
+                            listView.EnsureVisible(selectedIdx);
                             listView.Focus();
                         }
                         
                         // 第三行：音量
                         var lblVolume = new Label { Text = "音量 (Volume):", Width = 80, Top = 155, Left = 0 };
-                        var txtVolume = new TextBox { Text = soundVolume, Width = 60, Top = 153, Left = 85, Name = "Volume" };
+                        var txtVolume = new TextBox { Text = soundVolume, Width = 60, Top = 153, Left = 85, Name = "Volume", AccessibleName = "音量 (Volume)" };
                         var lblVolumeHint = new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 150 };
                         soundPanel.Controls.Add(lblVolume);
                         soundPanel.Controls.Add(txtVolume);
@@ -647,19 +680,19 @@ namespace RDEventEditorHelper
 
                         // 音调
                         var lblPitch = new Label { Text = "音调 (Pitch):", Width = 80, Top = 155, Left = 215 };
-                        var txtPitch = new TextBox { Text = soundPitch, Width = 60, Top = 153, Left = 295, Name = "Pitch" };
+                        var txtPitch = new TextBox { Text = soundPitch, Width = 60, Top = 153, Left = 295, Name = "Pitch", AccessibleName = "音调 (Pitch)" };
                         var lblPitchHint = new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 285 };
                         soundPanel.Controls.Add(lblPitch);
                         soundPanel.Controls.Add(txtPitch);
                         soundPanel.Controls.Add(lblPitchHint);
-                        
+
                         // 第四行：声道和偏移
                         var lblPan = new Label { Text = "声道 (Pan):", Width = 65, Top = 180, Left = 0 };
-                        var txtPan = new TextBox { Text = soundPan, Width = 60, Top = 178, Left = 70, Name = "Pan" };
+                        var txtPan = new TextBox { Text = soundPan, Width = 60, Top = 178, Left = 70, Name = "Pan", AccessibleName = "声道 (Pan)" };
                         var lblPanHint = new Label { Text = "(-100~100)", Width = 65, Top = 180, Left = 135 };
 
                         var lblOffset = new Label { Text = "偏移 (Offset):", Width = 75, Top = 180, Left = 205 };
-                        var txtOffset = new TextBox { Text = soundOffset, Width = 60, Top = 178, Left = 285, Name = "Offset" };
+                        var txtOffset = new TextBox { Text = soundOffset, Width = 60, Top = 178, Left = 285, Name = "Offset", AccessibleName = "偏移 (Offset)" };
                         var lblOffsetHint = new Label { Text = "毫秒 (ms)", Width = 55, Top = 180, Left = 350 };
                         
                         soundPanel.Controls.Add(lblPan);
@@ -755,10 +788,13 @@ namespace RDEventEditorHelper
                         
                         charPanel.Controls.Add(charListView);
                         
-                        // 确保选中状态生效
+                        // 确保选中状态生效，屏幕阅读器焦点跳到选中项
                         charListView.Refresh();
                         if (charListView.SelectedItems.Count > 0)
                         {
+                            int selectedIdx = charListView.SelectedIndices[0];
+                            charListView.Items[selectedIdx].Focused = true;
+                            charListView.EnsureVisible(selectedIdx);
                             charListView.Focus();
                         }
                         

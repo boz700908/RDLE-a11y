@@ -63,7 +63,8 @@ namespace RDLevelEditorAccess.IPC
             {
                 eventType = levelEvent.type.ToString(),
                 token = _sessionToken,
-                properties = properties
+                properties = properties,
+                levelAudioFiles = GetLevelAudioFiles()
             };
 
             try
@@ -111,7 +112,8 @@ namespace RDLevelEditorAccess.IPC
                 editType = "row",
                 eventType = "MakeRow",
                 token = _sessionToken,
-                properties = properties
+                properties = properties,
+                levelAudioFiles = GetLevelAudioFiles()
             };
 
             try
@@ -1348,7 +1350,8 @@ namespace RDLevelEditorAccess.IPC
                 editType = "settings",
                 eventType = "LevelSettings",
                 token = _sessionToken,
-                properties = BuildSettingsProperties()
+                properties = BuildSettingsProperties(),
+                levelAudioFiles = GetLevelAudioFiles()
             };
 
             try
@@ -1644,6 +1647,30 @@ namespace RDLevelEditorAccess.IPC
             return value.ToString();
         }
 
+        private string[] GetLevelAudioFiles()
+        {
+            try
+            {
+                string filePath = scnEditor.instance?.openedFilePath;
+                if (string.IsNullOrEmpty(filePath)) return null;
+                string levelDir = Path.GetDirectoryName(filePath);
+                if (!Directory.Exists(levelDir)) return null;
+                var exts = new HashSet<string>(
+                    GC.SupportedAudioFiles.Select(e => "." + e),
+                    StringComparer.OrdinalIgnoreCase);
+                return Directory.GetFiles(levelDir)
+                    .Where(f => exts.Contains(Path.GetExtension(f)))
+                    .Select(f => Path.GetFileName(f))
+                    .OrderBy(f => f)
+                    .ToArray();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FileIPC] 获取关卡音频文件失败: {ex.Message}");
+                return null;
+            }
+        }
+
         [Serializable]
         private class SourceData
         {
@@ -1651,6 +1678,7 @@ namespace RDLevelEditorAccess.IPC
             public string eventType;
             public string token;  // 会话特征码
             public List<PropertyData> properties;
+            public string[] levelAudioFiles;  // 关卡目录中的音频文件名列表
         }
 
         [Serializable]
