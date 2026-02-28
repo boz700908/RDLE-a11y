@@ -515,7 +515,7 @@ namespace RDLevelEditorAccess
                 (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
                 !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
             {
-                editor.ScrubToBar(_editCursor.bar, playAfterScrubbing: false);
+                editor.ScrubToBar(_editCursor.bar, playAfterScrubbing: true);
             }
 
             // 逗号：编辑光标后退 0.1 拍
