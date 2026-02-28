@@ -322,17 +322,17 @@ namespace RDLevelEditorAccess
                     else if (item is Toggle tgl)
                     {
                         tgl.isOn = !tgl.isOn;
-                        Narration.Say(tgl.isOn ? "已选中" : "未选中", NarrationCategory.Notification);
+                        Narration.Say(tgl.isOn ? RDString.Get("eam.check.checked") : RDString.Get("eam.check.unchecked"), NarrationCategory.Notification);
                     }
                     else if (item is InputField input)
                     {
                         input.ActivateInputField();
-                        Narration.Say("编辑框已激活", NarrationCategory.Notification);
+                        Narration.Say(RDString.Get("eam.input.activated"), NarrationCategory.Notification);
                     }
                     else if (item is TMP_InputField tmpInput)
                     {
                         tmpInput.ActivateInputField();
-                        Narration.Say("编辑框已激活", NarrationCategory.Notification);
+                        Narration.Say(RDString.Get("eam.input.activated"), NarrationCategory.Notification);
                     }
                 }
             }
@@ -431,7 +431,7 @@ namespace RDLevelEditorAccess
                 if (editor.selectedControl != null)
                 {
                     AccessibilityBridge.EditEvent(editor.selectedControl.levelEvent);
-                    Narration.Say("正在打开属性编辑器", NarrationCategory.Instruction);
+                    Narration.Say(RDString.Get("eam.editor.openPropEditor"), NarrationCategory.Instruction);
                 }
             }
 
@@ -442,12 +442,12 @@ namespace RDLevelEditorAccess
                 if (editor.currentTab == Tab.Rows && editor.selectedRowIndex >= 0)
                 {
                     AccessibilityBridge.EditRow(editor.selectedRowIndex);
-                    Narration.Say("正在打开轨道编辑器", NarrationCategory.Instruction);
+                    Narration.Say(RDString.Get("eam.editor.openTrackEditor"), NarrationCategory.Instruction);
                 }
                 else if (editor.currentTab == Tab.Sprites && !string.IsNullOrEmpty(editor.selectedSprite))
                 {
                     // TODO: 精灵编辑支持
-                    Narration.Say("精灵编辑暂不支持", NarrationCategory.Navigation);
+                    Narration.Say(RDString.Get("eam.sprite.editNotSupported"), NarrationCategory.Navigation);
                 }
             }
 
@@ -460,7 +460,7 @@ namespace RDLevelEditorAccess
                 {
                     int eventBar = editor.selectedControl.levelEvent.bar;
                     editor.ScrubToBar(eventBar, playAfterScrubbing: true);
-                    Narration.Say($"跳转到 {RDString.Get("editor.bar")} {eventBar} 并开始播放", NarrationCategory.Notification);
+                    Narration.Say(string.Format(RDString.Get("eam.event.jumpAndPlay"), $"{RDString.Get("editor.bar")} {eventBar}"), NarrationCategory.Notification);
                 }
             }
 
@@ -485,7 +485,7 @@ namespace RDLevelEditorAccess
                 }
                 else
                 {
-                    Narration.Say("请在 Rows 或 Sprites Tab 中添加轨道或精灵", NarrationCategory.Navigation);
+                    Narration.Say(RDString.Get("eam.action.addRowOrSprite"), NarrationCategory.Navigation);
                 }
             }
 
@@ -508,7 +508,7 @@ namespace RDLevelEditorAccess
             if (Input.GetKeyDown(KeyCode.Slash) &&
                 (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
             {
-                Narration.Say(FormatBarAndBeat(_editCursor) + " 编辑光标", NarrationCategory.Navigation);
+                Narration.Say(FormatBarAndBeat(_editCursor) + RDString.Get("eam.cursor.suffix"), NarrationCategory.Navigation);
             }
 
             // Ctrl+斜杠：将编辑光标吸附到最近的正拍或半拍
@@ -522,7 +522,7 @@ namespace RDLevelEditorAccess
                 float halfBeat = tl.cellWidth * 0.5f;
                 float snappedX = Mathf.Max(0f, Mathf.Round(cursorX / halfBeat) * halfBeat);
                 _editCursor = tl.GetBarAndBeatWithPosX(snappedX);
-                Narration.Say("吸附到" + FormatBarAndBeat(_editCursor), NarrationCategory.Navigation);
+                Narration.Say(RDString.Get("eam.cursor.snapPrefix") + FormatBarAndBeat(_editCursor), NarrationCategory.Navigation);
             }
 
             // Alt+斜杠：跳转到编辑光标所在小节并播放
@@ -574,7 +574,7 @@ namespace RDLevelEditorAccess
             virtualMenuPurpose = purpose;
             virtualMenuIndex = 0;
             
-            Narration.Say("选择角色，使用上下箭头导航，回车确认，Escape取消", NarrationCategory.Instruction);
+            Narration.Say(RDString.Get("eam.char.selectPrompt"), NarrationCategory.Instruction);
             Narration.Say(GetCharacterName(RDEditorConstants.AvailableCharacters[0]), NarrationCategory.Navigation);
         }
 
@@ -640,7 +640,7 @@ namespace RDLevelEditorAccess
             // Escape 取消
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                Narration.Say("已取消", NarrationCategory.Navigation);
+                Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
                 CloseVirtualMenu();
             }
         }
@@ -658,7 +658,7 @@ namespace RDLevelEditorAccess
             
             if (eventTypes == null || eventTypes.Count == 0)
             {
-                Narration.Say("当前 Tab 没有可用的事件类型", NarrationCategory.Navigation);
+                Narration.Say(RDString.Get("eam.event.noTypesAvailable"), NarrationCategory.Navigation);
                 return;
             }
 
@@ -671,7 +671,7 @@ namespace RDLevelEditorAccess
             virtualMenuState = VirtualMenuState.EventTypeSelect;
             virtualMenuIndex = 0;
 
-            Narration.Say("选择事件类型，使用上下箭头导航，回车确认，Escape取消", NarrationCategory.Instruction);
+            Narration.Say(RDString.Get("eam.event.selectPrompt"), NarrationCategory.Instruction);
             Narration.Say(GetEventTypeName(eventTypes[0]), NarrationCategory.Navigation);
         }
 
@@ -739,7 +739,7 @@ namespace RDLevelEditorAccess
             // Escape 取消
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                Narration.Say("已取消", NarrationCategory.Navigation);
+                Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
                 CloseVirtualMenu();
             }
         }
@@ -771,25 +771,33 @@ namespace RDLevelEditorAccess
 
             string announcement = _editCursor.bar != oldBar
                 ? FormatBarAndBeat(_editCursor)
-                : FormatBeat(_editCursor.beat);
+                : FormatBeatOnly(_editCursor.beat);
             Narration.Say(announcement, NarrationCategory.Navigation);
         }
 
         /// <summary>
-        /// 将 BarAndBeat 格式化为 "X小节Y拍" 或 "X小节Y.Y拍"。
+        /// 将 BarAndBeat 格式化为本地化字符串（如"3小节2拍"或"Bar 3 Beat 2"）。
         /// </summary>
         private static string FormatBarAndBeat(BarAndBeat bb)
         {
-            return $"{bb.bar}小节{FormatBeat(bb.beat)}";
+            return string.Format(RDString.Get("eam.barbeat.format"), bb.bar, FormatBeat(bb.beat));
         }
 
         /// <summary>
-        /// 将拍号格式化，取整到1位小数并去除尾零。
+        /// 将拍号格式化，取整到1位小数并去除尾零，不含单位（如"2"或"2.5"）。
         /// </summary>
-        private static string FormatBeat(float beat)
+        internal static string FormatBeat(float beat)
         {
             float rounded = Mathf.Round(beat * 10f) / 10f;
-            return rounded % 1f == 0f ? $"{(int)rounded}拍" : $"{rounded:0.#}拍";
+            return rounded % 1f == 0f ? $"{(int)rounded}" : $"{rounded:0.#}";
+        }
+
+        /// <summary>
+        /// 将拍号格式化为带本地化单位的完整字符串（如"2拍"或"Beat 2"）。
+        /// </summary>
+        private static string FormatBeatOnly(float beat)
+        {
+            return string.Format(RDString.Get("eam.barbeat.beatOnly"), FormatBeat(beat));
         }
 
         /// <summary>
@@ -809,7 +817,7 @@ namespace RDLevelEditorAccess
             editor.AddNewRow(rowData);
             editor.tabSection_rows.UpdateUI();
             
-            Narration.Say($"已添加轨道，角色 {GetCharacterName(character)}", NarrationCategory.Navigation);
+                Narration.Say(string.Format(RDString.Get("eam.track.added"), GetCharacterName(character)), NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -829,7 +837,7 @@ namespace RDLevelEditorAccess
             editor.AddNewSprite(spriteData);
             editor.tabSection_sprites.UpdateUI();
             
-            Narration.Say($"已添加精灵，角色 {GetCharacterName(character)}", NarrationCategory.Navigation);
+                Narration.Say(string.Format(RDString.Get("eam.sprite.added"), GetCharacterName(character)), NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -857,14 +865,14 @@ namespace RDLevelEditorAccess
             if (eventTypeObj == null)
             {
                 Debug.LogError($"[CreateEventAndEdit] 无法找到类型: LevelEvent_{eventType}");
-                Narration.Say($"无法创建事件类型 {eventType}", NarrationCategory.Navigation);
+                Narration.Say(string.Format(RDString.Get("eam.event.createFailed"), eventType), NarrationCategory.Navigation);
                 return;
             }
 
             var levelEvent = Activator.CreateInstance(eventTypeObj) as LevelEvent_Base;
             if (levelEvent == null)
             {
-                Narration.Say("创建事件失败", NarrationCategory.Navigation);
+                Narration.Say(RDString.Get("eam.event.createError"), NarrationCategory.Navigation);
                 return;
             }
 
@@ -886,7 +894,7 @@ namespace RDLevelEditorAccess
             // 选中新创建的事件
             editor.SelectEventControl(control, true);
             
-            Narration.Say($"已创建事件 {GetEventTypeName(eventType)}，正在打开属性编辑器", NarrationCategory.Navigation);
+            Narration.Say(string.Format(RDString.Get("eam.event.createdAndOpening"), GetEventTypeName(eventType)), NarrationCategory.Navigation);
             
             // 自动打开 Helper 编辑
             AccessibilityBridge.EditEvent(levelEvent);
@@ -960,7 +968,7 @@ namespace RDLevelEditorAccess
             var pageRows = editor.currentPageRowsData;
             if (pageRows == null || pageRows.Count == 0)
             {
-                Narration.Say("无可用轨道", NarrationCategory.Navigation);
+                Narration.Say(RDString.Get("eam.track.noAvailable"), NarrationCategory.Navigation);
                 return;
             }
 
@@ -993,7 +1001,7 @@ namespace RDLevelEditorAccess
             var pageSprites = editor.currentPageSpritesData;
             if (pageSprites == null || pageSprites.Count == 0)
             {
-                Narration.Say("无可用精灵", NarrationCategory.Navigation);
+                Narration.Say(RDString.Get("eam.sprite.noAvailable"), NarrationCategory.Navigation);
                 return;
             }
 
@@ -1070,7 +1078,7 @@ namespace RDLevelEditorAccess
 
             // 朗读轨道信息
             string characterName = GetRowCharacterName(rowData);
-            Narration.Say($"轨道 {indexInPage} {characterName} {eventCount}事件", NarrationCategory.Navigation);
+            Narration.Say(string.Format(RDString.Get("eam.track.info"), indexInPage, characterName, eventCount), NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -1095,7 +1103,7 @@ namespace RDLevelEditorAccess
 
             // 朗读精灵信息
             string displayName = GetSpriteDisplayName(spriteData);
-            Narration.Say($"精灵 {indexInPage} {displayName} {eventCount}事件", NarrationCategory.Navigation);
+            Narration.Say(string.Format(RDString.Get("eam.sprite.info"), indexInPage, displayName, eventCount), NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -1141,7 +1149,7 @@ namespace RDLevelEditorAccess
 
             // 朗读轨道信息
             string characterName = GetRowCharacterName(rowData);
-            Narration.Say($"轨道 {currentIndex} {characterName} {eventCount}事件", NarrationCategory.Navigation);
+            Narration.Say(string.Format(RDString.Get("eam.track.info"), currentIndex, characterName, eventCount), NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -1163,7 +1171,7 @@ namespace RDLevelEditorAccess
 
             // 朗读精灵信息
             string displayName = GetSpriteDisplayName(spriteData);
-            Narration.Say($"精灵 {currentIndex} {displayName} {eventCount}事件", NarrationCategory.Navigation);
+            Narration.Say(string.Format(RDString.Get("eam.sprite.info"), currentIndex, displayName, eventCount), NarrationCategory.Navigation);
         }
 
         // 辅助属性：快捷访问 editor
@@ -1179,7 +1187,7 @@ namespace RDLevelEditorAccess
             if (targetList == null || targetList.Count == 0)
             {
                 Debug.Log($"[chooseNearestEvent] 当前 Tab ({currentTab}) 无事件列表或列表为空");
-                Narration.Say("无可用事件", NarrationCategory.Navigation);
+                Narration.Say(RDString.Get("eam.event.noAvailable"), NarrationCategory.Navigation);
                 return;
             }
 
@@ -1193,7 +1201,7 @@ namespace RDLevelEditorAccess
             if (validEvents.Count == 0)
             {
                 Debug.Log($"[chooseNearestEvent] 过滤后无有效事件");
-                Narration.Say("无可用事件", NarrationCategory.Navigation);
+                Narration.Say(RDString.Get("eam.event.noAvailable"), NarrationCategory.Navigation);
                 return;
             }
 
@@ -1348,22 +1356,22 @@ namespace RDLevelEditorAccess
             {
                 case LevelEventType.Comment:
                     // 评论事件不直接影响游戏，只读
-                    Narration.Say("（注释事件）", NarrationCategory.Instruction);
+                    Narration.Say(RDString.Get("eam.event.commentNote"), NarrationCategory.Instruction);
                     break;
                     
                 case LevelEventType.FinishLevel:
                     // 结束关卡事件
-                    Narration.Say("（结束关卡）", NarrationCategory.Instruction);
+                    Narration.Say(RDString.Get("eam.event.levelEndNote"), NarrationCategory.Instruction);
                     break;
                     
                 case LevelEventType.CallCustomMethod:
                     // 自定义方法需要额外配置
-                    Narration.Say("（需要配置自定义方法）", NarrationCategory.Instruction);
+                    Narration.Say(RDString.Get("eam.event.customMethodNote"), NarrationCategory.Instruction);
                     break;
                     
                 case LevelEventType.TagAction:
                     // 标签操作
-                    Narration.Say("（标签操作）", NarrationCategory.Instruction);
+                    Narration.Say(RDString.Get("eam.event.tagNote"), NarrationCategory.Instruction);
                     break;
             }
         }
@@ -1440,7 +1448,7 @@ namespace RDLevelEditorAccess
         {
             // 使用 playhead 精确位置
             var barAndBeat = __instance.GetBarAndBeatWithPosX(__instance.playhead.anchoredPosition.x);
-            Narration.Say($"{barAndBeat.bar}小节 {barAndBeat.beat:F1}拍", NarrationCategory.Navigation);
+            Narration.Say(string.Format(RDString.Get("eam.barbeat.format"), barAndBeat.bar, AccessLogic.FormatBeat(barAndBeat.beat)), NarrationCategory.Navigation);
         }
 
         [HarmonyPatch("NextPage")]
@@ -1449,7 +1457,7 @@ namespace RDLevelEditorAccess
         {
             // 使用 playhead 精确位置
             var barAndBeat = __instance.GetBarAndBeatWithPosX(__instance.playhead.anchoredPosition.x);
-            Narration.Say($"{barAndBeat.bar}小节 {barAndBeat.beat:F1}拍", NarrationCategory.Navigation);
+            Narration.Say(string.Format(RDString.Get("eam.barbeat.format"), barAndBeat.bar, AccessLogic.FormatBeat(barAndBeat.beat)), NarrationCategory.Navigation);
         }
     }
 
@@ -1464,7 +1472,7 @@ namespace RDLevelEditorAccess
             if (__instance.timeline != null)
             {
                 var barAndBeat = __instance.timeline.GetBarAndBeatWithPosX(__instance.timeline.playhead.anchoredPosition.x);
-                Narration.Say($"{barAndBeat.bar}小节 {barAndBeat.beat:F1}拍", NarrationCategory.Navigation);
+                Narration.Say(string.Format(RDString.Get("eam.barbeat.format"), barAndBeat.bar, AccessLogic.FormatBeat(barAndBeat.beat)), NarrationCategory.Navigation);
             }
         }
 
@@ -1476,7 +1484,7 @@ namespace RDLevelEditorAccess
             if (__instance.timeline != null)
             {
                 var barAndBeat = __instance.timeline.GetBarAndBeatWithPosX(__instance.timeline.playhead.anchoredPosition.x);
-                Narration.Say($"{barAndBeat.bar}小节 {barAndBeat.beat:F1}拍", NarrationCategory.Navigation);
+                Narration.Say(string.Format(RDString.Get("eam.barbeat.format"), barAndBeat.bar, AccessLogic.FormatBeat(barAndBeat.beat)), NarrationCategory.Navigation);
             }
         }
     }
@@ -1586,6 +1594,121 @@ namespace RDLevelEditorAccess
                 __instance.SelectEventControls(list);
             }
 
+            return false; // 拦截原方法
+        }
+    }
+
+    // ===================================================================================
+    // RDString 本地化补丁（eam. 命名空间）
+    // ===================================================================================
+    [HarmonyPatch(typeof(RDString), "Get")]
+    public static class RDStringPatch
+    {
+        private static readonly Dictionary<string, string> _zh = new Dictionary<string, string>
+        {
+            ["eam.barbeat.format"]              = "{0}小节{1}拍",
+            ["eam.barbeat.beatOnly"]             = "{0}拍",
+            ["eam.cursor.suffix"]                = " 编辑光标",
+            ["eam.cursor.snapPrefix"]            = "吸附到",
+            ["eam.action.cancelled"]             = "已取消",
+            ["eam.check.checked"]                = "已选中",
+            ["eam.check.unchecked"]              = "未选中",
+            ["eam.input.activated"]              = "编辑框已激活",
+            ["eam.editor.openPropEditor"]        = "正在打开属性编辑器",
+            ["eam.editor.openTrackEditor"]       = "正在打开轨道编辑器",
+            ["eam.editor.openEventEditor"]       = "正在打开 {0} 属性编辑器",
+            ["eam.editor.openRowEditor"]         = "正在打开轨道 {0} 属性编辑器",
+            ["eam.sprite.editNotSupported"]      = "精灵编辑暂不支持",
+            ["eam.event.jumpAndPlay"]            = "跳转到 {0} 并开始播放",
+            ["eam.action.addRowOrSprite"]        = "请在 Rows 或 Sprites Tab 中添加轨道或精灵",
+            ["eam.char.selectPrompt"]            = "选择角色，使用上下箭头导航，回车确认，Escape取消",
+            ["eam.event.noTypesAvailable"]       = "当前 Tab 没有可用的事件类型",
+            ["eam.event.selectPrompt"]           = "选择事件类型，使用上下箭头导航，回车确认，Escape取消",
+            ["eam.event.createFailed"]           = "无法创建事件类型 {0}",
+            ["eam.event.createError"]            = "创建事件失败",
+            ["eam.event.createdAndOpening"]      = "已创建事件 {0}，正在打开属性编辑器",
+            ["eam.track.noAvailable"]            = "无可用轨道",
+            ["eam.sprite.noAvailable"]           = "无可用精灵",
+            ["eam.track.info"]                   = "轨道 {0} {1} {2}事件",
+            ["eam.sprite.info"]                  = "精灵 {0} {1} {2}事件",
+            ["eam.event.noAvailable"]            = "无可用事件",
+            ["eam.event.commentNote"]            = "（注释事件）",
+            ["eam.event.levelEndNote"]           = "（结束关卡）",
+            ["eam.event.customMethodNote"]       = "（需要配置自定义方法）",
+            ["eam.event.tagNote"]                = "（标签操作）",
+            ["eam.track.added"]                  = "已添加轨道，角色 {0}",
+            ["eam.sprite.added"]                 = "已添加精灵，角色 {0}",
+            ["eam.row.rowType"]                  = "轨道类型",
+            ["eam.row.player"]                   = "玩家",
+            ["eam.row.character"]                = "角色",
+            ["eam.row.cpuMarker"]                = "CPU标记",
+            ["eam.row.hideAtStart"]              = "开始时隐藏",
+            ["eam.row.muteBeats"]                = "静音节拍",
+            ["eam.row.muteInSinglePlayer"]       = "单人模式静音",
+            ["eam.row.beatSound"]                = "节拍音效",
+            ["eam.row.room"]                     = "房间",
+            ["eam.room.option"]                  = "房间{0}",
+            ["eam.confirm.changeRowType"]        = "切换轨道类型将删除轨道上的所有事件（{0}个），是否继续？",
+            ["eam.error.roomFull"]               = "房间 {0} 已满，无法移动轨道",
+            ["eam.error.helperNotFound"]         = "无法启动事件编辑器，请确保 RDEventEditorHelper.exe 存在",
+        };
+
+        private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
+        {
+            ["eam.barbeat.format"]              = "Bar {0} Beat {1}",
+            ["eam.barbeat.beatOnly"]             = "Beat {0}",
+            ["eam.cursor.suffix"]                = " Edit Cursor",
+            ["eam.cursor.snapPrefix"]            = "Snapped to ",
+            ["eam.action.cancelled"]             = "Cancelled",
+            ["eam.check.checked"]                = "Checked",
+            ["eam.check.unchecked"]              = "Unchecked",
+            ["eam.input.activated"]              = "Input field activated",
+            ["eam.editor.openPropEditor"]        = "Opening property editor",
+            ["eam.editor.openTrackEditor"]       = "Opening track editor",
+            ["eam.editor.openEventEditor"]       = "Opening property editor for {0}",
+            ["eam.editor.openRowEditor"]         = "Opening property editor for track {0}",
+            ["eam.sprite.editNotSupported"]      = "Sprite editing not yet supported",
+            ["eam.event.jumpAndPlay"]            = "Jump to {0} and play",
+            ["eam.action.addRowOrSprite"]        = "Switch to Rows or Sprites tab to add a track or sprite",
+            ["eam.char.selectPrompt"]            = "Select character, arrow keys to navigate, Enter to confirm, Escape to cancel",
+            ["eam.event.noTypesAvailable"]       = "No event types available in current tab",
+            ["eam.event.selectPrompt"]           = "Select event type, arrow keys to navigate, Enter to confirm, Escape to cancel",
+            ["eam.event.createFailed"]           = "Cannot create event type {0}",
+            ["eam.event.createError"]            = "Event creation failed",
+            ["eam.event.createdAndOpening"]      = "Event {0} created, opening property editor",
+            ["eam.track.noAvailable"]            = "No tracks available",
+            ["eam.sprite.noAvailable"]           = "No sprites available",
+            ["eam.track.info"]                   = "Track {0} {1} {2} events",
+            ["eam.sprite.info"]                  = "Sprite {0} {1} {2} events",
+            ["eam.event.noAvailable"]            = "No events available",
+            ["eam.event.commentNote"]            = "(Comment event)",
+            ["eam.event.levelEndNote"]           = "(Level end)",
+            ["eam.event.customMethodNote"]       = "(Requires custom method)",
+            ["eam.event.tagNote"]                = "(Tag operation)",
+            ["eam.track.added"]                  = "Track added, character: {0}",
+            ["eam.sprite.added"]                 = "Sprite added, character: {0}",
+            ["eam.row.rowType"]                  = "Row Type",
+            ["eam.row.player"]                   = "Player",
+            ["eam.row.character"]                = "Character",
+            ["eam.row.cpuMarker"]                = "CPU Marker",
+            ["eam.row.hideAtStart"]              = "Hide at Start",
+            ["eam.row.muteBeats"]                = "Mute Beats",
+            ["eam.row.muteInSinglePlayer"]       = "Mute in Single Player",
+            ["eam.row.beatSound"]                = "Beat Sound",
+            ["eam.row.room"]                     = "Room",
+            ["eam.room.option"]                  = "Room {0}",
+            ["eam.confirm.changeRowType"]        = "Changing row type will delete all {0} events on this track. Continue?",
+            ["eam.error.roomFull"]               = "Room {0} is full, cannot move track",
+            ["eam.error.helperNotFound"]         = "Cannot start event editor. Please ensure RDEventEditorHelper.exe exists",
+        };
+
+        [HarmonyPrefix]
+        public static bool GetPrefix(string key, ref string __result)
+        {
+            // 性能：非 eam. key 仅多一次 4 字符 StartsWith 检查（< 10ns）
+            if (key == null || !key.StartsWith("eam.")) return true;
+            var dict = RDString.isChinese ? _zh : _en;
+            __result = dict.TryGetValue(key, out string val) ? val : key;
             return false; // 拦截原方法
         }
     }

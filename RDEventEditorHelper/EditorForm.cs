@@ -18,6 +18,7 @@ namespace RDEventEditorHelper
         public string value;
         public string type;
         public string[] options;
+        public string[] localizedOptions; // 本地化显示名，null 时直接用 options
         public string methodName;  // Button 类型专用：要调用的方法名
         public bool itsASong;      // SoundData 类型专用：区分歌曲/音效
         public bool isNullable;    // 是否为可空类型
@@ -152,8 +153,8 @@ namespace RDEventEditorHelper
             btnPanel.Height = 60;
             btnPanel.Padding = new Padding(10);
 
-            _btnCancel = new Button { Text = "取消(&C)", Width = 100, Height = 35 };
-            _btnOK = new Button { Text = "确定(&O)", Width = 100, Height = 35 };
+            _btnCancel = new Button { Text = "取消 (Cancel)", Width = 120, Height = 35 };
+            _btnOK = new Button { Text = "确定 (OK)", Width = 120, Height = 35 };
 
             _btnOK.Click += (s, e) =>
             {
@@ -189,7 +190,7 @@ namespace RDEventEditorHelper
         {
             _eventType = eventType;
             _properties = properties;
-            this.Text = title ?? $"编辑事件: {eventType}";
+            this.Text = title ?? $"编辑事件 (Edit Event): {eventType}";
             BuildUI();
 
             // NEW: 获取初始可见性（确保与Mod的enableIf状态一致）
@@ -205,7 +206,7 @@ namespace RDEventEditorHelper
             {
                 var lbl = new Label
                 {
-                    Text = "该事件没有可编辑的属性",
+                    Text = "该事件没有可编辑的属性 (No editable properties)",
                     AutoSize = true,
                     Padding = new Padding(10)
                 };
@@ -284,6 +285,8 @@ namespace RDEventEditorHelper
                         break;
 
                     case "Enum":
+                        var rawOptions = prop.options;
+                        var displayOptions = prop.localizedOptions ?? rawOptions;
                         var cmb = new ComboBox
                         {
                             Width = 400,
@@ -292,18 +295,26 @@ namespace RDEventEditorHelper
                             DropDownStyle = ComboBoxStyle.DropDownList,
                             AccessibleName = displayName
                         };
-                        if (prop.options != null)
-                            cmb.Items.AddRange(prop.options);
-                        if (!string.IsNullOrEmpty(prop.value))
-                            cmb.SelectedItem = prop.value;
+                        if (displayOptions != null)
+                            cmb.Items.AddRange(displayOptions);
+                        // 用 rawOptions 索引匹配初始值，避免显示名与 value 不匹配
+                        if (rawOptions != null && !string.IsNullOrEmpty(prop.value))
+                        {
+                            int idx = Array.IndexOf(rawOptions, prop.value);
+                            if (idx >= 0 && idx < cmb.Items.Count) cmb.SelectedIndex = idx;
+                            else if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
+                        }
                         else if (cmb.Items.Count > 0)
                             cmb.SelectedIndex = 0;
-                        // NEW: 附加值改变事件处理
+                        // 值改变时返回原始枚举名
                         cmb.SelectedValueChanged += (s, e) =>
                         {
-                            string newValue = cmb.SelectedItem?.ToString() ?? "";
-                            prop.value = newValue;
-                            RequestVisibilityUpdate(prop.name, newValue);
+                            int idx = cmb.SelectedIndex;
+                            string rawValue = (rawOptions != null && idx >= 0 && idx < rawOptions.Length)
+                                ? rawOptions[idx]
+                                : cmb.SelectedItem?.ToString() ?? "";
+                            prop.value = rawValue;
+                            RequestVisibilityUpdate(prop.name, rawValue);
                         };
                         inputCtrl = cmb;
                         break;
@@ -398,7 +409,7 @@ namespace RDEventEditorHelper
                         
                         var btnPickColor = new Button
                         {
-                            Text = "选择",
+                            Text = "选择 (Select)",
                             Width = 60,
                             Height = 23
                         };
@@ -452,8 +463,8 @@ namespace RDEventEditorHelper
                         };
                         
                         // 第一行：搜索框 + 浏览按钮
-                        var lblSearch = new Label { Text = "搜索:", Width = 45, Top = 5, Left = 0 };
-                        var txtSearch = new TextBox { Width = hasSoundOptions ? 200 : 340, Top = 3, Left = 45, Name = "SearchBox" };
+                        var lblSearch = new Label { Text = "搜索 (Search):", Width = 65, Top = 5, Left = 0 };
+                        var txtSearch = new TextBox { Width = hasSoundOptions ? 200 : 320, Top = 3, Left = 70, Name = "SearchBox" };
                         
                         // 隐藏的文件名存储（用于保存时获取值）
                         var txtHiddenFilename = new TextBox { Text = soundFilename, Width = 1, Top = 0, Left = 0, Name = "Filename", Visible = false };
@@ -467,7 +478,7 @@ namespace RDEventEditorHelper
                         {
                             var btnBrowse = new Button
                             {
-                                Text = "浏览文件...",
+                                Text = "浏览文件... (Browse)",
                                 Width = 100,
                                 Top = 2,
                                 Left = 260
@@ -476,8 +487,8 @@ namespace RDEventEditorHelper
                             {
                                 using (var ofd = new OpenFileDialog())
                                 {
-                                    ofd.Filter = "音频文件|*.wav;*.ogg;*.mp3|所有文件|*.*";
-                                    ofd.Title = prop.itsASong ? "选择歌曲文件" : "选择音效文件";
+                                    ofd.Filter = "音频文件 (Audio)|*.wav;*.ogg;*.mp3|所有文件|*.*";
+                                    ofd.Title = prop.itsASong ? "选择歌曲文件 (Select Song File)" : "选择音效文件 (Select Sound File)";
                                     if (ofd.ShowDialog() == DialogResult.OK)
                                     {
                                         string fileName = System.IO.Path.GetFileName(ofd.FileName);
@@ -528,8 +539,8 @@ namespace RDEventEditorHelper
                             Name = "SoundListView",
                             TabIndex = 0
                         };
-                        listView.Columns.Add("音效名称", 280);
-                        listView.Columns.Add("类型", 100);
+                        listView.Columns.Add("音效名称 (Sound Name)", 280);
+                        listView.Columns.Add("类型 (Type)", 100);
                         
                         // 填充预设选项
                         if (hasSoundOptions)
@@ -538,8 +549,8 @@ namespace RDEventEditorHelper
                             if (prop.isNullable)
                             {
                                 // 添加"轨道默认"选项（第一项）
-                                var defaultItem = new ListViewItem("(使用轨道默认)");
-                                defaultItem.SubItems.Add("(默认)");
+                                var defaultItem = new ListViewItem("(使用轨道默认 / Track Default)");
+                                defaultItem.SubItems.Add("(默认 / Default)");
                                 defaultItem.Tag = "__track_default__";  // 特殊标记
                                 listView.Items.Add(defaultItem);
                                 
@@ -553,7 +564,7 @@ namespace RDEventEditorHelper
                             foreach (var opt in prop.soundOptions)
                             {
                                 var item = new ListViewItem(opt);
-                                item.SubItems.Add("(内置)");
+                                item.SubItems.Add("(内置 / Built-in)");
                                 item.Tag = opt;
                                 listView.Items.Add(item);
                                 if (opt == soundFilename) item.Selected = true;
@@ -575,7 +586,7 @@ namespace RDEventEditorHelper
                             if (!found)
                             {
                                 var extItem = new ListViewItem(soundFilename);
-                                extItem.SubItems.Add("(外部)");
+                                extItem.SubItems.Add("(外部 / External)");
                                 extItem.Tag = soundFilename;
                                 listView.Items.Add(extItem);
                                 extItem.Selected = true;
@@ -624,29 +635,29 @@ namespace RDEventEditorHelper
                         }
                         
                         // 第三行：音量
-                        var lblVolume = new Label { Text = "音量:", Width = 45, Top = 155, Left = 0 };
-                        var txtVolume = new TextBox { Text = soundVolume, Width = 60, Top = 153, Left = 45, Name = "Volume" };
-                        var lblVolumeHint = new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 110 };
+                        var lblVolume = new Label { Text = "音量 (Volume):", Width = 80, Top = 155, Left = 0 };
+                        var txtVolume = new TextBox { Text = soundVolume, Width = 60, Top = 153, Left = 85, Name = "Volume" };
+                        var lblVolumeHint = new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 150 };
                         soundPanel.Controls.Add(lblVolume);
                         soundPanel.Controls.Add(txtVolume);
                         soundPanel.Controls.Add(lblVolumeHint);
-                        
+
                         // 音调
-                        var lblPitch = new Label { Text = "音调:", Width = 45, Top = 155, Left = 175 };
-                        var txtPitch = new TextBox { Text = soundPitch, Width = 60, Top = 153, Left = 220, Name = "Pitch" };
+                        var lblPitch = new Label { Text = "音调 (Pitch):", Width = 80, Top = 155, Left = 215 };
+                        var txtPitch = new TextBox { Text = soundPitch, Width = 60, Top = 153, Left = 295, Name = "Pitch" };
                         var lblPitchHint = new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 285 };
                         soundPanel.Controls.Add(lblPitch);
                         soundPanel.Controls.Add(txtPitch);
                         soundPanel.Controls.Add(lblPitchHint);
                         
                         // 第四行：声道和偏移
-                        var lblPan = new Label { Text = "声道:", Width = 45, Top = 180, Left = 0 };
-                        var txtPan = new TextBox { Text = soundPan, Width = 60, Top = 178, Left = 45, Name = "Pan" };
-                        var lblPanHint = new Label { Text = "(-100~100)", Width = 65, Top = 180, Left = 110 };
-                        
-                        var lblOffset = new Label { Text = "偏移:", Width = 45, Top = 180, Left = 175 };
-                        var txtOffset = new TextBox { Text = soundOffset, Width = 60, Top = 178, Left = 220, Name = "Offset" };
-                        var lblOffsetHint = new Label { Text = "毫秒", Width = 40, Top = 180, Left = 285 };
+                        var lblPan = new Label { Text = "声道 (Pan):", Width = 65, Top = 180, Left = 0 };
+                        var txtPan = new TextBox { Text = soundPan, Width = 60, Top = 178, Left = 70, Name = "Pan" };
+                        var lblPanHint = new Label { Text = "(-100~100)", Width = 65, Top = 180, Left = 135 };
+
+                        var lblOffset = new Label { Text = "偏移 (Offset):", Width = 75, Top = 180, Left = 205 };
+                        var txtOffset = new TextBox { Text = soundOffset, Width = 60, Top = 178, Left = 285, Name = "Offset" };
+                        var lblOffsetHint = new Label { Text = "毫秒 (ms)", Width = 55, Top = 180, Left = 350 };
                         
                         soundPanel.Controls.Add(lblPan);
                         soundPanel.Controls.Add(txtPan);
@@ -671,8 +682,8 @@ namespace RDEventEditorHelper
                         };
                         
                         // 第一行：搜索框
-                        var lblCharSearch = new Label { Text = "搜索:", Width = 45, Top = 5, Left = 0 };
-                        var txtCharSearch = new TextBox { Width = 360, Top = 3, Left = 45, Name = "CharSearchBox" };
+                        var lblCharSearch = new Label { Text = "搜索 (Search):", Width = 80, Top = 5, Left = 0 };
+                        var txtCharSearch = new TextBox { Width = 325, Top = 3, Left = 85, Name = "CharSearchBox" };
                         charPanel.Controls.Add(lblCharSearch);
                         charPanel.Controls.Add(txtCharSearch);
                         
@@ -695,7 +706,7 @@ namespace RDEventEditorHelper
                             Name = "CharacterListView",
                             TabIndex = 0
                         };
-                        charListView.Columns.Add("角色名称", 380);
+                        charListView.Columns.Add("角色名称 (Character)", 380);
                         
                         // 填充角色列表
                         if (prop.options != null)
@@ -777,7 +788,7 @@ namespace RDEventEditorHelper
             {
                 var actionGroup = new GroupBox
                 {
-                    Text = "操作",
+                    Text = "操作 (Actions)",
                     Width = 440,
                     Height = 50 + buttonProps.Count * 40,
                     Padding = new Padding(10),

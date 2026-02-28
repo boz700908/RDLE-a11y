@@ -46,7 +46,7 @@ namespace RDLevelEditorAccess
 
             _fileIPC.StartEditing(levelEvent);
             
-            Narration.Say($"正在打开 {levelEvent.type} 属性编辑器", NarrationCategory.Instruction);
+            Narration.Say(string.Format(RDString.Get("eam.editor.openEventEditor"), levelEvent.type), NarrationCategory.Instruction);
         }
 
         public static void EditRow(int rowIndex)
@@ -71,7 +71,7 @@ namespace RDLevelEditorAccess
 
             _fileIPC.StartRowEditing(rowData, rowIndex);
             
-            Narration.Say($"正在打开轨道 {rowIndex + 1} 属性编辑器", NarrationCategory.Instruction);
+            Narration.Say(string.Format(RDString.Get("eam.editor.openRowEditor"), rowIndex + 1), NarrationCategory.Instruction);
         }
 
         public static void Shutdown()

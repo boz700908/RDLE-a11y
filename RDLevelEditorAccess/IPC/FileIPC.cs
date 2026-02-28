@@ -143,7 +143,7 @@ namespace RDLevelEditorAccess.IPC
             list.Add(new PropertyData
             {
                 name = "rowType",
-                displayName = "轨道类型",
+                displayName = RDString.Get("eam.row.rowType"),
                 type = "Enum",
                 value = row.rowType.ToString(),
                 options = new[] { "Classic", "Oneshot" }
@@ -153,7 +153,7 @@ namespace RDLevelEditorAccess.IPC
             list.Add(new PropertyData
             {
                 name = "player",
-                displayName = "玩家",
+                displayName = RDString.Get("eam.row.player"),
                 type = "Enum",
                 value = row.player.ToString(),
                 options = new[] { "P1", "P2", "CPU" }
@@ -165,7 +165,7 @@ namespace RDLevelEditorAccess.IPC
             list.Add(new PropertyData
             {
                 name = "character",
-                displayName = "角色",
+                displayName = RDString.Get("eam.row.character"),
                 type = "Character",
                 value = row.character.ToString(),
                 options = availableChars.ToArray(),
@@ -177,7 +177,7 @@ namespace RDLevelEditorAccess.IPC
             list.Add(new PropertyData
             {
                 name = "cpuMarker",
-                displayName = "CPU标记",
+                displayName = RDString.Get("eam.row.cpuMarker"),
                 type = "Enum",
                 value = row.cpuMarker.ToString(),
                 options = cpuChars
@@ -187,7 +187,7 @@ namespace RDLevelEditorAccess.IPC
             list.Add(new PropertyData
             {
                 name = "hideAtStart",
-                displayName = "开始时隐藏",
+                displayName = RDString.Get("eam.row.hideAtStart"),
                 type = "Bool",
                 value = row.hideAtStart ? "true" : "false"
             });
@@ -196,7 +196,7 @@ namespace RDLevelEditorAccess.IPC
             list.Add(new PropertyData
             {
                 name = "muteBeats",
-                displayName = "静音节拍",
+                displayName = RDString.Get("eam.row.muteBeats"),
                 type = "Bool",
                 value = row.muteBeats ? "true" : "false"
             });
@@ -205,7 +205,7 @@ namespace RDLevelEditorAccess.IPC
             list.Add(new PropertyData
             {
                 name = "muteIn1P",
-                displayName = "单人模式静音",
+                displayName = RDString.Get("eam.row.muteInSinglePlayer"),
                 type = "Bool",
                 value = row.muteIn1P ? "true" : "false"
             });
@@ -216,7 +216,7 @@ namespace RDLevelEditorAccess.IPC
             list.Add(new PropertyData
             {
                 name = "pulseSound",
-                displayName = "节拍音效",
+                displayName = RDString.Get("eam.row.beatSound"),
                 type = "SoundData",
                 value = pulseSoundValue,
                 soundOptions = RDEditorConstants.BeatSounds.Select(s => s.ToString()).ToArray(),
@@ -228,10 +228,17 @@ namespace RDLevelEditorAccess.IPC
             list.Add(new PropertyData
             {
                 name = "room",
-                displayName = "房间",
+                displayName = RDString.Get("eam.row.room"),
                 type = "Enum",
                 value = row.room.ToString(),
-                options = new[] { "房间1", "房间2", "房间3", "房间4" }
+                options = new[] { "0", "1", "2", "3" },
+                localizedOptions = new[]
+                {
+                    string.Format(RDString.Get("eam.room.option"), 1),
+                    string.Format(RDString.Get("eam.room.option"), 2),
+                    string.Format(RDString.Get("eam.room.option"), 3),
+                    string.Format(RDString.Get("eam.room.option"), 4)
+                }
             });
 
             return list;
@@ -537,7 +544,7 @@ namespace RDLevelEditorAccess.IPC
                                                 if (rowControlsList != null && rowControlsList.Count > 0)
                                                 {
                                                     // 显示确认对话框
-                                                    string message = $"切换轨道类型将删除轨道上的所有事件（{rowControlsList.Count}个），是否继续？";
+                                                    string message = string.Format(RDString.Get("eam.confirm.changeRowType"), rowControlsList.Count);
                                                     Debug.Log($"[FileIPC] 轨道类型切换警告: {message}");
                                                     // TODO: 实现确认对话框
                                                     // 暂时直接切换
@@ -608,7 +615,7 @@ namespace RDLevelEditorAccess.IPC
                                                 if (countInRoom >= 4)
                                                 {
                                                     Debug.LogWarning($"[FileIPC] 目标房间 {newRoom + 1} 已满，无法移动轨道");
-                                                    Narration.Say($"房间 {newRoom + 1} 已满，无法移动轨道", NarrationCategory.Notification);
+                                                    Narration.Say(string.Format(RDString.Get("eam.error.roomFull"), newRoom + 1), NarrationCategory.Notification);
                                                     break;
                                                 }
                                             }
@@ -959,7 +966,7 @@ namespace RDLevelEditorAccess.IPC
             if (!File.Exists(helperPath))
             {
                 Debug.LogWarning($"[FileIPC] 找不到 Helper: {helperPath}");
-                Narration.Say("无法启动事件编辑器，请确保 RDEventEditorHelper.exe 存在", NarrationCategory.Notification);
+                Narration.Say(RDString.Get("eam.error.helperNotFound"), NarrationCategory.Notification);
                 return;
             }
 
@@ -1037,6 +1044,13 @@ namespace RDLevelEditorAccess.IPC
                 {
                     dto.type = "Enum";
                     dto.options = Enum.GetNames(enumProp.enumType);
+                    // 尝试从游戏本地化获取枚举选项显示名，找不到则保留原名
+                    dto.localizedOptions = dto.options.Select(name =>
+                    {
+                        string localized = RDString.GetWithCheck(
+                            $"enum.{enumProp.enumType.Name}.{name}", out bool exists);
+                        return exists ? localized : name;
+                    }).ToArray();
                 }
                 else if (prop is ColorPropertyInfo) dto.type = "Color";
                 else if (prop is Vector2PropertyInfo) dto.type = "Vector2";
@@ -1451,6 +1465,7 @@ namespace RDLevelEditorAccess.IPC
             public string value;
             public string type;
             public string[] options;
+            public string[] localizedOptions; // 本地化显示名，null 时 Helper 直接用 options
             public string methodName;  // Button 类型专用：要调用的方法名
             public bool itsASong;      // SoundData 类型专用：区分歌曲/音效
             public bool isNullable;    // 是否为可空类型
