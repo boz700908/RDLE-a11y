@@ -1036,7 +1036,14 @@ namespace RDLevelEditorAccess.IPC
                     isVisible = shouldBeVisible  // 初始可见性
                 };
 
-                if (prop is IntPropertyInfo) dto.type = "Int";
+                if (prop is IntPropertyInfo intProp && intProp.controlAttribute is RowAttribute rowAttr2)
+                {
+                    dto.type = "Row";
+                    var (rOpts, rLocalOpts) = BuildRowOptions(rowAttr2.includeAll);
+                    dto.options = rOpts;
+                    dto.localizedOptions = rLocalOpts;
+                }
+                else if (prop is IntPropertyInfo) dto.type = "Int";
                 else if (prop is FloatPropertyInfo) dto.type = "Float";
                 else if (prop is BoolPropertyInfo) dto.type = "Bool";
                 else if (prop is StringPropertyInfo) dto.type = "String";
@@ -1203,6 +1210,34 @@ namespace RDLevelEditorAccess.IPC
             }
         }
 
+        private (string[] options, string[] localizedOptions) BuildRowOptions(bool includeAll)
+        {
+            var rows = scnEditor.instance.rowsData;
+            int offset = includeAll ? 1 : 0;
+            int count = rows.Count + offset;
+            var opts = new string[count];
+            var localOpts = new string[count];
+
+            if (includeAll)
+            {
+                opts[0] = "-1";
+                localOpts[0] = RDString.Get("editor.TintRows.rows.allRows");
+            }
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var row = rows[i];
+                string charName = row.character == Character.Custom
+                    ? (row.customCharacterName ?? "?")
+                    : RDString.Get($"enum.Character.{row.character}.short");
+                string roomDisplay = string.Format(RDString.Get("eam.room.option"), row.room + 1);
+                opts[i + offset] = i.ToString();
+                localOpts[i + offset] = $"{i + 1} {charName} {roomDisplay}";
+            }
+
+            return (opts, localOpts);
+        }
+
         private void AddBaseProperties(LevelEvent_Base ev, List<PropertyData> list)
         {
             // Bar (小节)
@@ -1241,12 +1276,15 @@ namespace RDLevelEditorAccess.IPC
             // Row (行)
             if (ev.info.usesRow)
             {
+                var (rowOpts, rowLocalOpts) = BuildRowOptions(false);
                 list.Add(new PropertyData
                 {
                     name = "row",
                     displayName = RDString.Get("editor.row"),
                     value = ev.row.ToString(),
-                    type = "Int"
+                    type = "Row",
+                    options = rowOpts,
+                    localizedOptions = rowLocalOpts
                 });
             }
 

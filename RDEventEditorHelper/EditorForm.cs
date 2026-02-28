@@ -284,6 +284,9 @@ namespace RDEventEditorHelper
                         inputCtrl = chk;
                         break;
 
+                    case "Row":
+                        goto case "Enum";
+
                     case "Enum":
                         var rawOptions = prop.options;
                         var displayOptions = prop.localizedOptions ?? rawOptions;

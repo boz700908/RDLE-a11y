@@ -1078,7 +1078,7 @@ namespace RDLevelEditorAccess
 
             // 朗读轨道信息
             string characterName = GetRowCharacterName(rowData);
-            Narration.Say(string.Format(RDString.Get("eam.track.info"), indexInPage, characterName, eventCount), NarrationCategory.Navigation);
+            Narration.Say(string.Format(RDString.Get("eam.track.info"), indexInPage + 1, characterName, eventCount), NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -1149,7 +1149,7 @@ namespace RDLevelEditorAccess
 
             // 朗读轨道信息
             string characterName = GetRowCharacterName(rowData);
-            Narration.Say(string.Format(RDString.Get("eam.track.info"), currentIndex, characterName, eventCount), NarrationCategory.Navigation);
+            Narration.Say(string.Format(RDString.Get("eam.track.info"), currentIndex + 1, characterName, eventCount), NarrationCategory.Navigation);
         }
 
         /// <summary>
