@@ -257,6 +257,13 @@ namespace RDLevelEditorAccess
             // 执行导航
             if (direction != 0)
             {
+                // 安全检查：确保 allControls 已初始化
+                if (allControls == null || allControls.Count == 0)
+                {
+                    Debug.LogWarning($"[HandleGeneralUINavigation] 无法导航：allControls 未初始化或为空");
+                    return;
+                }
+
                 int newIndex = currentIndex;
 
                 if (!isTab)
@@ -313,7 +320,20 @@ namespace RDLevelEditorAccess
             // 处理确认键
             if (isEnterKey)
             {
+                // 安全检查：确保 allControls 已初始化且 currentIndex 有效
+                if (allControls == null || currentIndex < 0 || currentIndex >= allControls.Count)
+                {
+                    Debug.LogWarning($"[HandleGeneralUINavigation] 无法处理 Enter 键：allControls={allControls?.Count ?? -1}, currentIndex={currentIndex}");
+                    return;
+                }
+
                 var currentGraphic = allControls[currentIndex];
+                if (currentGraphic == null)
+                {
+                    Debug.LogWarning($"[HandleGeneralUINavigation] allControls[{currentIndex}] 为 null");
+                    return;
+                }
+
                 var item = currentGraphic.GetComponent<Selectable>();
 
                 if (item != null && item.interactable)
