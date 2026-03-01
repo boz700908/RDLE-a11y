@@ -1397,23 +1397,9 @@ namespace RDLevelEditorAccess
                 return;
             }
 
-            // 3. 优先选择当前小节的事件
-            int currentBar = editor.startBar + 1;
-            var currentBarEvents = validEvents.Where(c => c.levelEvent.bar == currentBar).ToList();
-
-            LevelEventControl_Base toSelect;
-            if (currentBarEvents.Count > 0)
-            {
-                // 当前小节有事件，选择第一个
-                toSelect = currentBarEvents.First();
-                Debug.Log($"[chooseNearestEvent] 选择当前小节 {currentBar} 的事件: {toSelect.levelEvent.type}");
-            }
-            else
-            {
-                // 当前小节没有事件，选择最接近视图中心的事件
-                toSelect = FindNearestToViewCenter(validEvents, editor);
-                Debug.Log($"[chooseNearestEvent] 当前小节无事件，选择最近事件: {toSelect.levelEvent.type} (bar={toSelect.levelEvent.bar})");
-            }
+            // 3. 选择最接近编辑光标的事件
+            LevelEventControl_Base toSelect = FindNearestToEditCursor(validEvents, editor);
+            Debug.Log($"[chooseNearestEvent] 选择最接近编辑光标的事件: {toSelect.levelEvent.type} (bar={toSelect.bar}, beat={toSelect.beat:0.##})");
 
             editor.SelectEventControl(toSelect, true);
         }
@@ -1500,6 +1486,22 @@ namespace RDLevelEditorAccess
             // 按 x 位置距离排序，选择最近的事件
             return events
                 .OrderBy(c => Mathf.Abs(c.rt.anchoredPosition.x - centerX))
+                .First();
+        }
+
+        /// <summary>
+        /// 查找最接近编辑光标的事件
+        /// </summary>
+        private LevelEventControl_Base FindNearestToEditCursor(List<LevelEventControl_Base> events, scnEditor editor)
+        {
+            if (events == null || events.Count == 0) return null;
+            if (events.Count == 1) return events[0];
+
+            var timeline = editor.timeline;
+            float cursorX = timeline.GetPosXFromBarAndBeat(_editCursor);  // 编辑光标的 X 坐标
+
+            return events
+                .OrderBy(c => Mathf.Abs(c.rt.anchoredPosition.x - cursorX))  // 按距离排序
                 .First();
         }
     }
