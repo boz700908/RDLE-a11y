@@ -418,7 +418,8 @@ namespace RDLevelEditorAccess
             // 左右箭头选择事件
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
             {
-                if (editor.selectedControls.Count <= 0)
+                // 如果没有选中事件，或者选中的事件不属于当前 Tab，则重新选择
+                if (editor.selectedControls.Count <= 0 || !IsSelectedEventInCurrentTab(editor))
                 {
                     chooseNearestEvent();
                 }
@@ -1397,23 +1398,9 @@ namespace RDLevelEditorAccess
                 return;
             }
 
-            // 3. 优先选择当前小节的事件
-            int currentBar = editor.startBar + 1;
-            var currentBarEvents = validEvents.Where(c => c.levelEvent.bar == currentBar).ToList();
-
-            LevelEventControl_Base toSelect;
-            if (currentBarEvents.Count > 0)
-            {
-                // 当前小节有事件，选择第一个
-                toSelect = currentBarEvents.First();
-                Debug.Log($"[chooseNearestEvent] 选择当前小节 {currentBar} 的事件: {toSelect.levelEvent.type}");
-            }
-            else
-            {
-                // 当前小节没有事件，选择最接近视图中心的事件
-                toSelect = FindNearestToViewCenter(validEvents, editor);
-                Debug.Log($"[chooseNearestEvent] 当前小节无事件，选择最近事件: {toSelect.levelEvent.type} (bar={toSelect.levelEvent.bar})");
-            }
+            // 3. 选择最接近编辑光标的事件
+            LevelEventControl_Base toSelect = FindNearestToEditCursor(validEvents, editor);
+            Debug.Log($"[chooseNearestEvent] 选择最接近编辑光标的事件: {toSelect.levelEvent.type} (bar={toSelect.bar}, beat={toSelect.beat:0.##})");
 
             editor.SelectEventControl(toSelect, true);
         }
@@ -1501,6 +1488,68 @@ namespace RDLevelEditorAccess
             return events
                 .OrderBy(c => Mathf.Abs(c.rt.anchoredPosition.x - centerX))
                 .First();
+        }
+
+        /// <summary>
+        /// 查找最接近编辑光标的事件
+        /// </summary>
+        private LevelEventControl_Base FindNearestToEditCursor(List<LevelEventControl_Base> events, scnEditor editor)
+        {
+            if (events == null || events.Count == 0) return null;
+            if (events.Count == 1) return events[0];
+
+            var timeline = editor.timeline;
+            float cursorX = timeline.GetPosXFromBarAndBeat(_editCursor);  // 编辑光标的 X 坐标
+
+            return events
+                .OrderBy(c => Mathf.Abs(c.rt.anchoredPosition.x - cursorX))  // 按距离排序
+                .First();
+        }
+
+        /// <summary>
+        /// 检查选中的事件是否属于当前 Tab
+        /// </summary>
+        private bool IsSelectedEventInCurrentTab(scnEditor editor)
+        {
+            if (editor?.selectedControl?.levelEvent == null) return false;
+
+            var selectedEvent = editor.selectedControl.levelEvent;
+            var currentTab = editor.currentTab;
+
+            // 对于 Rows 和 Sprites，需要额外检查是否在当前选中的 row/sprite 中
+            if (currentTab == Tab.Rows)
+            {
+                int rowIndex = editor.selectedRowIndex;
+                if (rowIndex < 0 || rowIndex >= editor.eventControls_rows.Count)
+                    return false;
+                var rowEvents = editor.eventControls_rows[rowIndex];
+                return rowEvents != null && rowEvents.Contains(editor.selectedControl);
+            }
+            else if (currentTab == Tab.Sprites)
+            {
+                if (string.IsNullOrEmpty(editor.selectedSprite))
+                    return false;
+
+                // 根据 selectedSprite 查找对应的索引
+                for (int i = 0; i < editor.spritesData.Count; i++)
+                {
+                    if (editor.spritesData[i].spriteId == editor.selectedSprite)
+                    {
+                        if (i < editor.eventControls_sprites.Count)
+                        {
+                            var spriteEvents = editor.eventControls_sprites[i];
+                            return spriteEvents != null && spriteEvents.Contains(editor.selectedControl);
+                        }
+                        break;
+                    }
+                }
+                return false;
+            }
+            else
+            {
+                // 对于其他 Tab，直接比较 tab 属性
+                return selectedEvent.tab == currentTab;
+            }
         }
     }
 
