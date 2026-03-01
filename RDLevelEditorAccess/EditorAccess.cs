@@ -540,42 +540,74 @@ namespace RDLevelEditorAccess
                 editor.ScrubToBar(_editCursor.bar, playAfterScrubbing: true);
             }
 
-            // 逗号：编辑光标后退（Shift: 0.1拍，无修饰: 1拍）
+            // 逗号：编辑光标后退（Alt: 0.01拍，Shift: 0.1拍，无修饰: 1拍）
             if (Input.GetKeyDown(KeyCode.Comma))
             {
+                bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                MoveEditCursor(shift ? -0.1f : -1f);
+                MoveEditCursor(alt ? -0.01f : shift ? -0.1f : -1f);
             }
 
-            // 句号：编辑光标前进（Shift: 0.1拍，无修饰: 1拍）
+            // 句号：编辑光标前进（Alt: 0.01拍，Shift: 0.1拍，无修饰: 1拍）
             if (Input.GetKeyDown(KeyCode.Period))
             {
+                bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                MoveEditCursor(shift ? 0.1f : 1f);
+                MoveEditCursor(alt ? 0.01f : shift ? 0.1f : 1f);
             }
 
             // ===================================================================================
             // 快速移动事件（Z/C/X 键）
             // ===================================================================================
 
-            // Z键：选中事件后退（Shift: 0.1拍，无修饰: 1拍）
+            // Z键：选中事件后退（Beat模式: Alt 0.01拍/Shift 0.1拍/无修饰 1拍；BarOnly模式: 1小节）
             if (Input.GetKeyDown(KeyCode.Z))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                MoveSelectedEvents(shift ? -0.1f : -1f);
+                var moveMode = GetSelectedEventsMoveMode();
+                if (moveMode == EventMoveMode.Mixed)
+                {
+                    Narration.Say(RDString.Get("eam.event.mixedMoveBlocked"), NarrationCategory.Navigation);
+                }
+                else if (moveMode == EventMoveMode.BarOnly)
+                {
+                    MoveSelectedEventsByBar(-1);
+                }
+                else
+                {
+                    bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+                    bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                    MoveSelectedEvents(alt ? -0.01f : shift ? -0.1f : -1f);
+                }
             }
 
-            // X键：选中事件前进（Shift: 0.1拍，无修饰: 1拍）
+            // X键：选中事件前进（Beat模式: Alt 0.01拍/Shift 0.1拍/无修饰 1拍；BarOnly模式: 1小节）
             if (Input.GetKeyDown(KeyCode.X))
             {
-                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                MoveSelectedEvents(shift ? 0.1f : 1f);
+                var moveMode = GetSelectedEventsMoveMode();
+                if (moveMode == EventMoveMode.Mixed)
+                {
+                    Narration.Say(RDString.Get("eam.event.mixedMoveBlocked"), NarrationCategory.Navigation);
+                }
+                else if (moveMode == EventMoveMode.BarOnly)
+                {
+                    MoveSelectedEventsByBar(1);
+                }
+                else
+                {
+                    bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+                    bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                    MoveSelectedEvents(alt ? 0.01f : shift ? 0.1f : 1f);
+                }
             }
 
             // C键：选中事件吸附到最近的正拍或半拍
             if (Input.GetKeyDown(KeyCode.C))
             {
-                SnapSelectedEventsToHalfBeat();
+                var moveMode = GetSelectedEventsMoveMode();
+                if (moveMode == EventMoveMode.Mixed)
+                    Narration.Say(RDString.Get("eam.event.mixedMoveBlocked"), NarrationCategory.Navigation);
+                else if (moveMode != EventMoveMode.BarOnly)
+                    SnapSelectedEventsToHalfBeat();
             }
         }
 
@@ -784,6 +816,30 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
+        /// 事件移动模式：Beat（支持拍内定位）、BarOnly（仅小节定位）、Mixed（混合，不可移动）
+        /// </summary>
+        private enum EventMoveMode { Beat, BarOnly, Mixed }
+
+        /// <summary>
+        /// 检查所有选中事件的 usesBeat 属性，返回移动模式。
+        /// </summary>
+        private EventMoveMode GetSelectedEventsMoveMode()
+        {
+            var editor = scnEditor.instance;
+            if (editor?.selectedControls == null || editor.selectedControls.Count == 0)
+                return EventMoveMode.Beat;
+
+            bool hasBeat = false, hasBarOnly = false;
+            foreach (var control in editor.selectedControls)
+            {
+                if (control.levelEvent.usesBeat) hasBeat = true;
+                else hasBarOnly = true;
+            }
+            if (hasBeat && hasBarOnly) return EventMoveMode.Mixed;
+            return hasBarOnly ? EventMoveMode.BarOnly : EventMoveMode.Beat;
+        }
+
+        /// <summary>
         /// 将编辑光标在时间轴上移动 deltaBeat 拍（正数向右，负数向左）。
         /// 使用像素空间运算以自动处理变速小节（SetCrotchetsPerBar）。
         /// </summary>
@@ -885,6 +941,35 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
+        /// 将所有选中的 bar-only 事件按小节移动（+1/-1）。
+        /// </summary>
+        private void MoveSelectedEventsByBar(int deltaBar)
+        {
+            var editor = scnEditor.instance;
+            if (editor?.selectedControls == null || editor.selectedControls.Count == 0)
+            {
+                Narration.Say(RDString.Get("eam.event.noSelection"), NarrationCategory.Navigation);
+                return;
+            }
+
+            using (new SaveStateScope())
+            {
+                foreach (var control in editor.selectedControls)
+                {
+                    int newBar = Mathf.Max(1, control.bar + deltaBar);
+                    control.bar = newBar;
+                    control.UpdateUI();
+                }
+                editor.timeline?.UpdateUI();
+            }
+
+            var first = editor.selectedControls[0];
+            editor.inspectorPanelManager.GetCurrent()?.UpdateUI(first.levelEvent);
+
+            Narration.Say(FormatBarOnly(first.bar), NarrationCategory.Navigation);
+        }
+
+        /// <summary>
         /// 将 BarAndBeat 格式化为本地化字符串（如"3小节2拍"或"Bar 3 Beat 2"）。
         /// </summary>
         private static string FormatBarAndBeat(BarAndBeat bb) => ModUtils.FormatBarAndBeat(bb);
@@ -897,6 +982,14 @@ namespace RDLevelEditorAccess
         private static string FormatBeatOnly(float beat)
         {
             return string.Format(RDString.Get("eam.barbeat.beatOnly"), FormatBeat(beat));
+        }
+
+        /// <summary>
+        /// 将小节号格式化为带本地化单位的字符串（如"3小节"或"Bar 3"）。
+        /// </summary>
+        private static string FormatBarOnly(int bar)
+        {
+            return string.Format(RDString.Get("eam.barbeat.barOnly"), bar);
         }
 
         /// <summary>
@@ -1430,8 +1523,8 @@ namespace RDLevelEditorAccess
 
         public static string FormatBeat(float beat)
         {
-            float rounded = Mathf.Round(beat * 10f) / 10f;
-            return rounded % 1f == 0f ? $"{(int)rounded}" : $"{rounded:0.#}";
+            float rounded = Mathf.Round(beat * 100f) / 100f;
+            return rounded % 1f == 0f ? $"{(int)rounded}" : $"{rounded:0.##}";
         }
     }
 
@@ -1697,6 +1790,7 @@ namespace RDLevelEditorAccess
         {
             ["eam.barbeat.format"]              = "{0}小节{1}拍",
             ["eam.barbeat.beatOnly"]             = "{0}拍",
+            ["eam.barbeat.barOnly"]              = "{0}小节",
             ["eam.cursor.suffix"]                = " 编辑光标",
             ["eam.cursor.snapPrefix"]            = "吸附到",
             ["eam.action.cancelled"]             = "已取消",
@@ -1745,6 +1839,7 @@ namespace RDLevelEditorAccess
             ["eam.sprite.info"]                  = "精灵 {0} {1} {2}事件",
             ["eam.event.noAvailable"]            = "无事件",
             ["eam.event.noSelection"]            = "未选中任何事件",
+            ["eam.event.mixedMoveBlocked"]       = "无法移动：选中的事件类型不一致",
             ["eam.event.commentNote"]            = "（注释事件）",
             ["eam.event.levelEndNote"]           = "（结束关卡）",
             ["eam.event.customMethodNote"]       = "（需要配置自定义方法）",
@@ -1770,6 +1865,7 @@ namespace RDLevelEditorAccess
         {
             ["eam.barbeat.format"]              = "Bar {0} Beat {1}",
             ["eam.barbeat.beatOnly"]             = "Beat {0}",
+            ["eam.barbeat.barOnly"]              = "Bar {0}",
             ["eam.cursor.suffix"]                = " Edit Cursor",
             ["eam.cursor.snapPrefix"]            = "Snapped to ",
             ["eam.action.cancelled"]             = "Cancelled",
@@ -1818,6 +1914,7 @@ namespace RDLevelEditorAccess
             ["eam.sprite.info"]                  = "Sprite {0} {1} {2} events",
             ["eam.event.noAvailable"]            = "No events available",
             ["eam.event.noSelection"]            = "No events selected",
+            ["eam.event.mixedMoveBlocked"]       = "Cannot move: selected events have mixed positioning types",
             ["eam.event.commentNote"]            = "(Comment event)",
             ["eam.event.levelEndNote"]           = "(Level end)",
             ["eam.event.customMethodNote"]       = "(Requires custom method)",
