@@ -204,8 +204,8 @@ namespace RDLevelEditorAccess
                     {
                         // A. 如果是可交互的 (Selectable)，保留 (按钮、开关、输入框)
                         if (g.GetComponent<Selectable>() != null) return true;
-                        // B. 如果是纯文本 (Text/TMP)，保留 (用于朗读标签)
-                        if (g is Text || g is TMPro.TMP_Text) return true;
+                        // B. 如果是纯文本 (Text/TMP)，保留 (用于朗读标签)，但排除 Selectable 的子文本（避免重复）
+                        if ((g is Text || g is TMPro.TMP_Text) && g.GetComponentInParent<Selectable>() == null) return true;
                         // C. 既不是按钮也不是字 (比如纯 Image 背景)，视为噪音，过滤掉
                         return false;
                     })
