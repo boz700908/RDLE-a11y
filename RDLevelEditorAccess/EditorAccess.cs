@@ -1843,193 +1843,84 @@ namespace RDLevelEditorAccess
         [HarmonyPrefix]
         public static void PastePrefix(scnEditor __instance, bool onNextBar)
         {
-            Debug.Log($"[PasteDebug] ========== Prefix: 粘贴前准备 ==========");
-            Debug.Log($"[PasteDebug] Prefix: onNextBar参数: {onNextBar}");
-
             // 仅在 onNextBar=false 时取消选择
-            if (onNextBar)
-            {
-                Debug.Log($"[PasteDebug] Prefix: onNextBar=true，跳过取消选择");
-                return;
-            }
-
-            if (__instance == null)
-            {
-                Debug.LogWarning($"[PasteDebug] Prefix: __instance 为 null");
-                return;
-            }
-
-            Debug.Log($"[PasteDebug] Prefix: 当前选中事件数量: {__instance.selectedControls?.Count ?? 0}");
+            if (onNextBar) return;
+            if (__instance == null) return;
 
             // 取消选择所有事件
-            if (__instance.selectedControls != null && __instance.selectedControls.Count > 0)
-            {
-                Debug.Log($"[PasteDebug] Prefix: 开始取消选择所有事件...");
-                __instance.DeselectAllEventControls(updateInspectorUI: false, sound: false);
-                Debug.Log($"[PasteDebug] Prefix: 取消选择完成，当前选中数量: {__instance.selectedControls?.Count ?? 0}");
-            }
-            else
-            {
-                Debug.Log($"[PasteDebug] Prefix: 没有选中的事件，无需取消选择");
-            }
-
-            Debug.Log($"[PasteDebug] Prefix: 准备完成");
+            __instance.DeselectAllEventControls(updateInspectorUI: false, sound: false);
         }
 
         [HarmonyPostfix]
         public static void PastePostfix(scnEditor __instance, bool onNextBar)
         {
-            Debug.Log($"[PasteDebug] ========== 粘贴操作开始 ==========");
-            Debug.Log($"[PasteDebug] onNextBar参数: {onNextBar}");
-
             // 仅在 onNextBar=false 时对齐到编辑光标
-            if (onNextBar)
-            {
-                Debug.Log($"[PasteDebug] onNextBar=true，跳过对齐到编辑光标");
-                return;
-            }
-
-            Debug.Log($"[PasteDebug] 检查必要条件...");
+            if (onNextBar) return;
 
             // 检查必要条件
-            if (AccessLogic.Instance == null)
-            {
-                Debug.LogWarning($"[PasteDebug] AccessLogic.Instance 为 null，退出");
-                return;
-            }
-            Debug.Log($"[PasteDebug] ✓ AccessLogic.Instance 存在");
-
-            if (__instance?.selectedControls == null || __instance.selectedControls.Count == 0)
-            {
-                Debug.LogWarning($"[PasteDebug] selectedControls 为 null 或为空，退出");
-                return;
-            }
-            Debug.Log($"[PasteDebug] ✓ selectedControls 存在，数量: {__instance.selectedControls.Count}");
-
-            if (__instance.timeline == null)
-            {
-                Debug.LogWarning($"[PasteDebug] timeline 为 null，退出");
-                return;
-            }
-            Debug.Log($"[PasteDebug] ✓ timeline 存在");
+            if (AccessLogic.Instance == null) return;
+            if (__instance?.selectedControls == null || __instance.selectedControls.Count == 0) return;
+            if (__instance.timeline == null) return;
 
             var tl = __instance.timeline;
             var editCursor = AccessLogic.Instance._editCursor;
-            Debug.Log($"[PasteDebug] 编辑光标位置: Bar={editCursor.bar}, Beat={editCursor.beat}");
 
             // 找到第一个选中事件（按sortOrder排序，最小的是最早的）
-            Debug.Log($"[PasteDebug] 开始查找第一个选中事件...");
             LevelEventControl_Base firstControl = null;
             int minSortOrder = int.MaxValue;
 
             foreach (var control in __instance.selectedControls)
             {
-                if (control?.levelEvent == null)
-                {
-                    Debug.Log($"[PasteDebug] 跳过 null 控件或事件");
-                    continue;
-                }
-
-                Debug.Log($"[PasteDebug] 检查事件: Type={control.levelEvent.GetType().Name}, " +
-                         $"Bar={control.levelEvent.bar}, Beat={control.levelEvent.beat}, " +
-                         $"SortOrder={control.levelEvent.sortOrder}, " +
-                         $"BarAndBeat=({control.levelEvent.barAndBeat.bar}, {control.levelEvent.barAndBeat.beat})");
+                if (control?.levelEvent == null) continue;
 
                 if (control.levelEvent.sortOrder < minSortOrder)
                 {
                     minSortOrder = control.levelEvent.sortOrder;
                     firstControl = control;
-                    Debug.Log($"[PasteDebug] 更新第一个事件: SortOrder={minSortOrder}");
                 }
             }
 
-            if (firstControl == null)
-            {
-                Debug.LogWarning($"[PasteDebug] 未找到有效的第一个事件，退出");
-                return;
-            }
-
-            Debug.Log($"[PasteDebug] ✓ 找到第一个事件: Type={firstControl.levelEvent.GetType().Name}, " +
-                     $"Bar={firstControl.levelEvent.bar}, Beat={firstControl.levelEvent.beat}, " +
-                     $"BarAndBeat=({firstControl.levelEvent.barAndBeat.bar}, {firstControl.levelEvent.barAndBeat.beat})");
+            if (firstControl == null) return;
 
             // 计算第一个事件到编辑光标的偏移（像素空间）
             float firstEventX = tl.GetPosXFromBarAndBeat(firstControl.levelEvent.barAndBeat);
             float cursorX = tl.GetPosXFromBarAndBeat(editCursor);
             float offsetX = cursorX - firstEventX;
 
-            Debug.Log($"[PasteDebug] 位置计算:");
-            Debug.Log($"[PasteDebug]   第一个事件X坐标: {firstEventX}");
-            Debug.Log($"[PasteDebug]   编辑光标X坐标: {cursorX}");
-            Debug.Log($"[PasteDebug]   偏移量: {offsetX}");
-
             // 如果偏移为0，无需移动
-            if (Mathf.Abs(offsetX) < 0.01f)
-            {
-                Debug.Log($"[PasteDebug] 偏移量接近0，无需移动");
-                return;
-            }
-
-            Debug.Log($"[PasteDebug] 开始移动所有选中事件...");
+            if (Mathf.Abs(offsetX) < 0.01f) return;
 
             // 移动所有选中事件
             using (new SaveStateScope())
             {
-                int movedCount = 0;
                 foreach (var control in __instance.selectedControls)
                 {
-                    if (control?.levelEvent == null)
-                    {
-                        Debug.Log($"[PasteDebug] 跳过 null 控件或事件");
-                        continue;
-                    }
+                    if (control?.levelEvent == null) continue;
 
                     // 获取当前位置的X坐标
                     float currentX = tl.GetPosXFromBarAndBeat(control.levelEvent.barAndBeat);
-                    Debug.Log($"[PasteDebug] 事件 #{movedCount}: Type={control.levelEvent.GetType().Name}");
-                    Debug.Log($"[PasteDebug]   原始位置: Bar={control.levelEvent.bar}, Beat={control.levelEvent.beat}");
-                    Debug.Log($"[PasteDebug]   原始BarAndBeat: ({control.levelEvent.barAndBeat.bar}, {control.levelEvent.barAndBeat.beat})");
-                    Debug.Log($"[PasteDebug]   原始X坐标: {currentX}");
 
                     // 应用偏移
                     float newX = Mathf.Max(0f, currentX + offsetX);
-                    Debug.Log($"[PasteDebug]   新X坐标: {newX}");
 
                     // 转换回BarAndBeat
                     var newPos = tl.GetBarAndBeatWithPosX(newX);
-                    Debug.Log($"[PasteDebug]   新BarAndBeat: ({newPos.bar}, {newPos.beat})");
 
                     // 更新位置
-                    Debug.Log($"[PasteDebug]   设置 control.bar = {newPos.bar}");
                     control.bar = newPos.bar;
-                    Debug.Log($"[PasteDebug]   设置 control.beat = {newPos.beat}");
                     control.beat = newPos.beat;
-                    Debug.Log($"[PasteDebug]   调用 control.UpdateUI()");
                     control.UpdateUI();
-
-                    Debug.Log($"[PasteDebug]   更新后验证: Bar={control.levelEvent.bar}, Beat={control.levelEvent.beat}");
-                    Debug.Log($"[PasteDebug]   更新后BarAndBeat: ({control.levelEvent.barAndBeat.bar}, {control.levelEvent.barAndBeat.beat})");
-
-                    movedCount++;
                 }
 
-                Debug.Log($"[PasteDebug] 共移动 {movedCount} 个事件");
-
                 // 更新时间轴UI
-                Debug.Log($"[PasteDebug] 调用 timeline.UpdateUI()");
                 tl.UpdateUI();
             }
 
             // 更新 inspector 面板以持久化更改（防止取消选择时回退）
             if (firstControl != null)
             {
-                Debug.Log($"[PasteDebug] 更新 inspector 面板以持久化更改");
-                Debug.Log($"[PasteDebug] 调用 inspectorPanelManager.GetCurrent()?.UpdateUI()");
                 __instance.inspectorPanelManager.GetCurrent()?.UpdateUI(firstControl.levelEvent);
-                Debug.Log($"[PasteDebug] inspector 面板更新完成");
             }
-
-            Debug.Log($"[PasteDebug] ========== 粘贴操作完成 ==========");
         }
     }
 
