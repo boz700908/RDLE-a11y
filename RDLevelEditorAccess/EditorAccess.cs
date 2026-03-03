@@ -593,20 +593,36 @@ namespace RDLevelEditorAccess
                 return;
             }
 
-            // 逗号：编辑光标后退（Alt: 0.01拍，Shift: 0.1拍，无修饰: 1拍）
+            // 逗号：编辑光标后退（Alt+Shift: 1小节，Alt: 0.01拍，Shift: 0.1拍，无修饰: 1拍）
             if (Input.GetKeyDown(KeyCode.Comma))
             {
                 bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                MoveEditCursor(alt ? -0.01f : shift ? -0.1f : -1f);
+
+                if (alt && shift)
+                {
+                    MoveEditCursorByBar(-1);
+                }
+                else
+                {
+                    MoveEditCursor(alt ? -0.01f : shift ? -0.1f : -1f);
+                }
             }
 
-            // 句号：编辑光标前进（Alt: 0.01拍，Shift: 0.1拍，无修饰: 1拍）
+            // 句号：编辑光标前进（Alt+Shift: 1小节，Alt: 0.01拍，Shift: 0.1拍，无修饰: 1拍）
             if (Input.GetKeyDown(KeyCode.Period))
             {
                 bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
                 bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                MoveEditCursor(alt ? 0.01f : shift ? 0.1f : 1f);
+
+                if (alt && shift)
+                {
+                    MoveEditCursorByBar(1);
+                }
+                else
+                {
+                    MoveEditCursor(alt ? 0.01f : shift ? 0.1f : 1f);
+                }
             }
 
             // ===================================================================================
@@ -616,43 +632,61 @@ namespace RDLevelEditorAccess
             // 检查是否按下了 Ctrl 键（避免与 Ctrl+X/Ctrl+C 冲突）
             bool ctrlPressed = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
 
-            // Z键：选中事件后退（Beat模式: Alt 0.01拍/Shift 0.1拍/无修饰 1拍；BarOnly模式: 1小节）
+            // Z键：选中事件后退（Alt+Shift: 1小节，Beat模式: Alt 0.01拍/Shift 0.1拍/无修饰 1拍；BarOnly模式: 1小节）
             if (Input.GetKeyDown(KeyCode.Z) && !ctrlPressed)
             {
-                var moveMode = GetSelectedEventsMoveMode();
-                if (moveMode == EventMoveMode.Mixed)
+                bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+                if (alt && shift)
                 {
-                    Narration.Say(RDString.Get("eam.event.mixedMoveBlocked"), NarrationCategory.Navigation);
-                }
-                else if (moveMode == EventMoveMode.BarOnly)
-                {
+                    // Alt+Shift: 强制按小节移动
                     MoveSelectedEventsByBar(-1);
                 }
                 else
                 {
-                    bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
-                    bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                    MoveSelectedEvents(alt ? -0.01f : shift ? -0.1f : -1f);
+                    var moveMode = GetSelectedEventsMoveMode();
+                    if (moveMode == EventMoveMode.Mixed)
+                    {
+                        Narration.Say(RDString.Get("eam.event.mixedMoveBlocked"), NarrationCategory.Navigation);
+                    }
+                    else if (moveMode == EventMoveMode.BarOnly)
+                    {
+                        MoveSelectedEventsByBar(-1);
+                    }
+                    else
+                    {
+                        MoveSelectedEvents(alt ? -0.01f : shift ? -0.1f : -1f);
+                    }
                 }
             }
 
-            // X键：选中事件前进（Beat模式: Alt 0.01拍/Shift 0.1拍/无修饰 1拍；BarOnly模式: 1小节）
+            // X键：选中事件前进（Alt+Shift: 1小节，Beat模式: Alt 0.01拍/Shift 0.1拍/无修饰 1拍；BarOnly模式: 1小节）
             if (Input.GetKeyDown(KeyCode.X) && !ctrlPressed)
             {
-                var moveMode = GetSelectedEventsMoveMode();
-                if (moveMode == EventMoveMode.Mixed)
+                bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+                if (alt && shift)
                 {
-                    Narration.Say(RDString.Get("eam.event.mixedMoveBlocked"), NarrationCategory.Navigation);
-                }
-                else if (moveMode == EventMoveMode.BarOnly)
-                {
+                    // Alt+Shift: 强制按小节移动
                     MoveSelectedEventsByBar(1);
                 }
                 else
                 {
-                    bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
-                    bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                    MoveSelectedEvents(alt ? 0.01f : shift ? 0.1f : 1f);
+                    var moveMode = GetSelectedEventsMoveMode();
+                    if (moveMode == EventMoveMode.Mixed)
+                    {
+                        Narration.Say(RDString.Get("eam.event.mixedMoveBlocked"), NarrationCategory.Navigation);
+                    }
+                    else if (moveMode == EventMoveMode.BarOnly)
+                    {
+                        MoveSelectedEventsByBar(1);
+                    }
+                    else
+                    {
+                        MoveSelectedEvents(alt ? 0.01f : shift ? 0.1f : 1f);
+                    }
                 }
             }
 
@@ -914,6 +948,23 @@ namespace RDLevelEditorAccess
             string announcement = _editCursor.bar != oldBar
                 ? FormatBarAndBeat(_editCursor)
                 : FormatBeatOnly(_editCursor.beat);
+            Narration.Say(announcement, NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 将编辑光标按小节移动（正数向右，负数向左）。
+        /// 自动处理变速小节（SetCrotchetsPerBar）。
+        /// </summary>
+        private void MoveEditCursorByBar(int deltaBar)
+        {
+            var editor = scnEditor.instance;
+            if (editor?.timeline == null) return;
+
+            int oldBar = _editCursor.bar;
+            int newBar = Mathf.Max(1, _editCursor.bar + deltaBar);
+            _editCursor.bar = newBar;
+
+            string announcement = FormatBarAndBeat(_editCursor);
             Narration.Say(announcement, NarrationCategory.Navigation);
         }
 
