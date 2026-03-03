@@ -1830,6 +1830,12 @@ namespace RDLevelEditorAccess
                 // 更新时间轴UI
                 tl.UpdateUI();
             }
+
+            // 更新 inspector 面板以持久化更改（防止取消选择时回退）
+            if (firstControl != null)
+            {
+                __instance.inspectorPanelManager.GetCurrent()?.UpdateUI(firstControl.levelEvent);
+            }
         }
     }
 
