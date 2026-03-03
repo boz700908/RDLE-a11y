@@ -1,0 +1,8 @@
+1.1 (2026-03-03)
+1. Added ctrl+shift+slash to open the edit cursor jump dialog.
+2. Added shift+alt modifier key support for z/x (move event) and comma/period (move edit cursor), with a step size of 1 bar.
+3. When pressing enter to jump to an event's position and play, the edit cursor will also be moved to the event's position.
+4. Enhanced the browse file feature in the helper - the program will now automatically copy selected files to the level directory.
+5. Improved ctrl+v paste functionality, fixed the issue where the beat property remained unchanged after pasting.
+6. Improved menu navigation, fixed the issue of browsing to duplicate controls.
+7. Fixed a bug where the main menu navigation remained active when entering editor settings from the main menu.
