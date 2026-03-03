@@ -454,7 +454,7 @@ namespace RDLevelEditorAccess
                 if (editor.selectedControl != null)
                 {
                     AccessibilityBridge.EditEvent(editor.selectedControl.levelEvent);
-                    Narration.Say(RDString.Get("eam.editor.openPropEditor"), NarrationCategory.Instruction);// 过于冗余，去掉。
+                    //Narration.Say(RDString.Get("eam.editor.openPropEditor"), NarrationCategory.Instruction);// 过于冗余，去掉。
                 }
             }
 

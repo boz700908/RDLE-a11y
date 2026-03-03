@@ -46,7 +46,7 @@ namespace RDLevelEditorAccess
 
             _fileIPC.StartEditing(levelEvent);
             
-            Narration.Say(string.Format(RDString.Get("eam.editor.openEventEditor"), levelEvent.type), NarrationCategory.Instruction);
+            //Narration.Say(string.Format(RDString.Get("eam.editor.openEventEditor"), levelEvent.type), NarrationCategory.Instruction);// 废话太多了。
         }
 
         public static void EditRow(int rowIndex)
@@ -71,7 +71,7 @@ namespace RDLevelEditorAccess
 
             _fileIPC.StartRowEditing(rowData, rowIndex);
             
-            Narration.Say(string.Format(RDString.Get("eam.editor.openRowEditor"), rowIndex + 1), NarrationCategory.Instruction);
+            //Narration.Say(string.Format(RDString.Get("eam.editor.openRowEditor"), rowIndex + 1), NarrationCategory.Instruction);// 废话太多了。
         }
 
         public static void Shutdown()
