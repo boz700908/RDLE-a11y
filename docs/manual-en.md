@@ -133,9 +133,8 @@ After agreeing to the terms, you can try pressing left and right arrows to brows
 If you can't wait to show off your skills and create a level, please don't rush. Before that, you need to understand the following preparation work:
 
 1. Create a new folder anywhere on your computer that you like.
-2. Put the music, sound effects, and other resources used in the level into this folder.
-3. In the editor, press ctrl+n to create a new level, and set the save location to the folder you just created.
-4. Alright, now you can start.
+2. In the editor, press ctrl+n to create a new level, and set the save location to the folder you just created.
+3. Alright, now you can start.
 
 ## 4. Operation Instructions
 
@@ -165,9 +164,10 @@ PS: I know some people definitely didn't understand the definition of edit curso
 - / (slash), move the edit cursor to the current playback position
 - shift+slash, announce the current position of the edit cursor
 - ctrl+slash, snap the edit cursor to the nearest half beat
+- ctrl+shift+slash, open the edit cursor jump dialog
 - alt+slash, jump to the edit cursor's position and start playing
-- , (comma), move the edit cursor forward by 1 beat (add shift for 0.1 beat, add alt for 0.01 beat)
-- . (period), move the edit cursor backward by 1 beat (add shift for 0.1 beat, add alt for 0.01 beat)
+- , (comma), move the edit cursor forward by 1 beat (add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar)
+- . (period), move the edit cursor backward by 1 beat (add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar)
 
 In addition to quick jumping, the edit cursor's applicable scope also includes:
 
@@ -179,8 +179,8 @@ In addition to quick jumping, the edit cursor's applicable scope also includes:
 
 If you don't want to press ctrl+enter just to fine-tune an event's position, the mod also provides simple adjustment shortcuts. This set of shortcuts, aside from different keys and different adjustment targets, has a lot in common with the edit cursor. As follows:
 
-- z, move event forward by 1 beat (also supports shift or alt modifier keys)
-- x, move event backward by 1 beat (also supports shift or alt modifier keys)
+- z, move event forward by 1 beat (also supports shift, alt, or shift and alt modifier keys)
+- x, move event backward by 1 beat (also supports shift, alt, or shift and alt modifier keys)
 - c, snap event to the nearest half beat
 
 Note 1: If the selected event doesn't have a beat property, pressing z and x will change to moving forward/backward by 1 bar, and modifier keys are not supported.
@@ -211,13 +211,12 @@ But then again, I hope the official version will support accessibility soon, so 
 
 1. Most events under the Rooms tab are generally poorly supported, and many properties cannot be edited.
 2. The Sprites tab is even more out of the question.
-3. Window dance? What's that?
+3. Window dance? What's that? Addendum: I took a look, it seems to be editable, but I can't see it anyway, so I don't know if it works or not.
 4. Some custom options are not supported (such as custom characters).
 5. Some metadata cannot be edited yet (such as rating text).
 6. Bookmark functionality is not supported.
 7. Event multi-selection support is not flexible enough.
-8. The helper's browse file button currently seems to be useless. It won't help you copy files to the level directory.
-9. Since a separate property editor was written, the operation should not be as smooth as the original version (although I don't know exactly how smooth the original version is).
+8. Since a separate property editor was written, the operation should not be as smooth as the original version (although I don't know exactly how smooth the original version is).
 
 ## 7. FAQ
 
@@ -299,9 +298,10 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | / (slash) | Move edit cursor to playhead position | None |
 | shift+/ | Announce edit cursor's current position | None |
 | ctrl+/ | Snap edit cursor to nearest half beat | None |
+| ctrl+shift+/ | Open edit cursor jump dialog | None |
 | alt+slash | Jump to edit cursor's position and start playing | None |
-| , (comma) and . (period) | Move edit cursor forward/backward by 1 beat | Add shift for 0.1 beat, add alt for 0.01 beat. |
-| z/x | Move selected event forward/backward by 1 beat (or 1 bar) | Add shift for 0.1 beat, add alt for 0.01 beat. See [4.5 Quick Event Movement](#45-quick-event-movement) for details. |
+| , (comma) and . (period) | Move edit cursor forward/backward by 1 beat | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. |
+| z/x | Move selected event forward/backward by 1 beat (or 1 bar) | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. See [4.5 Quick Event Movement](#45-quick-event-movement) for details. |
 | c | Snap event to nearest half beat | None |
 
 ### 8.3 Contact Information
