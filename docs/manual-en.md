@@ -152,9 +152,9 @@ However, there are two exceptions. When you're in the Rows or Sprites tab, you n
 
 ### 4.3 Creating Rows and Events
 
-Press insert under a tab, and a menu will pop up listing the available event types for the current tab. Use up/down arrows to select, and press enter to create. After creation, the property editor will automatically open. If you're in the Rows tab, the created event will be placed on the currently selected row by default.
+Press insert or f2 under a tab, and a menu will pop up listing the available event types for the current tab. Use up/down arrows to select, and press enter to create. After creation, the property editor will automatically open. If you're in the Rows tab, the created event will be placed on the currently selected row by default.
 
-In the Rows or Sprites tab, press ctrl+insert to create a new row or sprite, the operation is the same as creating an event.
+In the Rows or Sprites tab, press ctrl+insert or ctrl+f2 to create a new row or sprite, the operation is the same as creating an event.
 
 ### 4.4 Edit Cursor
 
@@ -293,8 +293,8 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | ctrl+enter | Open helper to edit event | None |
 | shift+enter | Open helper to edit row | None |
 | Number key 0 | Open helper to edit metadata | None |
-| insert | Insert event at edit cursor | None |
-| ctrl+insert | Add row/sprite to room (only valid in Rows/Sprites tab) | None |
+| insert or f2 | Insert event at edit cursor | None |
+| ctrl+insert or ctrl+f2 | Add row/sprite to room (only valid in Rows/Sprites tab) | None |
 | / (slash) | Move edit cursor to playhead position | None |
 | shift+/ | Announce edit cursor's current position | None |
 | ctrl+/ | Snap edit cursor to nearest half beat | None |
