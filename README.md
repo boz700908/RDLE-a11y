@@ -36,8 +36,8 @@ RDLE-a11y is an accessibility mod for **Rhythm Doctor** level editor, providing 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/white-rice94/RDMods.git
-   cd RDMods
+   git clone https://github.com/white-rice94/RDLE-a11y.git
+   cd RDLE-a11y
    ```
 
 2. Configure your game path:
@@ -110,8 +110,8 @@ RDLE-a11y 是 **Rhythm Doctor** 关卡编辑器的无障碍 mod，提供完整�
 
 1. 克隆仓库：
    ```bash
-   git clone https://github.com/white-rice94/RDMods.git
-   cd RDMods
+   git clone https://github.com/white-rice94/RDLE-a11y.git
+   cd RDLE-a11y
    ```
 
 2. 配置游戏路径：
