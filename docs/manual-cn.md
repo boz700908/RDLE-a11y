@@ -309,3 +309,7 @@ ps：我知道有的人看上面那个编辑光标的定义肯定没看懂，不
 邮箱： [huangzitong94@gmail.com](mailto:huangzitong94@gmail.com)
 
 qq： 1528344627
+
+[itch.io页面](https://white-rice94.itch.io/rdle-access)
+
+[github](https://github.com/white-rice94/RDLE-a11y)

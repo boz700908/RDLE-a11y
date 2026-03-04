@@ -267,7 +267,6 @@
 <p>If you can't wait to show off your skills and create a level, please don't rush. Before that, you need to understand the following preparation work:</p>
 <ol>
 <li>Create a new folder anywhere on your computer that you like.</li>
-<li>Put the music, sound effects, and other resources used in the level into this folder.</li>
 <li>In the editor, press ctrl+n to create a new level, and set the save location to the folder you just created.</li>
 <li>Alright, now you can start.</li>
 </ol>
@@ -288,9 +287,10 @@ PS: I know some people definitely didn't understand the definition of edit curso
 <li>/ (slash), move the edit cursor to the current playback position</li>
 <li>shift+slash, announce the current position of the edit cursor</li>
 <li>ctrl+slash, snap the edit cursor to the nearest half beat</li>
+<li>ctrl+shift+slash, open the edit cursor jump dialog</li>
 <li>alt+slash, jump to the edit cursor's position and start playing</li>
-<li>, (comma), move the edit cursor forward by 1 beat (add shift for 0.1 beat, add alt for 0.01 beat)</li>
-<li>. (period), move the edit cursor backward by 1 beat (add shift for 0.1 beat, add alt for 0.01 beat)</li>
+<li>, (comma), move the edit cursor forward by 1 beat (add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar)</li>
+<li>. (period), move the edit cursor backward by 1 beat (add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar)</li>
 </ul>
 <p>In addition to quick jumping, the edit cursor's applicable scope also includes:</p>
 <ul>
@@ -301,8 +301,8 @@ PS: I know some people definitely didn't understand the definition of edit curso
 <h3 id="45-quick-event-movement">4.5 Quick Event Movement</h3>
 <p>If you don't want to press ctrl+enter just to fine-tune an event's position, the mod also provides simple adjustment shortcuts. This set of shortcuts, aside from different keys and different adjustment targets, has a lot in common with the edit cursor. As follows:</p>
 <ul>
-<li>z, move event forward by 1 beat (also supports shift or alt modifier keys)</li>
-<li>x, move event backward by 1 beat (also supports shift or alt modifier keys)</li>
+<li>z, move event forward by 1 beat (also supports shift, alt, or shift and alt modifier keys)</li>
+<li>x, move event backward by 1 beat (also supports shift, alt, or shift and alt modifier keys)</li>
 <li>c, snap event to the nearest half beat</li>
 </ul>
 <p>Note 1: If the selected event doesn't have a beat property, pressing z and x will change to moving forward/backward by 1 bar, and modifier keys are not supported.</p>
@@ -321,12 +321,11 @@ PS: I know some people definitely didn't understand the definition of edit curso
 <ol>
 <li>Most events under the Rooms tab are generally poorly supported, and many properties cannot be edited.</li>
 <li>The Sprites tab is even more out of the question.</li>
-<li>Window dance? What's that?</li>
+<li>Window dance? What's that? Addendum: I took a look, it seems to be editable, but I can't see it anyway, so I don't know if it works or not.</li>
 <li>Some custom options are not supported (such as custom characters).</li>
 <li>Some metadata cannot be edited yet (such as rating text).</li>
 <li>Bookmark functionality is not supported.</li>
 <li>Event multi-selection support is not flexible enough.</li>
-<li>The helper's browse file button currently seems to be useless. It won't help you copy files to the level directory.</li>
 <li>Since a separate property editor was written, the operation should not be as smooth as the original version (although I don't know exactly how smooth the original version is).</li>
 </ol>
 <h2 id="7-faq">7. FAQ</h2>
@@ -582,6 +581,11 @@ and try installing it.</p>
 <td>None</td>
 </tr>
 <tr>
+<td>ctrl+shift+/</td>
+<td>Open edit cursor jump dialog</td>
+<td>None</td>
+</tr>
+<tr>
 <td>alt+slash</td>
 <td>Jump to edit cursor's position and start playing</td>
 <td>None</td>
@@ -589,12 +593,12 @@ and try installing it.</p>
 <tr>
 <td>, (comma) and . (period)</td>
 <td>Move edit cursor forward/backward by 1 beat</td>
-<td>Add shift for 0.1 beat, add alt for 0.01 beat.</td>
+<td>Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar.</td>
 </tr>
 <tr>
 <td>z/x</td>
 <td>Move selected event forward/backward by 1 beat (or 1 bar)</td>
-<td>Add shift for 0.1 beat, add alt for 0.01 beat. See <a href="#45-quick-event-movement">4.5 Quick Event Movement</a> for details.</td>
+<td>Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. See <a href="#45-quick-event-movement">4.5 Quick Event Movement</a> for details.</td>
 </tr>
 <tr>
 <td>c</td>
@@ -606,6 +610,8 @@ and try installing it.</p>
 <h3 id="83-contact-information">8.3 Contact Information</h3>
 <p>Email: <a href="mailto:huangzitong94@gmail.com">huangzitong94@gmail.com</a></p>
 <p>QQ: 1528344627</p>
+<p><a href="https://white-rice94.itch.io/rdle-access">itch.io page</a></p>
+<p><a href="https://github.com/white-rice94/RDLE-a11y">GitHub</a></p>
 
             
             

@@ -309,3 +309,7 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 Email: [huangzitong94@gmail.com](mailto:huangzitong94@gmail.com)
 
 QQ: 1528344627
+
+[itch.io page](https://white-rice94.itch.io/rdle-access)
+
+[GitHub](https://github.com/white-rice94/RDLE-a11y)
