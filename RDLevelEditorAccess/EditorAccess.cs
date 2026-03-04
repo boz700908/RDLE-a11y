@@ -457,8 +457,25 @@ namespace RDLevelEditorAccess
             // 左右箭头选择事件
             if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow))
             {
+                bool isLeftArrow = Input.GetKeyDown(KeyCode.LeftArrow);
+
+                // 如果已经选中了事件
+                if (editor.selectedControl != null)
+                {
+                    // 检查是否已经在边界
+                    var nextControl = isLeftArrow
+                        ? editor.GetControlToTheLeft(editor.selectedControl)
+                        : editor.GetControlToTheRight(editor.selectedControl);
+
+                    if (nextControl == null)
+                    {
+                        // 已经在边界，重新朗读当前事件信息
+                        ModUtils.AnnounceEventSelection(editor.selectedControl.levelEvent);
+                        return; // 不需要继续处理
+                    }
+                }
                 // 如果没有选中事件，或者选中的事件不属于当前 Tab，则重新选择
-                if (editor.selectedControls.Count <= 0 || !IsSelectedEventInCurrentTab(editor))
+                else if (editor.selectedControls.Count <= 0 || !IsSelectedEventInCurrentTab(editor))
                 {
                     chooseNearestEvent();
                 }
@@ -1686,6 +1703,21 @@ namespace RDLevelEditorAccess
             float rounded = Mathf.Round(beat * 100f) / 100f;
             return rounded % 1f == 0f ? $"{(int)rounded}" : $"{rounded:0.##}";
         }
+
+        /// <summary>
+        /// 朗读事件选择信息（事件名称和位置）
+        /// </summary>
+        public static void AnnounceEventSelection(LevelEvent_Base levelEvent)
+        {
+            if (levelEvent == null) return;
+
+            // 朗读事件名称
+            Narration.Say(eventSelectI18n(levelEvent), NarrationCategory.Navigation);
+
+            // 朗读事件位置
+            var bb = new BarAndBeat(levelEvent.bar, levelEvent.beat);
+            Narration.Say(FormatBarAndBeat(bb), NarrationCategory.Instruction);
+        }
     }
 
     [HarmonyPatch(typeof(scnEditor))]
@@ -1697,57 +1729,8 @@ namespace RDLevelEditorAccess
         {
             if (newControl?.levelEvent == null) return;
 
-            var eventType = newControl.levelEvent.type;
-
-            // 朗读事件名称
-            Narration.Say(ModUtils.eventSelectI18n(newControl.levelEvent), NarrationCategory.Navigation);
-
-            // 添加警告消息（朗读事件位置）
-            AddEventWarning(newControl.levelEvent);
-
-            // NEW：自动移动playhead到事件位置
-            MovePlayheadToSelectedEvent();
-        }
-
-        /// <summary>
-        /// 朗读事件位置。
-        /// </summary>
-        private static void AddEventWarning(LevelEvent_Base levelEvent)
-        {
-            var bb = new BarAndBeat(levelEvent.bar, levelEvent.beat);
-            Narration.Say(ModUtils.FormatBarAndBeat(bb), NarrationCategory.Instruction);
-        }
-
-        // NEW：移动playhead到选中事件的位置
-        private static void MovePlayheadToSelectedEvent()
-        {
-            try
-            {
-                var editor = scnEditor.instance;
-                if (editor?.timeline == null) return;
-
-                var selectedControl = editor.selectedControl;
-                if (selectedControl?.levelEvent == null) return;
-
-                // 获取事件的时间位置
-                int eventBar = selectedControl.levelEvent.bar;
-                float eventBeat = selectedControl.levelEvent.beat;
-
-                // 创建BarAndBeat结构
-                var barAndBeat = new BarAndBeat(eventBar, eventBeat);
-
-                // 转换为playhead的像素X位置
-                float posX = editor.timeline.GetPosXFromBarAndBeat(barAndBeat);
-
-                // 移动playhead到该位置（仅更新UI，不重新加载游戏场景）
-                editor.timeline.MovePlayHead(posX);
-
-                Debug.Log($"[RDMods] Playhead moved to bar {eventBar}, beat {eventBeat} (event: {selectedControl.levelEvent.type})");
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[RDMods] Failed to move playhead: {ex.Message}");
-            }
+            // 使用新的工具方法朗读事件信息
+            ModUtils.AnnounceEventSelection(newControl.levelEvent);
         }
 
         [HarmonyPatch("AddEventControlToSelection")]
@@ -1775,6 +1758,26 @@ namespace RDLevelEditorAccess
                 string roomText = RDString.Get("editor.room");
                 Narration.Say($"{roomText} {index + 1}", NarrationCategory.Navigation);
             }
+        }
+    }
+
+    // ===================================================================================
+    // 标签页切换时取消事件选择
+    // ===================================================================================
+    /// <summary>
+    /// 标签页切换时取消所有事件选择
+    /// </summary>
+    [HarmonyPatch(typeof(scnEditor))]
+    public static class TabSwitchPatch
+    {
+        [HarmonyPatch("ShowTabSection")]
+        [HarmonyPostfix]
+        public static void ShowTabSectionPostfix(scnEditor __instance)
+        {
+            if (__instance == null) return;
+
+            // 切换标签页时取消所有事件选择
+            __instance.DeselectAllEventControls(updateInspectorUI: false, sound: false);
         }
     }
 
