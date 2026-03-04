@@ -2,14 +2,17 @@
   <PropertyGroup>
     <!-- 默认占位符（开发者需在 Directory.Build.user.props 中覆盖） -->
     <GameDir Condition="'$(GameDir)'==''">GAME_DIR_NOT_SET</GameDir>
-
-    <ModDeployDir>$(GameDir)\BepInEx\plugins</ModDeployDir>
-    <HelperDeployDir>$(GameDir)</HelperDeployDir>
   </PropertyGroup>
 
   <!-- 导入本地覆盖文件（不进入版本控制） -->
   <Import Project="Directory.Build.user.props"
           Condition="Exists('Directory.Build.user.props')" />
+
+  <PropertyGroup>
+    <!-- 在导入用户配置后设置部署目录 -->
+    <ModDeployDir>$(GameDir)\BepInEx\plugins</ModDeployDir>
+    <HelperDeployDir>$(GameDir)</HelperDeployDir>
+  </PropertyGroup>
 
   <!-- 部署目标：仅在 GameDir 已配置时执行 -->
   <Target Name="CopyModToGameFolder" AfterTargets="Build"
@@ -19,12 +22,12 @@
 
     <Copy SourceFiles="$(TargetPath)"
           DestinationFolder="$(ModDeployDir)"
-          SkipUnchangedFiles="true" />
+          SkipUnchangedFiles="false" />
 
     <Copy SourceFiles="$(TargetDir)$(TargetName).pdb"
           DestinationFolder="$(ModDeployDir)"
           Condition="Exists('$(TargetDir)$(TargetName).pdb')"
-          SkipUnchangedFiles="true" />
+          SkipUnchangedFiles="false" />
 
   </Target>
 
@@ -35,7 +38,7 @@
 
     <Copy SourceFiles="$(TargetPath)"
           DestinationFolder="$(HelperDeployDir)"
-          SkipUnchangedFiles="true" />
+          SkipUnchangedFiles="false" />
 
   </Target>
 

@@ -515,15 +515,15 @@ namespace RDLevelEditorAccess
                 }
             }
 
-            // Insert: 添加事件
-            if (Input.GetKeyDown(KeyCode.Insert) && 
+            // Insert 或 F2: 添加事件
+            if ((Input.GetKeyDown(KeyCode.Insert) || Input.GetKeyDown(KeyCode.F2)) &&
                 !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl))
             {
                 StartEventTypeSelect();
             }
 
-            // Ctrl+Insert: 添加轨道/精灵（取决于当前 Tab）
-            if (Input.GetKeyDown(KeyCode.Insert) && 
+            // Ctrl+Insert 或 Ctrl+F2: 添加轨道/精灵（取决于当前 Tab）
+            if ((Input.GetKeyDown(KeyCode.Insert) || Input.GetKeyDown(KeyCode.F2)) &&
                 (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
             {
                 if (editor.currentTab == Tab.Rows)
