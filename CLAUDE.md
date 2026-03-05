@@ -44,11 +44,20 @@ dotnet build RDEventEditorHelper/RDEventEditorHelper.csproj
 
 # Clean
 dotnet clean RDLE-a11y.sln
+
+# Create release package
+./release.sh
 ```
 
 **Auto-deployment**: `Directory.Build.props` automatically copies build outputs to the game directory:
 - Mod DLL → `{GameDir}/BepInEx/plugins/`
 - Helper EXE → `{GameDir}/`
+
+**Release Process**: The `release.sh` script builds Release configuration and packages everything into `release/main/`:
+- Compiles both projects in Release mode
+- Copies DLL and EXE from game directory to release folder
+- Copies documentation from `docs/` to `release/docs/`
+- Creates a distribution-ready package structure
 
 ## Project Structure
 
@@ -72,7 +81,27 @@ agents references/Assembly-CSharp/
     ├── LevelEventInfo.cs     # Event metadata system
     ├── BasePropertyInfo.cs   # Property type system
     └── InspectorPanel.cs     # Property panel base
+
+docs/
+├── manual-cn.md              # Chinese user manual
+├── manual-en.md              # English user manual
+├── changelog-cn.txt          # Chinese changelog
+└── changelog-en.txt          # English changelog
 ```
+
+### Dependencies
+
+**RDLevelEditorAccess** (.NET Standard 2.1):
+- `Microsoft.Windows.Compatibility` 10.0.2
+- `System.Collections.Immutable` 8.0.0
+- `System.Text.Json` 8.0.5
+- Unity DLLs: `UnityEngine`, `UnityEngine.UI`, `Unity.TextMeshPro`
+- BepInEx: `BepInEx.dll`, `0Harmony.dll`
+- Game DLLs: `Assembly-CSharp.dll`, `RDTools.dll`
+
+**RDEventEditorHelper** (.NET Framework 4.8):
+- `Newtonsoft.Json` 13.0.3
+- `System.Windows.Forms`, `System.Drawing`
 
 ## Keyboard Shortcuts
 
@@ -406,6 +435,55 @@ catch (Exception ex)
 ```
 
 **Debug Mode**: The Helper application supports DEBUG mode. When enabled, it writes detailed logs to `RDEventEditorHelper.log` in the game directory.
+
+## Debugging
+
+### Debugging the Mod (RDLevelEditorAccess)
+
+1. **View logs**: BepInEx logs are written to `{GameDir}/BepInEx/LogOutput.log`
+2. **Enable debug logging**: Edit `{GameDir}/BepInEx/config/BepInEx.cfg`:
+   ```ini
+   [Logging.Console]
+   Enabled = true
+
+   [Logging.Disk]
+   Enabled = true
+   ```
+3. **Attach debugger**: Use Visual Studio or Rider to attach to the `Rhythm Doctor.exe` process
+4. **Add breakpoints**: Set breakpoints in your code, but note that Unity's IL2CPP may affect debugging
+
+### Debugging the Helper (RDEventEditorHelper)
+
+1. **Enable DEBUG mode**: Set environment variable or modify code to enable logging
+2. **View logs**: Check `{GameDir}/RDEventEditorHelper.log`
+3. **Manual testing**: Create a test `temp/source.json` and run the helper directly:
+   ```bash
+   cd "{GameDir}"
+   ./RDEventEditorHelper.exe
+   ```
+4. **Attach debugger**: Launch helper from Visual Studio/Rider with debugger attached
+
+### Common Issues
+
+- **Mod not loading**: Check BepInEx logs for errors, verify DLL is in `BepInEx/plugins/`
+- **Helper not launching**: Verify EXE is in game root directory, check file permissions
+- **IPC timeout**: Check if `temp/` directory exists and is writable
+- **Unity null reference**: Always check `scnEditor.instance == null` before accessing game objects
+
+## Testing
+
+**Current Status**: No automated tests exist. Manual testing is done in-game.
+
+**To add tests** (future):
+```bash
+# Create test project
+dotnet new xunit -n RDMods.Tests -o RDMods.Tests
+dotnet sln add RDMods.Tests/RDMods.Tests.csproj
+
+# Run tests
+dotnet test
+dotnet test --filter "FullyQualifiedName~ClassName.MethodName"
+```
 
 ## Git Commit Messages
 

@@ -1711,12 +1711,10 @@ namespace RDLevelEditorAccess
         {
             if (levelEvent == null) return;
 
-            // 朗读事件名称
-            Narration.Say(eventSelectI18n(levelEvent), NarrationCategory.Navigation);
-
-            // 朗读事件位置
+            // 合并事件名称和位置信息，统一朗读
             var bb = new BarAndBeat(levelEvent.bar, levelEvent.beat);
-            Narration.Say(FormatBarAndBeat(bb), NarrationCategory.Instruction);
+            string announcement = $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}";
+            Narration.Say(announcement, NarrationCategory.Navigation);
         }
     }
 
