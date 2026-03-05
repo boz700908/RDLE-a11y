@@ -1211,8 +1211,8 @@ namespace RDLevelEditorAccess.IPC
                 {
                     dto.localizedSoundOptions = dto.soundOptions.Select(name =>
                     {
-                        // 尝试从本地化系统获取
-                        string key = $"sound.{name}";
+                        // 尝试从本地化系统获取（使用游戏的 enum.SoundEffect 格式）
+                        string key = $"enum.SoundEffect.{name}";
                         string localized = RDString.GetWithCheck(key, out bool exists);
                         return exists ? localized : name;  // 如果没有本地化，使用原名
                     }).ToArray();

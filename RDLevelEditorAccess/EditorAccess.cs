@@ -2009,15 +2009,15 @@ namespace RDLevelEditorAccess
             ["eam.cursor.jump.beat"]             = "拍",
             ["eam.cursor.jump.success"]          = "已跳转到 {0}",
 
-            // 音效本地化
-            ["sound.Shaker"]                     = "摇铃",
-            ["sound.Kick"]                       = "底鼓",
-            ["sound.Snare"]                      = "军鼓",
-            ["sound.Hat"]                        = "踩镲",
-            ["sound.Sizzle"]                     = "吊镲",
-            ["sound.Cowbell"]                    = "牛铃",
-            ["sound.Clap"]                       = "拍手",
-            ["sound.Stick"]                      = "鼓棒",
+            // 音效本地化（使用游戏的 enum.SoundEffect 格式）
+            ["enum.SoundEffect.Shaker"]          = "摇铃",
+            ["enum.SoundEffect.Kick"]            = "底鼓",
+            ["enum.SoundEffect.Snare"]           = "军鼓",
+            ["enum.SoundEffect.Hat"]             = "踩镲",
+            ["enum.SoundEffect.Sizzle"]          = "吊镲",
+            ["enum.SoundEffect.Cowbell"]         = "牛铃",
+            ["enum.SoundEffect.Clap"]            = "拍手",
+            ["enum.SoundEffect.Stick"]           = "鼓棒",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -2098,15 +2098,15 @@ namespace RDLevelEditorAccess
             ["eam.cursor.jump.beat"]             = "Beat",
             ["eam.cursor.jump.success"]          = "Jumped to {0}",
 
-            // 音效本地化（英文保持原名）
-            ["sound.Shaker"]                     = "Shaker",
-            ["sound.Kick"]                       = "Kick",
-            ["sound.Snare"]                      = "Snare",
-            ["sound.Hat"]                        = "Hat",
-            ["sound.Sizzle"]                     = "Sizzle",
-            ["sound.Cowbell"]                    = "Cowbell",
-            ["sound.Clap"]                       = "Clap",
-            ["sound.Stick"]                      = "Stick",
+            // 音效本地化（使用游戏的 enum.SoundEffect 格式）
+            ["enum.SoundEffect.Shaker"]          = "Shaker",
+            ["enum.SoundEffect.Kick"]            = "Kick",
+            ["enum.SoundEffect.Snare"]           = "Snare",
+            ["enum.SoundEffect.Hat"]             = "Hat",
+            ["enum.SoundEffect.Sizzle"]          = "Sizzle",
+            ["enum.SoundEffect.Cowbell"]         = "Cowbell",
+            ["enum.SoundEffect.Clap"]            = "Clap",
+            ["enum.SoundEffect.Stick"]           = "Stick",
         };
 
         [HarmonyPrefix]
