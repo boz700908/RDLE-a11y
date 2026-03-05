@@ -68,6 +68,14 @@ namespace RDLevelEditorAccess.IPC
                 levelDirectory = GetLevelDirectory()
             };
 
+            // 为 levelAudioFiles 生成本地化名称（移除扩展名）
+            if (sourceData.levelAudioFiles != null && sourceData.levelAudioFiles.Length > 0)
+            {
+                sourceData.localizedLevelAudioFiles = sourceData.levelAudioFiles.Select(filename =>
+                    System.IO.Path.GetFileNameWithoutExtension(filename)
+                ).ToArray();
+            }
+
             try
             {
                 var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
@@ -117,6 +125,14 @@ namespace RDLevelEditorAccess.IPC
                 levelAudioFiles = GetLevelAudioFiles(),
                 levelDirectory = GetLevelDirectory()
             };
+
+            // 为 levelAudioFiles 生成本地化名称（移除扩展名）
+            if (sourceData.levelAudioFiles != null && sourceData.levelAudioFiles.Length > 0)
+            {
+                sourceData.localizedLevelAudioFiles = sourceData.levelAudioFiles.Select(filename =>
+                    System.IO.Path.GetFileNameWithoutExtension(filename)
+                ).ToArray();
+            }
 
             try
             {
@@ -297,6 +313,9 @@ namespace RDLevelEditorAccess.IPC
             // NEW: 处理validateVisibility请求（与result.json处理独立，不中断轮询和键盘锁定）
             PollPropertyValidationRequests();
 
+            // NEW: 处理播放声音请求（单向通信，不影响主流程）
+            PollPlaySoundRequests();
+
             if (File.Exists(_resultPath))
             {
                 try
@@ -433,6 +452,75 @@ namespace RDLevelEditorAccess.IPC
                 Debug.LogError($"[FileIPC] Failed to process visibility validation: {ex.Message}");
                 // 错误时也删除文件，避免反复尝试
                 try { File.Delete(validationPath); } catch { }
+            }
+        }
+
+        /// <summary>
+        /// 处理 Helper 的播放声音请求（单向通信）
+        /// </summary>
+        private void PollPlaySoundRequests()
+        {
+            string requestPath = Path.Combine(_tempPath, "playSoundRequest.json");
+            if (!File.Exists(requestPath)) return;
+
+            try
+            {
+                string json = File.ReadAllText(requestPath);
+                var options = new JsonSerializerOptions { IncludeFields = true };
+                var request = JsonSerializer.Deserialize<PlaySoundRequest>(json, options);
+
+                // 验证 token
+                if (request?.token != _sessionToken)
+                {
+                    Debug.LogWarning($"[FileIPC] 播放声音请求 token 不匹配，忽略");
+                    File.Delete(requestPath);
+                    return;
+                }
+
+                // 播放声音
+                float volume = request.volume / 100f;
+                float pitch = request.pitch / 100f;
+                float pan = request.pan / 100f;
+
+                // 音效名称需要添加 "snd" 前缀（游戏内部约定）
+                string soundName = request.soundName;
+                if (!soundName.StartsWith("snd") && !soundName.Contains("."))
+                {
+                    soundName = "snd" + soundName;
+                }
+
+                Debug.Log($"[FileIPC] 播放声音: {soundName} (原始: {request.soundName}), 音量={volume}, 音调={pitch}, 声像={pan}");
+
+                // 使用反射调用 scrConductor.PlayImmediatelyLevelEditor
+                // 这个方法专门为关卡编辑器设计，会忽略 AudioListener 的暂停状态
+                var conductorType = Type.GetType("scrConductor, Assembly-CSharp");
+                if (conductorType != null)
+                {
+                    var playMethod = conductorType.GetMethod("PlayImmediatelyLevelEditor",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                    if (playMethod != null)
+                    {
+                        // PlayImmediatelyLevelEditor(string sound, AudioMixerGroup group, float gain = 1f, float pitch = 1f)
+                        playMethod.Invoke(null, new object[] { soundName, null, volume, pitch });
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[FileIPC] 未找到 PlayImmediatelyLevelEditor 方法");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("[FileIPC] 未找到 scrConductor 类型");
+                }
+
+                // 删除请求文件
+                File.Delete(requestPath);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FileIPC] 播放声音请求失败: {ex.Message}");
+                // 错误时也删除文件，避免反复尝试
+                try { File.Delete(requestPath); } catch { }
             }
         }
 
@@ -1187,8 +1275,20 @@ namespace RDLevelEditorAccess.IPC
                 {
                     dto.soundOptions = options;
                 }
-                
+
                 Debug.Log($"[FileIPC] SoundAttribute: customFile={dto.allowCustomFile}, optionsMethod={optionsMethod ?? "null"}, optionsCount={dto.soundOptions?.Length ?? 0}");
+
+                // 为 soundOptions 生成本地化名称
+                if (dto.soundOptions != null && dto.soundOptions.Length > 0)
+                {
+                    dto.localizedSoundOptions = dto.soundOptions.Select(name =>
+                    {
+                        // 尝试从本地化系统获取（使用游戏的 enum.SoundEffect 格式）
+                        string key = $"enum.SoundEffect.{name}";
+                        string localized = RDString.GetWithCheck(key, out bool exists);
+                        return exists ? localized : name;  // 如果没有本地化，使用原名
+                    }).ToArray();
+                }
             }
             catch (Exception ex)
             {
@@ -1368,6 +1468,14 @@ namespace RDLevelEditorAccess.IPC
                 levelAudioFiles = GetLevelAudioFiles(),
                 levelDirectory = GetLevelDirectory()
             };
+
+            // 为 levelAudioFiles 生成本地化名称（移除扩展名）
+            if (sourceData.levelAudioFiles != null && sourceData.levelAudioFiles.Length > 0)
+            {
+                sourceData.localizedLevelAudioFiles = sourceData.levelAudioFiles.Select(filename =>
+                    System.IO.Path.GetFileNameWithoutExtension(filename)
+                ).ToArray();
+            }
 
             try
             {
@@ -1811,6 +1919,7 @@ namespace RDLevelEditorAccess.IPC
             public string token;  // 会话特征码
             public List<PropertyData> properties;
             public string[] levelAudioFiles;  // 关卡目录中的音频文件名列表
+            public string[] localizedLevelAudioFiles;  // 关卡音频文件的本地化显示名称
             public string levelDirectory;  // 关卡目录路径
         }
 
@@ -1821,6 +1930,19 @@ namespace RDLevelEditorAccess.IPC
             public string action;
             public Dictionary<string, string> updates;
             public string methodName;  // 当 action 为 "execute" 时使用
+        }
+
+        /// <summary>
+        /// 播放声音请求（Helper → Mod 单向通信）
+        /// </summary>
+        [Serializable]
+        private class PlaySoundRequest
+        {
+            public string token;      // 会话特征码
+            public string soundName;  // 音效文件名
+            public int volume;        // 音量 (0-100)
+            public int pitch;         // 音调 (0-200)
+            public int pan;           // 声像 (-100 到 100)
         }
 
         [Serializable]
@@ -1836,6 +1958,7 @@ namespace RDLevelEditorAccess.IPC
             public bool itsASong;      // SoundData 类型专用：区分歌曲/音效
             public bool isNullable;    // 是否为可空类型
             public string[] soundOptions;   // SoundData 类型专用：预设音效选项列表
+            public string[] localizedSoundOptions;  // SoundData 类型专用：预设音效的本地化名称
             public bool allowCustomFile;    // SoundData 类型专用：是否允许浏览外部文件
             public bool isVisible = true;   // NEW: 该属性是否应该显示（enableIf判断结果）
             public string customName;       // Character 类型专用：自定义角色名称

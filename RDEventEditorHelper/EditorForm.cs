@@ -23,6 +23,7 @@ namespace RDEventEditorHelper
         public bool itsASong;      // SoundData 类型专用：区分歌曲/音效
         public bool isNullable;    // 是否为可空类型
         public string[] soundOptions;   // SoundData 类型专用：预设音效选项列表
+        public string[] localizedSoundOptions;  // SoundData 类型专用：预设音效的本地化名称
         public bool allowCustomFile;    // SoundData 类型专用：是否允许浏览外部文件
         public string customName;       // Character 类型专用：自定义角色名称
         public bool isVisible = true;   // NEW: 该属性是否应该显示（来自Mod的enableIf判断结果）
@@ -48,6 +49,15 @@ namespace RDEventEditorHelper
     public static class FileIPC
     {
         private static readonly string TempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "temp");
+        private static string _currentToken = null;  // 当前会话的 token
+
+        /// <summary>
+        /// 设置当前会话的 token（从 EditorForm 传入）
+        /// </summary>
+        public static void SetCurrentToken(string token)
+        {
+            _currentToken = token;
+        }
 
         /// <summary>
         /// 向Mod发送属性更新请求并等待响应
@@ -107,6 +117,46 @@ namespace RDEventEditorHelper
                 try { if (File.Exists(requestPath)) File.Delete(requestPath); } catch { }
             }
         }
+
+        /// <summary>
+        /// 向 Mod 发送播放声音请求（单向通信，无需等待响应）
+        /// </summary>
+        public static void SendPlaySoundRequest(string soundName, int volume, int pitch, int pan)
+        {
+            if (string.IsNullOrEmpty(_currentToken))
+            {
+                Debug.WriteLine("[FileIPC] Cannot send play sound request: token not set");
+                return;
+            }
+
+            string requestPath = Path.Combine(TempDir, "playSoundRequest.json");
+
+            // 确保temp目录存在
+            if (!Directory.Exists(TempDir))
+                Directory.CreateDirectory(TempDir);
+
+            try
+            {
+                var request = new
+                {
+                    token = _currentToken,
+                    soundName = soundName,
+                    volume = volume,
+                    pitch = pitch,
+                    pan = pan
+                };
+
+                string json = JsonConvert.SerializeObject(request, Formatting.Indented);
+                File.WriteAllText(requestPath, json);
+
+                Debug.WriteLine($"[FileIPC] Sent play sound request: {soundName}");
+            }
+            catch (Exception ex)
+            {
+                // 静默失败，不影响主流程
+                Debug.WriteLine($"[FileIPC] SendPlaySoundRequest failed: {ex.Message}");
+            }
+        }
     }
 
     public class EditorForm : Form
@@ -116,6 +166,7 @@ namespace RDEventEditorHelper
         private string _eventType;
         private PropertyData[] _properties;
         private string[] _levelAudioFiles;
+        private string[] _localizedLevelAudioFiles;  // 本地化的音频文件显示名称
         private string _levelDirectory;
         private Dictionary<string, Control> _controls = new Dictionary<string, Control>();
         private bool _isClosingByButton = false;
@@ -188,13 +239,24 @@ namespace RDEventEditorHelper
             };
         }
 
-        public void SetData(string eventType, PropertyData[] properties, string title = null, string[] levelAudioFiles = null, string levelDirectory = null)
+        public void SetData(string eventType, PropertyData[] properties, string title = null, string[] levelAudioFiles = null, string levelDirectory = null, string[] localizedLevelAudioFiles = null, string token = null)
         {
             _eventType = eventType;
             _properties = properties;
             _levelAudioFiles = levelAudioFiles;
+            _localizedLevelAudioFiles = localizedLevelAudioFiles ?? levelAudioFiles;  // 如果没有本地化，使用原始名称
             _levelDirectory = levelDirectory;
             this.Text = title ?? $"编辑事件 (Edit Event): {eventType}";
+
+            // 使用传入的 token（如果提供），否则使用自己生成的
+            if (!string.IsNullOrEmpty(token))
+            {
+                _token = token;
+            }
+
+            // 设置当前会话的 token 到 FileIPC
+            FileIPC.SetCurrentToken(_token);
+
             BuildUI();
 
             // NEW: 获取初始可见性（确保与Mod的enableIf状态一致）
@@ -741,26 +803,36 @@ namespace RDEventEditorHelper
                                     defaultItem.Selected = true;
                                 }
                             }
-                            
-                            foreach (var opt in prop.soundOptions)
+
+                            // 获取原始和本地化数组
+                            var rawSoundOptions = prop.soundOptions;
+                            var localizedSoundOptions = prop.localizedSoundOptions ?? rawSoundOptions;
+
+                            for (int i = 0; i < rawSoundOptions.Length; i++)
                             {
-                                var item = new ListViewItem(opt);
-                                item.Tag = opt;
+                                var item = new ListViewItem(localizedSoundOptions[i]);  // 显示本地化名称
+                                item.Tag = rawSoundOptions[i];  // 保存原始名��到 Tag
                                 listView.Items.Add(item);
-                                if (opt == soundFilename) item.Selected = true;
+                                if (rawSoundOptions[i] == soundFilename) item.Selected = true;
                             }
                         }
                         
                         // 填充关卡目录音频文件
                         if (_levelAudioFiles != null)
                         {
-                            foreach (var audioFile in _levelAudioFiles)
+                            for (int i = 0; i < _levelAudioFiles.Length; i++)
                             {
+                                string audioFile = _levelAudioFiles[i];
+                                string audioDisplayName = (_localizedLevelAudioFiles != null && i < _localizedLevelAudioFiles.Length)
+                                    ? _localizedLevelAudioFiles[i]
+                                    : audioFile;
+
                                 bool alreadyInList = listView.Items.Cast<ListViewItem>()
-                                    .Any(i => string.Equals(i.Tag as string, audioFile, StringComparison.OrdinalIgnoreCase));
+                                    .Any(item => string.Equals(item.Tag as string, audioFile, StringComparison.OrdinalIgnoreCase));
                                 if (alreadyInList) continue;
-                                var lvItem = new ListViewItem(audioFile);
-                                lvItem.Tag = audioFile;
+
+                                var lvItem = new ListViewItem(audioDisplayName);  // 显示本地化名称
+                                lvItem.Tag = audioFile;  // 保存原始文件名到 Tag
                                 listView.Items.Add(lvItem);
                                 if (audioFile == soundFilename) lvItem.Selected = true;
                             }
@@ -803,7 +875,41 @@ namespace RDEventEditorHelper
                             OnOK?.Invoke(GetCurrentUpdates());
                             this.Close();
                         };
-                        
+
+                        // 空格键试听音效
+                        listView.KeyDown += (s, e) =>
+                        {
+                            if (e.KeyCode == Keys.Space && listView.SelectedItems.Count > 0)
+                            {
+                                e.Handled = true;  // 防止默认行为（选中/取消选中）
+
+                                // 获取选中的原始音频名称
+                                string rawSoundName = listView.SelectedItems[0].Tag as string;
+
+                                // 跳过特殊标记（轨道默认）
+                                if (rawSoundName == "__track_default__")
+                                {
+                                    return;
+                                }
+
+                                // 获取当前的音量、音调、声像参数
+                                var volTxt = soundPanel.Controls.Find("Volume", false).FirstOrDefault() as TextBox;
+                                var pitchTxt = soundPanel.Controls.Find("Pitch", false).FirstOrDefault() as TextBox;
+                                var panTxt = soundPanel.Controls.Find("Pan", false).FirstOrDefault() as TextBox;
+
+                                int volume = 100;
+                                int pitch = 100;
+                                int pan = 0;
+
+                                if (volTxt != null && int.TryParse(volTxt.Text, out int v)) volume = v;
+                                if (pitchTxt != null && int.TryParse(pitchTxt.Text, out int p)) pitch = p;
+                                if (panTxt != null && int.TryParse(panTxt.Text, out int pn)) pan = pn;
+
+                                // 发送播放请求
+                                FileIPC.SendPlaySoundRequest(rawSoundName, volume, pitch, pan);
+                            }
+                        };
+
                         // 搜索过滤（真正移除/添加项目，屏幕阅读器友好）
                         var allSoundItems = listView.Items.Cast<ListViewItem>().ToList();
                         txtSearch.TextChanged += (s, e) =>

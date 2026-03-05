@@ -2008,6 +2008,16 @@ namespace RDLevelEditorAccess
             ["eam.cursor.jump.bar"]              = "小节",
             ["eam.cursor.jump.beat"]             = "拍",
             ["eam.cursor.jump.success"]          = "已跳转到 {0}",
+
+            // 音效本地化（使用游戏的 enum.SoundEffect 格式）
+            ["enum.SoundEffect.Shaker"]          = "摇铃",
+            ["enum.SoundEffect.Kick"]            = "底鼓",
+            ["enum.SoundEffect.Snare"]           = "军鼓",
+            ["enum.SoundEffect.Hat"]             = "踩镲",
+            ["enum.SoundEffect.Sizzle"]          = "吊镲",
+            ["enum.SoundEffect.Cowbell"]         = "牛铃",
+            ["enum.SoundEffect.Clap"]            = "拍手",
+            ["enum.SoundEffect.Stick"]           = "鼓棒",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -2087,13 +2097,23 @@ namespace RDLevelEditorAccess
             ["eam.cursor.jump.bar"]              = "Bar",
             ["eam.cursor.jump.beat"]             = "Beat",
             ["eam.cursor.jump.success"]          = "Jumped to {0}",
+
+            // 音效本地化（使用游戏的 enum.SoundEffect 格式）
+            ["enum.SoundEffect.Shaker"]          = "Shaker",
+            ["enum.SoundEffect.Kick"]            = "Kick",
+            ["enum.SoundEffect.Snare"]           = "Snare",
+            ["enum.SoundEffect.Hat"]             = "Hat",
+            ["enum.SoundEffect.Sizzle"]          = "Sizzle",
+            ["enum.SoundEffect.Cowbell"]         = "Cowbell",
+            ["enum.SoundEffect.Clap"]            = "Clap",
+            ["enum.SoundEffect.Stick"]           = "Stick",
         };
 
         [HarmonyPrefix]
         public static bool GetPrefix(string key, ref string __result)
         {
-            // 性能：非 eam. key 仅多一次 4 字符 StartsWith 检查（< 10ns）
-            if (key == null || !key.StartsWith("eam.")) return true;
+            // 性能：非 eam./sound. key 仅多一次 StartsWith 检查（< 10ns）
+            if (key == null || (!key.StartsWith("eam.") && !key.StartsWith("sound."))) return true;
             var dict = RDString.isChinese ? _zh : _en;
             __result = dict.TryGetValue(key, out string val) ? val : key;
             return false; // 拦截原方法
