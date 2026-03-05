@@ -239,7 +239,7 @@ namespace RDEventEditorHelper
             };
         }
 
-        public void SetData(string eventType, PropertyData[] properties, string title = null, string[] levelAudioFiles = null, string levelDirectory = null, string[] localizedLevelAudioFiles = null)
+        public void SetData(string eventType, PropertyData[] properties, string title = null, string[] levelAudioFiles = null, string levelDirectory = null, string[] localizedLevelAudioFiles = null, string token = null)
         {
             _eventType = eventType;
             _properties = properties;
@@ -247,6 +247,12 @@ namespace RDEventEditorHelper
             _localizedLevelAudioFiles = localizedLevelAudioFiles ?? levelAudioFiles;  // 如果没有本地化，使用原始名称
             _levelDirectory = levelDirectory;
             this.Text = title ?? $"编辑事件 (Edit Event): {eventType}";
+
+            // 使用传入的 token（如果提供），否则使用自己生成的
+            if (!string.IsNullOrEmpty(token))
+            {
+                _token = token;
+            }
 
             // 设置当前会话的 token 到 FileIPC
             FileIPC.SetCurrentToken(_token);

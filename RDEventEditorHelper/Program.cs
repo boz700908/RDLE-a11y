@@ -65,7 +65,7 @@ namespace RDEventEditorHelper
                     : editType == "jump"
                         ? "跳转到位置 (Jump to Position)"
                         : $"编辑事件 (Edit Event): {sourceData?.eventType}";
-            editorForm.SetData(sourceData?.eventType, sourceData?.properties, title, sourceData?.levelAudioFiles, sourceData?.levelDirectory, sourceData?.localizedLevelAudioFiles);
+            editorForm.SetData(sourceData?.eventType, sourceData?.properties, title, sourceData?.levelAudioFiles, sourceData?.levelDirectory, sourceData?.localizedLevelAudioFiles, sessionToken);
 
             editorForm.OnOK += (updates) =>
             {
