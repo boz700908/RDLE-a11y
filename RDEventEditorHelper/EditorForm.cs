@@ -23,6 +23,7 @@ namespace RDEventEditorHelper
         public bool itsASong;      // SoundData 类型专用：区分歌曲/音效
         public bool isNullable;    // 是否为可空类型
         public string[] soundOptions;   // SoundData 类型专用：预设音效选项列表
+        public string[] localizedSoundOptions;  // SoundData 类型专用：预设音效的本地化名称
         public bool allowCustomFile;    // SoundData 类型专用：是否允许浏览外部文件
         public string customName;       // Character 类型专用：自定义角色名称
         public bool isVisible = true;   // NEW: 该属性是否应该显示（来自Mod的enableIf判断结果）
@@ -116,6 +117,7 @@ namespace RDEventEditorHelper
         private string _eventType;
         private PropertyData[] _properties;
         private string[] _levelAudioFiles;
+        private string[] _localizedLevelAudioFiles;  // 本地化的音频文件显示名称
         private string _levelDirectory;
         private Dictionary<string, Control> _controls = new Dictionary<string, Control>();
         private bool _isClosingByButton = false;
@@ -188,11 +190,12 @@ namespace RDEventEditorHelper
             };
         }
 
-        public void SetData(string eventType, PropertyData[] properties, string title = null, string[] levelAudioFiles = null, string levelDirectory = null)
+        public void SetData(string eventType, PropertyData[] properties, string title = null, string[] levelAudioFiles = null, string levelDirectory = null, string[] localizedLevelAudioFiles = null)
         {
             _eventType = eventType;
             _properties = properties;
             _levelAudioFiles = levelAudioFiles;
+            _localizedLevelAudioFiles = localizedLevelAudioFiles ?? levelAudioFiles;  // 如果没有本地化，使用原始名称
             _levelDirectory = levelDirectory;
             this.Text = title ?? $"编辑事件 (Edit Event): {eventType}";
             BuildUI();
@@ -741,26 +744,36 @@ namespace RDEventEditorHelper
                                     defaultItem.Selected = true;
                                 }
                             }
-                            
-                            foreach (var opt in prop.soundOptions)
+
+                            // 获取原始和本地化数组
+                            var rawSoundOptions = prop.soundOptions;
+                            var localizedSoundOptions = prop.localizedSoundOptions ?? rawSoundOptions;
+
+                            for (int i = 0; i < rawSoundOptions.Length; i++)
                             {
-                                var item = new ListViewItem(opt);
-                                item.Tag = opt;
+                                var item = new ListViewItem(localizedSoundOptions[i]);  // 显示本地化名称
+                                item.Tag = rawSoundOptions[i];  // 保存原始名��到 Tag
                                 listView.Items.Add(item);
-                                if (opt == soundFilename) item.Selected = true;
+                                if (rawSoundOptions[i] == soundFilename) item.Selected = true;
                             }
                         }
                         
                         // 填充关卡目录音频文件
                         if (_levelAudioFiles != null)
                         {
-                            foreach (var audioFile in _levelAudioFiles)
+                            for (int i = 0; i < _levelAudioFiles.Length; i++)
                             {
+                                string audioFile = _levelAudioFiles[i];
+                                string audioDisplayName = (_localizedLevelAudioFiles != null && i < _localizedLevelAudioFiles.Length)
+                                    ? _localizedLevelAudioFiles[i]
+                                    : audioFile;
+
                                 bool alreadyInList = listView.Items.Cast<ListViewItem>()
-                                    .Any(i => string.Equals(i.Tag as string, audioFile, StringComparison.OrdinalIgnoreCase));
+                                    .Any(item => string.Equals(item.Tag as string, audioFile, StringComparison.OrdinalIgnoreCase));
                                 if (alreadyInList) continue;
-                                var lvItem = new ListViewItem(audioFile);
-                                lvItem.Tag = audioFile;
+
+                                var lvItem = new ListViewItem(audioDisplayName);  // 显示本地化名称
+                                lvItem.Tag = audioFile;  // 保存原始文件名到 Tag
                                 listView.Items.Add(lvItem);
                                 if (audioFile == soundFilename) lvItem.Selected = true;
                             }

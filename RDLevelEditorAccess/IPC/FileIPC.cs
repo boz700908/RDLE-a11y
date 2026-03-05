@@ -68,6 +68,14 @@ namespace RDLevelEditorAccess.IPC
                 levelDirectory = GetLevelDirectory()
             };
 
+            // 为 levelAudioFiles 生成本地化名称（移除扩展名）
+            if (sourceData.levelAudioFiles != null && sourceData.levelAudioFiles.Length > 0)
+            {
+                sourceData.localizedLevelAudioFiles = sourceData.levelAudioFiles.Select(filename =>
+                    System.IO.Path.GetFileNameWithoutExtension(filename)
+                ).ToArray();
+            }
+
             try
             {
                 var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
@@ -117,6 +125,14 @@ namespace RDLevelEditorAccess.IPC
                 levelAudioFiles = GetLevelAudioFiles(),
                 levelDirectory = GetLevelDirectory()
             };
+
+            // 为 levelAudioFiles 生成本地化名称（移除扩展名）
+            if (sourceData.levelAudioFiles != null && sourceData.levelAudioFiles.Length > 0)
+            {
+                sourceData.localizedLevelAudioFiles = sourceData.levelAudioFiles.Select(filename =>
+                    System.IO.Path.GetFileNameWithoutExtension(filename)
+                ).ToArray();
+            }
 
             try
             {
@@ -1187,8 +1203,20 @@ namespace RDLevelEditorAccess.IPC
                 {
                     dto.soundOptions = options;
                 }
-                
+
                 Debug.Log($"[FileIPC] SoundAttribute: customFile={dto.allowCustomFile}, optionsMethod={optionsMethod ?? "null"}, optionsCount={dto.soundOptions?.Length ?? 0}");
+
+                // 为 soundOptions 生成本地化名称
+                if (dto.soundOptions != null && dto.soundOptions.Length > 0)
+                {
+                    dto.localizedSoundOptions = dto.soundOptions.Select(name =>
+                    {
+                        // 尝试从本地化系统获取
+                        string key = $"sound.{name}";
+                        string localized = RDString.GetWithCheck(key, out bool exists);
+                        return exists ? localized : name;  // 如果没有本地化，使用原名
+                    }).ToArray();
+                }
             }
             catch (Exception ex)
             {
@@ -1368,6 +1396,14 @@ namespace RDLevelEditorAccess.IPC
                 levelAudioFiles = GetLevelAudioFiles(),
                 levelDirectory = GetLevelDirectory()
             };
+
+            // 为 levelAudioFiles 生成本地化名称（移除扩展名）
+            if (sourceData.levelAudioFiles != null && sourceData.levelAudioFiles.Length > 0)
+            {
+                sourceData.localizedLevelAudioFiles = sourceData.levelAudioFiles.Select(filename =>
+                    System.IO.Path.GetFileNameWithoutExtension(filename)
+                ).ToArray();
+            }
 
             try
             {
@@ -1811,6 +1847,7 @@ namespace RDLevelEditorAccess.IPC
             public string token;  // 会话特征码
             public List<PropertyData> properties;
             public string[] levelAudioFiles;  // 关卡目录中的音频文件名列表
+            public string[] localizedLevelAudioFiles;  // 关卡音频文件的本地化显示名称
             public string levelDirectory;  // 关卡目录路径
         }
 
@@ -1836,6 +1873,7 @@ namespace RDLevelEditorAccess.IPC
             public bool itsASong;      // SoundData 类型专用：区分歌曲/音效
             public bool isNullable;    // 是否为可空类型
             public string[] soundOptions;   // SoundData 类型专用：预设音效选项列表
+            public string[] localizedSoundOptions;  // SoundData 类型专用：预设音效的本地化名称
             public bool allowCustomFile;    // SoundData 类型专用：是否允许浏览外部文件
             public bool isVisible = true;   // NEW: 该属性是否应该显示（enableIf判断结果）
             public string customName;       // Character 类型专用：自定义角色名称

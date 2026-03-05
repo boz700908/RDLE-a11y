@@ -2008,6 +2008,16 @@ namespace RDLevelEditorAccess
             ["eam.cursor.jump.bar"]              = "小节",
             ["eam.cursor.jump.beat"]             = "拍",
             ["eam.cursor.jump.success"]          = "已跳转到 {0}",
+
+            // 音效本地化
+            ["sound.Shaker"]                     = "摇铃",
+            ["sound.Kick"]                       = "底鼓",
+            ["sound.Snare"]                      = "军鼓",
+            ["sound.Hat"]                        = "踩镲",
+            ["sound.Sizzle"]                     = "吊镲",
+            ["sound.Cowbell"]                    = "牛铃",
+            ["sound.Clap"]                       = "拍手",
+            ["sound.Stick"]                      = "鼓棒",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -2087,13 +2097,23 @@ namespace RDLevelEditorAccess
             ["eam.cursor.jump.bar"]              = "Bar",
             ["eam.cursor.jump.beat"]             = "Beat",
             ["eam.cursor.jump.success"]          = "Jumped to {0}",
+
+            // 音效本地化（英文保持原名）
+            ["sound.Shaker"]                     = "Shaker",
+            ["sound.Kick"]                       = "Kick",
+            ["sound.Snare"]                      = "Snare",
+            ["sound.Hat"]                        = "Hat",
+            ["sound.Sizzle"]                     = "Sizzle",
+            ["sound.Cowbell"]                    = "Cowbell",
+            ["sound.Clap"]                       = "Clap",
+            ["sound.Stick"]                      = "Stick",
         };
 
         [HarmonyPrefix]
         public static bool GetPrefix(string key, ref string __result)
         {
-            // 性能：非 eam. key 仅多一次 4 字符 StartsWith 检查（< 10ns）
-            if (key == null || !key.StartsWith("eam.")) return true;
+            // 性能：非 eam./sound. key 仅多一次 StartsWith 检查（< 10ns）
+            if (key == null || (!key.StartsWith("eam.") && !key.StartsWith("sound."))) return true;
             var dict = RDString.isChinese ? _zh : _en;
             __result = dict.TryGetValue(key, out string val) ? val : key;
             return false; // 拦截原方法
