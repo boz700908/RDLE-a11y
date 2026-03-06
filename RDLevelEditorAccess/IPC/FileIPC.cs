@@ -556,6 +556,15 @@ namespace RDLevelEditorAccess.IPC
                                 var propInfo = info.propertiesInfo.FirstOrDefault(p => p.propertyInfo.Name == key);
                                 if (propInfo == null)
                                 {
+                                    // 特殊处理：MakeRow 的字段（不在 propertiesInfo 中）
+                                    if (ev is LevelEvent_MakeRow row)
+                                    {
+                                        if (ApplyMakeRowSpecialField(row, key, strVal))
+                                        {
+                                            continue; // 已处理特殊字段
+                                        }
+                                    }
+
                                     Debug.LogWarning($"[FileIPC] 未找到属性: {key}");
                                     continue;
                                 }
@@ -794,6 +803,50 @@ namespace RDLevelEditorAccess.IPC
             return null;
         }
 
+        /// <summary>
+        /// 应用 MakeRow 的特殊字段（不在 propertiesInfo 中的字段）
+        /// </summary>
+        private bool ApplyMakeRowSpecialField(LevelEvent_MakeRow row, string key, string strVal)
+        {
+            try
+            {
+                switch (key)
+                {
+                    case "pulseSound":
+                        // 解析 SoundData 格式: "filename|volume|pitch|pan|offset"
+                        var parts = strVal.Split('|');
+                        if (row.pulseSound != null)
+                        {
+                            row.pulseSound.filename = parts.Length > 0 ? parts[0] : "Shaker";
+                            row.pulseSound.volume = parts.Length > 1 && int.TryParse(parts[1], out int v) ? v : 100;
+                            row.pulseSound.pitch = parts.Length > 2 && int.TryParse(parts[2], out int p) ? p : 100;
+                            row.pulseSound.pan = parts.Length > 3 && int.TryParse(parts[3], out int pn) ? pn : 0;
+                            row.pulseSound.offset = parts.Length > 4 && int.TryParse(parts[4], out int o) ? o : 0;
+                            Debug.Log($"[FileIPC] 已更新 pulseSound: {row.pulseSound.filename}");
+                        }
+                        return true;
+
+                    case "mimicsRow":
+                        row.mimicsRow = strVal == "true";
+                        Debug.Log($"[FileIPC] 已更新 mimicsRow: {row.mimicsRow}");
+                        return true;
+
+                    case "customCharacterName":
+                        row.customCharacterName = strVal;
+                        Debug.Log($"[FileIPC] 已更新 customCharacterName: {strVal}");
+                        return true;
+
+                    default:
+                        return false; // 不是特殊字段
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FileIPC] 应用 MakeRow 特殊字段 {key} 失败: {ex.Message}");
+                return false;
+            }
+        }
+
         private void LaunchHelper()
         {
             string helperPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, HelperExeName);
@@ -939,6 +992,50 @@ namespace RDLevelEditorAccess.IPC
                 else dto.type = "String";
 
                 list.Add(dto);
+            }
+
+            // 特殊处理：MakeRow 的字段（不是属性，没有 JsonProperty 标记）
+            if (ev is LevelEvent_MakeRow row)
+            {
+                // pulseSound 字段
+                if (row.pulseSound != null)
+                {
+                    string pulseSoundValue = $"{row.pulseSound.filename ?? "Shaker"}|{row.pulseSound.volume}|{row.pulseSound.pitch}|{row.pulseSound.pan}|{row.pulseSound.offset}";
+                    list.Add(new PropertyData
+                    {
+                        name = "pulseSound",
+                        displayName = RDString.Get("editor.MakeRow.pulseSound"),
+                        type = "SoundData",
+                        value = pulseSoundValue,
+                        soundOptions = RDEditorConstants.BeatSounds.Select(s => s.ToString()).ToArray(),
+                        allowCustomFile = true,
+                        itsASong = false,
+                        isVisible = true
+                    });
+                }
+
+                // mimicsRow 字段（控制 rowToMimic 的可见性）
+                list.Add(new PropertyData
+                {
+                    name = "mimicsRow",
+                    displayName = RDString.Get("editor.MakeRow.mimicsRow"),
+                    type = "Bool",
+                    value = row.mimicsRow ? "true" : "false",
+                    isVisible = true
+                });
+
+                // customCharacterName 字段（仅当 character == Custom 时可见）
+                if (row.character == Character.Custom)
+                {
+                    list.Add(new PropertyData
+                    {
+                        name = "customCharacterName",
+                        displayName = RDString.Get("editor.MakeRow.customCharacterName"),
+                        type = "String",
+                        value = row.customCharacterName ?? "",
+                        isVisible = true
+                    });
+                }
             }
 
             return list;
