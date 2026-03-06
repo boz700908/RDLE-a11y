@@ -899,10 +899,11 @@ namespace RDLevelEditorAccess
                 if (currentPropertyIndex >= adjustableProperties.Count) currentPropertyIndex = 0;
             }
 
-            // 朗读属性名
+            // 朗读属性名和当前值
             var prop = adjustableProperties[currentPropertyIndex];
             string propName = GetLocalizedPropertyName(prop, evt);
-            Narration.Say(propName, NarrationCategory.Navigation);
+            string valueStr = FormatPropertyValue(prop, evt);
+            Narration.Say($"{propName}: {valueStr}", NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -993,9 +994,8 @@ namespace RDLevelEditorAccess
             editor.inspectorPanelManager.GetCurrent()?.UpdateUI(evt);
 
             // 朗读新值
-            string propName = GetLocalizedPropertyName(prop, evt);
             string valueStr = FormatPropertyValue(prop, evt);
-            Narration.Say($"{propName}: {valueStr}", NarrationCategory.Navigation);
+            Narration.Say(valueStr, NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -1036,6 +1036,12 @@ namespace RDLevelEditorAccess
 
             if (value == null)
                 return "null";
+
+            if (prop is BoolPropertyInfo)
+            {
+                bool boolValue = (bool)value;
+                return RDString.Get(boolValue ? "eam.bool.enabled" : "eam.bool.disabled");
+            }
 
             if (prop is EnumPropertyInfo enumProp)
             {
@@ -2356,6 +2362,10 @@ namespace RDLevelEditorAccess
             // 属性快速调节
             ["eam.quickAdjust.noProperty"]       = "未选择属性",
             ["eam.quickAdjust.notAdjustable"]    = "当前事件没有可调节属性",
+
+            // 布尔值
+            ["eam.bool.enabled"]                 = "启用",
+            ["eam.bool.disabled"]                = "禁用",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -2449,6 +2459,10 @@ namespace RDLevelEditorAccess
             // 属性快速调节
             ["eam.quickAdjust.noProperty"]       = "No property selected",
             ["eam.quickAdjust.notAdjustable"]    = "Current event has no adjustable properties",
+
+            // 布尔值
+            ["eam.bool.enabled"]                 = "Enabled",
+            ["eam.bool.disabled"]                = "Disabled",
         };
 
         [HarmonyPrefix]
