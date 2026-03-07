@@ -27,9 +27,12 @@ namespace RDLevelEditorAccess.IPC
         private bool _isPolling;
         private string _sessionToken;  // 会话特征码
         private string _currentEditType = "event";  // 当前编辑类型: "event" 或 "row"
+        private MonoBehaviour _owner;  // 用于启动协程
+        private bool _isPlayingSoundCoroutineRunning;  // 防止重入
 
-        public void Initialize()
+        public void Initialize(MonoBehaviour owner)
         {
+            _owner = owner;
             string gameDir = AppDomain.CurrentDomain.BaseDirectory;
             _tempPath = Path.Combine(gameDir, TempDirName);
             _sourcePath = Path.Combine(_tempPath, SourceFileName);
@@ -218,8 +221,12 @@ namespace RDLevelEditorAccess.IPC
             // NEW: 处理停止声音请求（单向通信，不影响主流程）
             PollStopSoundRequests();
 
-            // NEW: 处理播放声音请求（单向通信，不影响主流程）
-            PollPlaySoundRequests();
+            // NEW: 处理播放声音请求（单向通信，不影响主流程）- 改为协程
+            string playSoundRequestPath = Path.Combine(_tempPath, "playSoundRequest.json");
+            if (File.Exists(playSoundRequestPath) && _owner != null && !_isPlayingSoundCoroutineRunning)
+            {
+                _owner.StartCoroutine(PollPlaySoundRequestsCoroutine());
+            }
 
             if (File.Exists(_resultPath))
             {
@@ -361,71 +368,226 @@ namespace RDLevelEditorAccess.IPC
         }
 
         /// <summary>
-        /// 处理 Helper 的播放声音请求（单向通信）
+        /// 检查文件名是否包含音频文件扩展名
         /// </summary>
-        private void PollPlaySoundRequests()
+        private static bool HasAudioFileExtension(string filename)
         {
-            string requestPath = Path.Combine(_tempPath, "playSoundRequest.json");
-            if (!File.Exists(requestPath)) return;
+            if (string.IsNullOrEmpty(filename)) return false;
 
+            string ext = Path.GetExtension(filename).ToLowerInvariant();
+            return ext == ".ogg" || ext == ".wav" || ext == ".mp3" || ext == ".aiff";
+        }
+
+        /// <summary>
+        /// 处理 Helper 的播放声音请求（协程版本，支持外部音频）
+        /// </summary>
+        private System.Collections.IEnumerator PollPlaySoundRequestsCoroutine()
+        {
+            _isPlayingSoundCoroutineRunning = true;
+            string requestPath = Path.Combine(_tempPath, "playSoundRequest.json");
+
+            if (!File.Exists(requestPath))
+            {
+                _isPlayingSoundCoroutineRunning = false;
+                yield break;
+            }
+
+            PlaySoundRequest request = null;
+            string json = null;
+
+            // 读取和解析请求（不能在 try-catch 中 yield）
             try
             {
-                string json = File.ReadAllText(requestPath);
+                json = File.ReadAllText(requestPath);
                 var options = new JsonSerializerOptions { IncludeFields = true };
-                var request = JsonSerializer.Deserialize<PlaySoundRequest>(json, options);
-
-                // 验证 token
-                if (request?.token != _sessionToken)
-                {
-                    Debug.LogWarning($"[FileIPC] 播放声音请求 token 不匹配，忽略");
-                    File.Delete(requestPath);
-                    return;
-                }
-
-                // 播放声音
-                float volume = request.volume / 100f;
-                float pitch = request.pitch / 100f;
-                float pan = request.pan / 100f;
-
-                // 如果是音效（不是音乐），需要添加 "snd" 前缀（游戏内部约定）
-                string soundName = request.soundName;
-                if (!request.itsASong && !soundName.StartsWith("snd") && !soundName.Contains("."))
-                {
-                    soundName = "snd" + soundName;
-                }
-
-                Debug.Log($"[FileIPC] 播放声音: {soundName} (原始: {request.soundName}, 是音乐: {request.itsASong}), 音量={volume}, 音调={pitch}, 声像={pan}");
-
-                // 使用反射调用 scrConductor.PlayImmediatelyLevelEditor
-                // 这个方法专门为关卡编辑器设计，会忽略 AudioListener 的暂停状态
-                var conductorType = Type.GetType("scrConductor, Assembly-CSharp");
-                if (conductorType != null)
-                {
-                    var playMethod = conductorType.GetMethod("PlayImmediatelyLevelEditor",
-                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-                    if (playMethod != null)
-                    {
-                        // PlayImmediatelyLevelEditor(string sound, AudioMixerGroup group, float gain = 1f, float pitch = 1f)
-                        playMethod.Invoke(null, new object[] { soundName, null, volume, pitch });
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[FileIPC] 未找到 PlayImmediatelyLevelEditor 方法");
-                    }
-                }
-                else
-                {
-                    Debug.LogWarning("[FileIPC] 未找到 scrConductor 类型");
-                }
-
-                // 删除请求文件
-                File.Delete(requestPath);
+                request = JsonSerializer.Deserialize<PlaySoundRequest>(json, options);
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[FileIPC] 播放声音请求失败: {ex.Message}");
-                // 错误时也删除文件，避免反复尝试
+                Debug.LogError($"[FileIPC] 读取播放声音请求失败: {ex.Message}");
                 try { File.Delete(requestPath); } catch { }
+                _isPlayingSoundCoroutineRunning = false;
+                yield break;
+            }
+
+            // 验证 token
+            if (request?.token != _sessionToken)
+            {
+                Debug.LogWarning($"[FileIPC] 播放声音请求 token 不匹配，忽略");
+                try { File.Delete(requestPath); } catch { }
+                _isPlayingSoundCoroutineRunning = false;
+                yield break;
+            }
+
+            // 播放声音
+            float volume = request.volume / 100f;
+            float pitch = request.pitch / 100f;
+            float pan = request.pan / 100f;
+
+            // 检查是否为外部音频文件（关卡目录）
+            bool isExternalAudio = HasAudioFileExtension(request.soundName);
+
+            if (isExternalAudio)
+            {
+                // 外部音频处理流程 - 使用辅助协程
+                yield return LoadAndPlayExternalAudioCoroutine(request.soundName, volume, pitch, pan);
+            }
+            else
+            {
+                // 内置音频处理流程（保持原有逻辑）
+                PlayInternalAudio(request.soundName, request.itsASong, volume, pitch, pan);
+            }
+
+            // 删除请求文件
+            try { File.Delete(requestPath); } catch { }
+            _isPlayingSoundCoroutineRunning = false;
+        }
+
+        /// <summary>
+        /// 加载并播放外部音频（协程）
+        /// </summary>
+        private System.Collections.IEnumerator LoadAndPlayExternalAudioCoroutine(string soundName, float volume, float pitch, float pan)
+        {
+            Debug.Log($"[FileIPC] 检测到外部音频文件: {soundName}");
+
+            // 获取关卡目录路径
+            var editorUtilsType = Type.GetType("RDEditorUtils, Assembly-CSharp");
+            if (editorUtilsType == null)
+            {
+                Debug.LogError("[FileIPC] 未找到 RDEditorUtils 类型");
+                yield break;
+            }
+
+            var getLevelDirMethod = editorUtilsType.GetMethod("GetCurrentLevelFolderPath",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (getLevelDirMethod == null)
+            {
+                Debug.LogError("[FileIPC] 未找到 GetCurrentLevelFolderPath 方法");
+                yield break;
+            }
+
+            string levelDir = (string)getLevelDirMethod.Invoke(null, null);
+            if (string.IsNullOrEmpty(levelDir))
+            {
+                Debug.LogWarning("[FileIPC] 关卡目录路径为空");
+                yield break;
+            }
+
+            string fullPath = Path.Combine(levelDir, soundName);
+            Debug.Log($"[FileIPC] 外部音频完整路径: {fullPath}");
+
+            // 检查文件是否存在
+            if (!File.Exists(fullPath))
+            {
+                Debug.LogWarning($"[FileIPC] 音频文件不存在: {fullPath}");
+                yield break;
+            }
+
+            // 异步加载外部音频
+            Debug.Log($"[FileIPC] 正在加载外部音频: {soundName}");
+
+            var audioManagerType = Type.GetType("AudioManager, Assembly-CSharp");
+            if (audioManagerType == null)
+            {
+                Debug.LogError("[FileIPC] 未找到 AudioManager 类型");
+                yield break;
+            }
+
+            var instanceProp = audioManagerType.GetProperty("Instance",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (instanceProp == null)
+            {
+                Debug.LogError("[FileIPC] 未找到 AudioManager.Instance 属性");
+                yield break;
+            }
+
+            var audioManagerInstance = instanceProp.GetValue(null);
+            if (audioManagerInstance == null)
+            {
+                Debug.LogError("[FileIPC] AudioManager.Instance 为 null");
+                yield break;
+            }
+
+            var loadMethod = audioManagerType.GetMethod("FindOrLoadAudioClipExternal",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (loadMethod == null)
+            {
+                Debug.LogError("[FileIPC] 未找到 FindOrLoadAudioClipExternal 方法");
+                yield break;
+            }
+
+            var loadCoroutine = (System.Collections.IEnumerator)loadMethod.Invoke(audioManagerInstance, new object[] { fullPath });
+            yield return loadCoroutine;
+
+            // 获取加载结果
+            var resultType = Type.GetType("RDAudioLoadResult, Assembly-CSharp");
+            if (resultType == null)
+            {
+                Debug.LogError("[FileIPC] 未找到 RDAudioLoadResult 类型");
+                yield break;
+            }
+
+            var result = loadCoroutine.Current;
+            var typeField = resultType.GetField("type");
+            var loadTypeEnum = typeField.GetValue(result);
+
+            // 检查加载是否成功 (RDAudioLoadType.SuccessExternalClipLoaded = 0)
+            if ((int)loadTypeEnum != 0)
+            {
+                Debug.LogError($"[FileIPC] 外部音频加载失败，错误类型: {loadTypeEnum}");
+                yield break;
+            }
+
+            Debug.Log($"[FileIPC] 外部音频加载成功: {soundName}");
+
+            // 使用缓存的 clip 名称播放
+            string cachedClipName = Path.GetFileName(soundName) + "*external";
+            Debug.Log($"[FileIPC] 播放外部音频，缓存名称: {cachedClipName}, 音量={volume}, 音调={pitch}, 声像={pan}");
+
+            var playImmediatelyMethod = audioManagerType.GetMethod("PlayImmediately",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (playImmediatelyMethod != null)
+            {
+                // PlayImmediately(string snd, float volume, AudioMixerGroup group, float pitch, float pan, bool ignoreListenerPause, bool levelEditor, bool dontActuallyPlayIt)
+                playImmediatelyMethod.Invoke(null, new object[] { cachedClipName, volume, null, pitch, pan, true, true, false });
+            }
+            else
+            {
+                Debug.LogWarning("[FileIPC] 未找到 AudioManager.PlayImmediately 方法");
+            }
+        }
+
+        /// <summary>
+        /// 播放内置音频（非协程）
+        /// </summary>
+        private void PlayInternalAudio(string soundName, bool itsASong, float volume, float pitch, float pan)
+        {
+            // 如果是音效（不是音乐），需要添加 "snd" 前缀（游戏内部约定）
+            if (!itsASong && !soundName.StartsWith("snd") && !soundName.Contains("."))
+            {
+                soundName = "snd" + soundName;
+            }
+
+            Debug.Log($"[FileIPC] 播放内置声音: {soundName}, 音量={volume}, 音调={pitch}, 声像={pan}");
+
+            // 使用反射调用 scrConductor.PlayImmediatelyLevelEditor
+            var conductorType = Type.GetType("scrConductor, Assembly-CSharp");
+            if (conductorType != null)
+            {
+                var playMethod = conductorType.GetMethod("PlayImmediatelyLevelEditor",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (playMethod != null)
+                {
+                    playMethod.Invoke(null, new object[] { soundName, null, volume, pitch });
+                }
+                else
+                {
+                    Debug.LogWarning("[FileIPC] 未找到 PlayImmediatelyLevelEditor 方法");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[FileIPC] 未找到 scrConductor 类型");
             }
         }
 

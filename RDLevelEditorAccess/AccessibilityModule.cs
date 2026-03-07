@@ -22,8 +22,15 @@ namespace RDLevelEditorAccess
             _isInitialized = true;
 
             _fileIPC = new FileIPC();
-            _fileIPC.Initialize();
-            
+            // 传递 MonoBehaviour 组件用于启动协程
+            var monoBehaviour = host.GetComponent<MonoBehaviour>();
+            if (monoBehaviour == null)
+            {
+                Debug.LogError("[RDEditorAccess] host GameObject 没有 MonoBehaviour 组件");
+                return;
+            }
+            _fileIPC.Initialize(monoBehaviour);
+
             Debug.Log("[RDEditorAccess] AccessibilityBridge 已初始化");
         }
 
