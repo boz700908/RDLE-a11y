@@ -451,7 +451,7 @@ namespace RDLevelEditorAccess.IPC
             Debug.Log($"[FileIPC] 检测到外部音频文件: {soundName}");
 
             // 获取关卡目录路径
-            var editorUtilsType = Type.GetType("RDEditorUtils, Assembly-CSharp");
+            var editorUtilsType = Type.GetType("RDLevelEditor.RDEditorUtils, Assembly-CSharp");
             if (editorUtilsType == null)
             {
                 Debug.LogError("[FileIPC] 未找到 RDEditorUtils 类型");
