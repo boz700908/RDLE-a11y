@@ -75,13 +75,18 @@ namespace RDLevelEditorAccess
         {
             None,
             CharacterSelect,      // 角色选择（添加轨道/精灵）
-            EventTypeSelect       // 事件类型选择
+            EventTypeSelect,      // 事件类型选择
+            LinkSelect            // 链接选择
         }
 
         private VirtualMenuState virtualMenuState = VirtualMenuState.None;
         private int virtualMenuIndex = 0;
         private string virtualMenuPurpose = "";  // "row", "sprite", "event"
         private LevelEventType selectedEventType;
+
+        // 链接相关字段
+        private List<ModUtils.LinkInfo> currentElementLinks = new List<ModUtils.LinkInfo>();  // 当前元素的链接列表
+        private GameObject? currentElementWithLinks = null;  // 当前包含链接的元素
 
         // 编辑光标：时间轴上的虚拟锚点，用于精确控制事件插入/粘贴位置
         internal BarAndBeat _editCursor = new BarAndBeat(1, 1f);
@@ -239,6 +244,17 @@ namespace RDLevelEditorAccess
                             Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow) ||
                             Input.GetKeyDown(KeyCode.Tab);
             bool isEnterKey = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+            bool isSpaceKey = Input.GetKeyDown(KeyCode.Space);
+
+            // Space 键：如果当前元素有链接，打开链接选择菜单
+            if (isSpaceKey && !scnEditor.instance.userIsEditingAnInputField)
+            {
+                if (currentElementLinks != null && currentElementLinks.Count > 0)
+                {
+                    StartLinkSelect();
+                    return;
+                }
+            }
 
             if (!isNavKey && !isEnterKey) return;
 
@@ -483,6 +499,22 @@ namespace RDLevelEditorAccess
                     }
 
                     textToSay = element.name; // 其他情况使用 GameObject 名称作为后备
+                }
+
+                // 处理富文本标签
+                List<ModUtils.LinkInfo> links;
+                textToSay = ModUtils.ProcessRichText(textToSay, out links);
+
+                // 存储链接信息
+                if (links.Count > 0)
+                {
+                    currentElementLinks = links;
+                    currentElementWithLinks = element.gameObject;
+                }
+                else
+                {
+                    currentElementLinks.Clear();
+                    currentElementWithLinks = null;
                 }
 
                 // 发送朗读
@@ -1082,6 +1114,9 @@ namespace RDLevelEditorAccess
                 case VirtualMenuState.EventTypeSelect:
                     HandleEventTypeSelectMenu();
                     break;
+                case VirtualMenuState.LinkSelect:
+                    HandleLinkSelectMenu();
+                    break;
             }
         }
 
@@ -1260,6 +1295,76 @@ namespace RDLevelEditorAccess
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
+                CloseVirtualMenu();
+            }
+        }
+
+        /// <summary>
+        /// 开始链接选择菜单
+        /// </summary>
+        private void StartLinkSelect()
+        {
+            if (currentElementLinks == null || currentElementLinks.Count == 0) return;
+
+            virtualMenuState = VirtualMenuState.LinkSelect;
+            virtualMenuIndex = 0;
+
+            string title = RDString.Get("eam.link.menu.title");
+            string count = string.Format(RDString.Get("eam.link.menu.count"), currentElementLinks.Count);
+            string firstLink = GetLinkDescription(currentElementLinks[0]);
+            Narration.Say($"{title}，{count}。{firstLink}", NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 获取链接描述（只包含链接名称和"链接"后缀）
+        /// </summary>
+        private string GetLinkDescription(ModUtils.LinkInfo link)
+        {
+            // 只朗读链接名称和"链接"后缀
+            string linkSuffix = RDString.Get("eam.link.suffix");
+            return $"{link.text}{linkSuffix}";
+        }
+
+        /// <summary>
+        /// 处理链接选择菜单
+        /// </summary>
+        private void HandleLinkSelectMenu()
+        {
+            if (currentElementLinks == null || currentElementLinks.Count == 0)
+            {
+                CloseVirtualMenu();
+                return;
+            }
+
+            int linkCount = currentElementLinks.Count;
+
+            // 上箭头：上一个链接
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex - 1 + linkCount) % linkCount;
+                string linkDesc = GetLinkDescription(currentElementLinks[virtualMenuIndex]);
+                Narration.Say(linkDesc, NarrationCategory.Navigation);
+            }
+            // 下箭头：下一个链接
+            else if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex + 1) % linkCount;
+                string linkDesc = GetLinkDescription(currentElementLinks[virtualMenuIndex]);
+                Narration.Say(linkDesc, NarrationCategory.Navigation);
+            }
+            // Enter：打开选中的链接
+            else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                var selectedLink = currentElementLinks[virtualMenuIndex];
+                Application.OpenURL(selectedLink.url);
+                string message = string.Format(RDString.Get("eam.link.opening"), selectedLink.text);
+                Narration.Say(message, NarrationCategory.Notification);
+                CloseVirtualMenu();
+            }
+            // Escape：取消
+            else if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Narration.Say(RDString.Get("eam.link.cancelled"), NarrationCategory.Notification);
                 CloseVirtualMenu();
             }
         }
@@ -2062,6 +2167,73 @@ namespace RDLevelEditorAccess
             string announcement = $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}";
             Narration.Say(announcement, NarrationCategory.Navigation);
         }
+
+        /// <summary>
+        /// 链接信息类
+        /// </summary>
+        public class LinkInfo
+        {
+            public string url = "";
+            public string text = "";
+        }
+
+        /// <summary>
+        /// 处理富文本标签，返回处理后的文本和提取的链接
+        /// </summary>
+        public static string ProcessRichText(string rawText, out List<LinkInfo> links)
+        {
+            links = new List<LinkInfo>();
+            if (string.IsNullOrEmpty(rawText)) return rawText;
+
+            string processed = rawText;
+
+            // 1. 提取链接信息
+            var linkPattern = @"<link\s*=\s*""([^""]+)"">([^<]+)</link>";
+            var linkMatches = System.Text.RegularExpressions.Regex.Matches(processed, linkPattern);
+
+            foreach (System.Text.RegularExpressions.Match match in linkMatches)
+            {
+                links.Add(new LinkInfo
+                {
+                    url = match.Groups[1].Value,
+                    text = match.Groups[2].Value
+                });
+            }
+
+            // 2. 替换链接标签为可读文本（带停顿标记）
+            // 使用省略号作为停顿符，使用本地化的"链接"后缀
+            string linkSuffix = RDString.Get("eam.link.suffix");
+            processed = System.Text.RegularExpressions.Regex.Replace(
+                processed,
+                linkPattern,
+                $"…$2{linkSuffix}…"
+            );
+
+            // 3. 移除其他富文本标签
+            // 移除 <color> 标签（包括十六进制和命名颜色）
+            processed = System.Text.RegularExpressions.Regex.Replace(processed, @"<color\s*=\s*[^>]+>", "");
+            processed = System.Text.RegularExpressions.Regex.Replace(processed, @"</color>", "");
+
+            // 移除常见格式标签
+            var tagsToRemove = new[] { "b", "i", "u", "s", "size", "material", "quad", "sprite" };
+            foreach (var tag in tagsToRemove)
+            {
+                processed = System.Text.RegularExpressions.Regex.Replace(
+                    processed,
+                    $@"<{tag}[^>]*>",
+                    "",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                );
+                processed = System.Text.RegularExpressions.Regex.Replace(
+                    processed,
+                    $@"</{tag}>",
+                    "",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                );
+            }
+
+            return processed;
+        }
     }
 
     [HarmonyPatch(typeof(scnEditor))]
@@ -2368,6 +2540,13 @@ namespace RDLevelEditorAccess
             // 布尔值
             ["eam.bool.enabled"]                 = "启用",
             ["eam.bool.disabled"]                = "禁用",
+
+            // 富文本和链接相关
+            ["eam.link.suffix"]                  = " 链接",
+            ["eam.link.menu.title"]              = "链接选择菜单",
+            ["eam.link.menu.count"]              = "共 {0} 个链接",
+            ["eam.link.opening"]                 = "正在打开链接：{0}",
+            ["eam.link.cancelled"]               = "已取消",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -2455,6 +2634,13 @@ namespace RDLevelEditorAccess
             // 布尔值
             ["eam.bool.enabled"]                 = "Enabled",
             ["eam.bool.disabled"]                = "Disabled",
+
+            // Rich text and link related
+            ["eam.link.suffix"]                  = " Link",
+            ["eam.link.menu.title"]              = "Link Selection Menu",
+            ["eam.link.menu.count"]              = "{0} links in total",
+            ["eam.link.opening"]                 = "Opening link: {0}",
+            ["eam.link.cancelled"]               = "Cancelled",
         };
 
         [HarmonyPrefix]
