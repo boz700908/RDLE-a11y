@@ -1778,13 +1778,16 @@ namespace RDLevelEditorAccess.IPC
         private void AddBaseProperties(LevelEvent_Base ev, List<PropertyData> list)
         {
             // Bar (小节)
-            list.Add(new PropertyData
+            if (ev.info.attribute.usesBar)
             {
-                name = "bar",
-                displayName = RDString.Get("editor.bar"),
-                value = ev.bar.ToString(),
-                type = "Int"
-            });
+                list.Add(new PropertyData
+                {
+                    name = "bar",
+                    displayName = RDString.Get("editor.bar"),
+                    value = ev.bar.ToString(),
+                    type = "Int"
+                });
+            }
 
             // Beat (拍子)
             if (ev.usesBeat)
