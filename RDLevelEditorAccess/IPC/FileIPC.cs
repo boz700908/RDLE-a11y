@@ -486,6 +486,14 @@ namespace RDLevelEditorAccess.IPC
             // 异步加载外部音频
             Debug.Log($"[FileIPC] 正在加载外部音频: {soundName}");
 
+            // 获取 Singleton<AudioManager> 类型
+            var singletonType = Type.GetType("Singleton`1, Assembly-CSharp");
+            if (singletonType == null)
+            {
+                Debug.LogError("[FileIPC] 未找到 Singleton 类型");
+                yield break;
+            }
+
             var audioManagerType = Type.GetType("AudioManager, Assembly-CSharp");
             if (audioManagerType == null)
             {
@@ -493,11 +501,13 @@ namespace RDLevelEditorAccess.IPC
                 yield break;
             }
 
-            var instanceProp = audioManagerType.GetProperty("Instance",
+            // 构造 Singleton<AudioManager> 类型
+            var singletonAudioManagerType = singletonType.MakeGenericType(audioManagerType);
+            var instanceProp = singletonAudioManagerType.GetProperty("Instance",
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
             if (instanceProp == null)
             {
-                Debug.LogError("[FileIPC] 未找到 AudioManager.Instance 属性");
+                Debug.LogError("[FileIPC] 未找到 Singleton<AudioManager>.Instance 属性");
                 yield break;
             }
 
