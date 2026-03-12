@@ -984,9 +984,9 @@ namespace RDLevelEditorAccess
                 }
                 else if (prop is FloatPropertyInfo floatProp)
                 {
-                    float step = alt ? 0.001f : (shift ? 0.01f : 0.1f);
+                    float step = (alt && shift) ? 0.0001f : (alt ? 0.001f : (shift ? 0.01f : 0.1f));
                     float current = (float)prop.propertyInfo.GetValue(evt);
-                    newValue = Mathf.Clamp(current + direction * step, floatProp.min, floatProp.max);
+                    newValue = (float)Math.Round(Mathf.Clamp(current + direction * step, floatProp.min, floatProp.max), 4);
                     success = true;
                 }
                 else if (prop is EnumPropertyInfo enumProp)
@@ -1106,7 +1106,7 @@ namespace RDLevelEditorAccess
             }
 
             if (prop is FloatPropertyInfo)
-                return ((float)value).ToString("F3");
+                return ((float)value).ToString();
 
             return value.ToString() ?? "";
         }
@@ -1403,7 +1403,7 @@ namespace RDLevelEditorAccess
             int oldBar = _editCursor.bar;
 
             float cursorX = tl.GetPosXFromBarAndBeat(_editCursor);
-            float newX = Mathf.Max(0f, cursorX + deltaBeat * tl.cellWidth);
+            float newX = (float)Math.Round(Mathf.Max(0f, cursorX + deltaBeat * tl.cellWidth), 4);
             _editCursor = tl.GetBarAndBeatWithPosX(newX);
 
             string announcement = _editCursor.bar != oldBar
@@ -1451,7 +1451,7 @@ namespace RDLevelEditorAccess
                 foreach (var control in editor.selectedControls)
                 {
                     float posX = tl.GetPosXFromBarAndBeat(control.levelEvent.barAndBeat);
-                    float newX = Mathf.Max(0f, posX + deltaBeat * tl.cellWidth);
+                    float newX = (float)Math.Round(Mathf.Max(0f, posX + deltaBeat * tl.cellWidth), 4);
                     var newPos = tl.GetBarAndBeatWithPosX(newX);
                     control.bar = newPos.bar;
                     control.beat = newPos.beat;
