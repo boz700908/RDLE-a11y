@@ -383,3 +383,6 @@ Directory.Build.user.props
 
 # Visual Studio 调试启动配置（含本地路径）
 RDLevelEditorAccess/Properties/launchSettings.json
+
+# 日志文件
+logs/
