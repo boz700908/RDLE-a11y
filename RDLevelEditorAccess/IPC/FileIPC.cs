@@ -978,6 +978,21 @@ namespace RDLevelEditorAccess.IPC
                                         valToSet = strVal;
                                     }
                                 }
+                                else if (propInfo.GetType() is var pit
+                                    && pit.IsGenericType
+                                    && pit.Name == "ArrayPropertyInfo`1")
+                                {
+                                    Type et = pit.GetGenericArguments()[0];
+                                    var parts = (strVal ?? "").Split(',').Select(s => s.Trim()).ToArray();
+                                    if (et == typeof(int))
+                                        valToSet = parts.Select(p => int.TryParse(p, out int vi) ? vi : 0).ToArray();
+                                    else if (et == typeof(float))
+                                        valToSet = parts.Select(p => float.TryParse(p, out float vf) ? vf : 0f).ToArray();
+                                    else if (et == typeof(bool))
+                                        valToSet = parts.Select(p => p == "true").ToArray();
+                                    else
+                                        valToSet = strVal;
+                                }
                                 else valToSet = strVal;
 
                                 // 设置值（null 也是合法值，用于可空类型）
@@ -1280,6 +1295,18 @@ namespace RDLevelEditorAccess.IPC
                         dto.type = "String";
                         dto.isNullable = true;
                     }
+                }
+                else if (prop.GetType() is var pt
+                    && pt.IsGenericType
+                    && pt.Name == "ArrayPropertyInfo`1")
+                {
+                    Type elemType = pt.GetGenericArguments()[0];
+                    if      (elemType == typeof(int))   dto.type = "IntArray";
+                    else if (elemType == typeof(float)) dto.type = "FloatArray";
+                    else if (elemType == typeof(bool))  dto.type = "BoolArray";
+                    else                                dto.type = "String";
+
+                    if (rawValue is Array arr2) dto.arrayLength = arr2.Length;
                 }
                 else dto.type = "String";
 
@@ -1948,6 +1975,11 @@ namespace RDLevelEditorAccess.IPC
                     }
                 }
                 
+                if (value is int[]   ia) return string.Join(",", ia);
+                if (value is float[] fa) return string.Join(",", fa);
+                if (value is bool[]  ba) return string.Join(",", ba.Select(b => b ? "true" : "false"));
+                if (value is Array   ga) return string.Join(",", ga.Cast<object>().Select(o => o?.ToString() ?? ""));
+
                 if (value is UnityEngine.Vector2 v2) return $"{v2.x},{v2.y}";
                 if (value is UnityEngine.Vector3 v3) return $"{v3.x},{v3.y},{v3.z}";
                 if (value is UnityEngine.Color c)
@@ -2209,6 +2241,7 @@ namespace RDLevelEditorAccess.IPC
             public bool allowCustomFile;    // SoundData 类型专用：是否允许浏览外部文件
             public bool isVisible = true;   // NEW: 该属性是否应该显示（enableIf判断结果）
             public string customName;       // Character 类型专用：自定义角色名称
+            public int arrayLength;         // Array 类型专用：元素个数
         }
 
         // NEW: Helper → Mod 请求数据类

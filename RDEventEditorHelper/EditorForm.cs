@@ -27,6 +27,7 @@ namespace RDEventEditorHelper
         public bool allowCustomFile;    // SoundData 类型专用：是否允许浏览外部文件
         public string customName;       // Character 类型专用：自定义角色名称
         public bool isVisible = true;   // NEW: 该属性是否应该显示（来自Mod的enableIf判断结果）
+        public int arrayLength;         // Array 类型专用：元素个数
     }
 
     // NEW: Helper → Mod 请求数据类
@@ -1143,6 +1144,72 @@ namespace RDEventEditorHelper
                         inputCtrl = charPanel;
                         break;
 
+                    case "IntArray":
+                    case "FloatArray":
+                    {
+                        var vals = (prop.value ?? "").Split(',').Select(s => s.Trim()).ToArray();
+                        var arrPanel = new FlowLayoutPanel
+                        {
+                            FlowDirection = FlowDirection.TopDown,
+                            AutoSize = true,
+                            WrapContents = false,
+                            Padding = new Padding(0)
+                        };
+                        for (int i = 0; i < vals.Length; i++)
+                        {
+                            var row = new FlowLayoutPanel
+                            {
+                                FlowDirection = FlowDirection.LeftToRight,
+                                AutoSize = true,
+                                WrapContents = false,
+                                Margin = new Padding(0, 2, 0, 2)
+                            };
+                            var lbl2 = new Label
+                            {
+                                Text = $"{i}:",
+                                Width = 30,
+                                TextAlign = ContentAlignment.MiddleRight
+                            };
+                            var txt2 = new TextBox
+                            {
+                                Text = vals[i],
+                                Width = 80,
+                                Name = $"ArrayElement_{i}",
+                                AccessibleName = $"{displayName} [{i}]"
+                            };
+                            row.Controls.Add(lbl2);
+                            row.Controls.Add(txt2);
+                            arrPanel.Controls.Add(row);
+                        }
+                        inputCtrl = arrPanel;
+                        break;
+                    }
+
+                    case "BoolArray":
+                    {
+                        var vals = (prop.value ?? "").Split(',').Select(s => s.Trim()).ToArray();
+                        var arrPanel = new FlowLayoutPanel
+                        {
+                            FlowDirection = FlowDirection.TopDown,
+                            AutoSize = true,
+                            WrapContents = false,
+                            Padding = new Padding(0)
+                        };
+                        for (int i = 0; i < vals.Length; i++)
+                        {
+                            var chk2 = new CheckBox
+                            {
+                                Text = $"{i}",
+                                Checked = vals[i] == "true",
+                                Name = $"ArrayElement_{i}",
+                                AccessibleName = $"{displayName} [{i}]"
+                            };
+                            arrPanel.Controls.Add(chk2);
+                        }
+                        inputCtrl = arrPanel;
+                        break;
+                    }
+
                     default:
                         var lbl = new Label
                         {
@@ -1244,20 +1311,38 @@ namespace RDEventEditorHelper
                 }
                 else if (ctrl is FlowLayoutPanel panel)
                 {
-                    // 处理 Vector2, Float2, FloatExpression2, Color
-                    var txtX = panel.Controls.Find("X", false).FirstOrDefault() as TextBox;
-                    var txtY = panel.Controls.Find("Y", false).FirstOrDefault() as TextBox;
-                    var colorTxt = panel.Controls.Find("ColorText", true).FirstOrDefault() as TextBox;
-                    
-                    if (txtX != null && txtY != null)
+                    // 处理数组类型（IntArray / FloatArray / BoolArray）
+                    var arrayElems = new List<string>();
+                    int ai = 0;
+                    while (true)
                     {
-                        // Vector2, Float2, FloatExpression2
-                        value = $"{txtX.Text},{txtY.Text}";
+                        var ec = panel.Controls.Find($"ArrayElement_{ai}", true).FirstOrDefault();
+                        if (ec == null) break;
+                        if (ec is TextBox et2) arrayElems.Add(et2.Text);
+                        else if (ec is CheckBox ec2) arrayElems.Add(ec2.Checked ? "true" : "false");
+                        ai++;
                     }
-                    else if (colorTxt != null)
+                    if (arrayElems.Count > 0)
                     {
-                        // Color
-                        value = colorTxt.Text;
+                        value = string.Join(",", arrayElems);
+                    }
+                    else
+                    {
+                        // 处理 Vector2, Float2, FloatExpression2, Color
+                        var txtX = panel.Controls.Find("X", false).FirstOrDefault() as TextBox;
+                        var txtY = panel.Controls.Find("Y", false).FirstOrDefault() as TextBox;
+                        var colorTxt = panel.Controls.Find("ColorText", true).FirstOrDefault() as TextBox;
+
+                        if (txtX != null && txtY != null)
+                        {
+                            // Vector2, Float2, FloatExpression2
+                            value = $"{txtX.Text},{txtY.Text}";
+                        }
+                        else if (colorTxt != null)
+                        {
+                            // Color
+                            value = colorTxt.Text;
+                        }
                     }
                 }
                 else if (ctrl is Panel soundPanel)
