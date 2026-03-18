@@ -1146,6 +1146,7 @@ namespace RDEventEditorHelper
 
                     case "IntArray":
                     case "FloatArray":
+                    case "StringArray":
                     {
                         var vals = (prop.value ?? "").Split(',').Select(s => s.Trim()).ToArray();
                         var arrPanel = new FlowLayoutPanel
