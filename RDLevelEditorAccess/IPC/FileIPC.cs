@@ -1931,14 +1931,19 @@ namespace RDLevelEditorAccess.IPC
             // Rooms (目标房间)
             if (ev.roomsUsage != RoomsUsage.NotUsed)
             {
+                int rc = TryGetRoomCount();
+                var roomNames = Enumerable.Range(0, rc)
+                    .Select(i => RDString.Get("editor.roomIndex").Replace("[index]", (i + 1).ToString()))
+                    .ToArray();
                 list.Add(new PropertyData
                 {
                     name = "rooms",
                     displayName = RDString.Get("editor.rooms") ?? "目标房间",
                     value = string.Join(",", ev.rooms ?? new int[] { 0 }),
                     type = "Rooms",
-                    roomCount = TryGetRoomCount(),
-                    roomsUsage = ev.roomsUsage.ToString()
+                    roomCount = rc,
+                    roomsUsage = ev.roomsUsage.ToString(),
+                    localizedOptions = roomNames
                 });
             }
         }

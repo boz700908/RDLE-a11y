@@ -1232,10 +1232,11 @@ namespace RDEventEditorHelper
                             {
                                 var roomChk = new CheckBox
                                 {
-                                    Text = $"房间 {i + 1}",
+                                    Text = (prop.localizedOptions != null && i < prop.localizedOptions.Length)
+                                        ? prop.localizedOptions[i] : $"{i + 1}",
                                     Checked = selectedRooms.Contains(i),
                                     Name = $"RoomCheck_{i}",
-                                    AccessibleName = $"{displayName} 房间 {i + 1}"
+                                    AccessibleName = $"{displayName} {((prop.localizedOptions != null && i < prop.localizedOptions.Length) ? prop.localizedOptions[i] : (i + 1).ToString())}"
                                 };
                                 roomPanel.Controls.Add(roomChk);
                             }
@@ -1251,7 +1252,8 @@ namespace RDEventEditorHelper
                                 AccessibleName = displayName
                             };
                             for (int i = 0; i < rc; i++)
-                                combo.Items.Add($"房间 {i + 1}");
+                                combo.Items.Add((prop.localizedOptions != null && i < prop.localizedOptions.Length)
+                                        ? prop.localizedOptions[i] : $"{i + 1}");
                             combo.SelectedIndex = selectedRooms.Count > 0 ? Math.Min(selectedRooms.First(), rc - 1) : 0;
                             inputCtrl = combo;
                         }
