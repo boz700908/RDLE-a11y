@@ -2142,15 +2142,28 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
-        /// 朗读事件选择信息（事件名称和位置）
+        /// 获取事件属性摘要（复用游戏内置 tooltip 文本）
+        /// </summary>
+        public static string GetEventSummary(LevelEvent_Base levelEvent)
+        {
+            string tooltip = levelEvent.GetTooltipText();
+            if (string.IsNullOrEmpty(tooltip)) return string.Empty;
+            // 将换行替换为顿号，完整朗读所有内容
+            return string.Join("，", tooltip.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l)));
+        }
+
+        /// <summary>
+        /// 朗读事件选择信息（事件名称、位置和属性摘要）
         /// </summary>
         public static void AnnounceEventSelection(LevelEvent_Base levelEvent)
         {
             if (levelEvent == null) return;
 
-            // 合并事件名称和位置信息，统一朗读
             var bb = new BarAndBeat(levelEvent.bar, levelEvent.beat);
-            string announcement = $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}";
+            string summary = GetEventSummary(levelEvent);
+            string announcement = string.IsNullOrEmpty(summary)
+                ? $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}"
+                : $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}，{summary}";
             Narration.Say(announcement, NarrationCategory.Navigation);
         }
 
