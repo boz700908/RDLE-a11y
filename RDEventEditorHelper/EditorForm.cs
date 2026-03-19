@@ -1146,6 +1146,7 @@ namespace RDEventEditorHelper
 
                     case "IntArray":
                     case "FloatArray":
+                    case "StringArray":
                     {
                         var vals = (prop.value ?? "").Split(',').Select(s => s.Trim()).ToArray();
                         var arrPanel = new FlowLayoutPanel
@@ -1166,7 +1167,7 @@ namespace RDEventEditorHelper
                             };
                             var lbl2 = new Label
                             {
-                                Text = $"{i}:",
+                                Text = $"{i + 1}:",
                                 Width = 30,
                                 TextAlign = ContentAlignment.MiddleRight
                             };
@@ -1175,7 +1176,7 @@ namespace RDEventEditorHelper
                                 Text = vals[i],
                                 Width = 80,
                                 Name = $"ArrayElement_{i}",
-                                AccessibleName = $"{displayName} [{i}]"
+                                AccessibleName = $"{displayName} [{i + 1}]"
                             };
                             row.Controls.Add(lbl2);
                             row.Controls.Add(txt2);
@@ -1199,10 +1200,10 @@ namespace RDEventEditorHelper
                         {
                             var chk2 = new CheckBox
                             {
-                                Text = $"{i}",
+                                Text = $"{i + 1}",
                                 Checked = vals[i] == "true",
                                 Name = $"ArrayElement_{i}",
-                                AccessibleName = $"{displayName} [{i}]"
+                                AccessibleName = $"{displayName} [{i + 1}]"
                             };
                             arrPanel.Controls.Add(chk2);
                         }

@@ -15,7 +15,7 @@ namespace RDLevelEditorAccess
     // ===================================================================================
     // 第一部分：加载器 (Loader)
     // ===================================================================================
-    [BepInPlugin("com.hzt.rd-editor-access", "RDEditorAccess", "1.31")]
+    [BepInPlugin("com.hzt.rd-editor-access", "RDEditorAccess", "1.3.2")]
     public class EditorAccess : BaseUnityPlugin
     {
         public void Awake()
@@ -2492,6 +2492,14 @@ namespace RDLevelEditorAccess
             ["eam.settings.firstBeatBehavior"]   = "首拍行为",
             ["eam.settings.multiplayerAppearance"]= "多人外观",
             ["eam.settings.separate2PLevel"]     = "独立双人关卡",
+            // 字段全名别名（供反射读取时使用）
+            ["eam.settings.artistPermissionFileName"] = "艺术家授权文件",
+            ["eam.settings.previewImageName"]         = "预览图",
+            ["eam.settings.syringeIconName"]          = "注射器图标",
+            ["eam.settings.previewSongName"]          = "预览歌曲",
+            ["eam.settings.separate2PLevelFilename"]  = "独立双人关卡",
+            ["eam.settings.rankMaxMistakes"]          = "评级最大失误数",
+            ["eam.settings.rankDescription"]          = "评级描述",
             ["eam.editor.openRowEditor"]         = "正在打开轨道 {0} 属性编辑器",
             ["eam.sprite.editNotSupported"]      = "精灵编辑暂不支持",
             ["eam.event.jumpAndPlay"]            = "跳转到 {0} 并开始播放",
@@ -2586,6 +2594,14 @@ namespace RDLevelEditorAccess
             ["eam.settings.firstBeatBehavior"]   = "First Beat Behavior",
             ["eam.settings.multiplayerAppearance"]= "Multiplayer Appearance",
             ["eam.settings.separate2PLevel"]     = "Separate 2P Level",
+            // 字段全名别名（供反射读取时使用）
+            ["eam.settings.artistPermissionFileName"] = "Artist Permission File",
+            ["eam.settings.previewImageName"]         = "Preview Image",
+            ["eam.settings.syringeIconName"]          = "Syringe Icon",
+            ["eam.settings.previewSongName"]          = "Preview Song",
+            ["eam.settings.separate2PLevelFilename"]  = "Separate 2P Level",
+            ["eam.settings.rankMaxMistakes"]          = "Rank Max Mistakes",
+            ["eam.settings.rankDescription"]          = "Rank Descriptions",
             ["eam.editor.openRowEditor"]         = "Opening property editor for track {0}",
             ["eam.sprite.editNotSupported"]      = "Sprite editing not yet supported",
             ["eam.event.jumpAndPlay"]            = "Jump to {0} and play",
