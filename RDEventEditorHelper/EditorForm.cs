@@ -28,6 +28,8 @@ namespace RDEventEditorHelper
         public string customName;       // Character 类型专用：自定义角色名称
         public bool isVisible = true;   // NEW: 该属性是否应该显示（来自Mod的enableIf判断结果）
         public int arrayLength;         // Array 类型专用：元素个数
+        public int roomCount;           // Rooms 类型专用：房间总数
+        public string roomsUsage;       // Rooms 类型专用：使用模式
     }
 
     // NEW: Helper → Mod 请求数据类
@@ -1211,6 +1213,51 @@ namespace RDEventEditorHelper
                         break;
                     }
 
+                    case "Rooms":
+                    {
+                        var selectedRooms = (prop.value ?? "0").Split(',')
+                            .Select(s => int.TryParse(s.Trim(), out int r) ? r : 0).ToHashSet();
+                        int rc = prop.roomCount > 0 ? prop.roomCount : 4;
+                        bool multiSelect = prop.roomsUsage == "ManyRooms" || prop.roomsUsage == "ManyRoomsAndOnTop";
+                        if (multiSelect)
+                        {
+                            var roomPanel = new FlowLayoutPanel
+                            {
+                                FlowDirection = FlowDirection.TopDown,
+                                AutoSize = true,
+                                WrapContents = false,
+                                Padding = new Padding(0)
+                            };
+                            for (int i = 0; i < rc; i++)
+                            {
+                                var roomChk = new CheckBox
+                                {
+                                    Text = $"房间 {i + 1}",
+                                    Checked = selectedRooms.Contains(i),
+                                    Name = $"RoomCheck_{i}",
+                                    AccessibleName = $"{displayName} 房间 {i + 1}"
+                                };
+                                roomPanel.Controls.Add(roomChk);
+                            }
+                            inputCtrl = roomPanel;
+                        }
+                        else
+                        {
+                            var combo = new ComboBox
+                            {
+                                DropDownStyle = ComboBoxStyle.DropDownList,
+                                Width = 200,
+                                Name = "RoomsCombo",
+                                AccessibleName = displayName
+                            };
+                            for (int i = 0; i < rc; i++)
+                                combo.Items.Add($"房间 {i + 1}");
+                            combo.SelectedIndex = selectedRooms.Count > 0 ? Math.Min(selectedRooms.First(), rc - 1) : 0;
+                            inputCtrl = combo;
+                        }
+                        break;
+                    }
+
                     default:
                         var lbl = new Label
                         {
@@ -1298,20 +1345,35 @@ namespace RDEventEditorHelper
                     value = chk.Checked ? "true" : "false";
                 else if (ctrl is ComboBox cmb)
                 {
-                    // 对于枚举/行选择，使用 PropertyData.value（已在 SelectedValueChanged 中更新为原始枚举名）
                     var prop = _properties.FirstOrDefault(p => p.name == propName);
                     if (prop != null && (prop.type == "Enum" || prop.type == "Row"))
-                    {
-                        value = prop.value;  // 使用原始枚举名（如 "Medium"）
-                    }
+                        value = prop.value;
+                    else if (prop != null && prop.type == "Rooms")
+                        value = cmb.SelectedIndex.ToString();
                     else
-                    {
-                        // 其他类型的 ComboBox（如果有）回退到显示文本
                         value = cmb.SelectedItem?.ToString();
-                    }
                 }
                 else if (ctrl is FlowLayoutPanel panel)
                 {
+                    // 处理 Rooms 多选（RoomCheck_N）
+                    var roomIndices = new List<string>();
+                    int ri = 0;
+                    while (true)
+                    {
+                        var rc = panel.Controls.Find($"RoomCheck_{ri}", true).FirstOrDefault() as CheckBox;
+                        if (rc == null) break;
+                        if (rc.Checked) roomIndices.Add(ri.ToString());
+                        ri++;
+                    }
+                    if (roomIndices.Count > 0)
+                    {
+                        value = string.Join(",", roomIndices);
+                    }
+                    else if (ri > 0) // Rooms panel but nothing checked
+                    {
+                        value = "";
+                    }
+
                     // 处理数组类型（IntArray / FloatArray / BoolArray）
                     var arrayElems = new List<string>();
                     int ai = 0;

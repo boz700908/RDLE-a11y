@@ -1072,6 +1072,12 @@ namespace RDLevelEditorAccess.IPC
                             return true;
                         }
                         return false;
+                    case "rooms":
+                        if (!string.IsNullOrEmpty(value))
+                            ev.rooms = value.Split(',')
+                                .Select(s => int.TryParse(s.Trim(), out int r) ? r : 0)
+                                .ToArray();
+                        return true;
                     default:
                         return false;
                 }
@@ -1921,6 +1927,38 @@ namespace RDLevelEditorAccess.IPC
                     type = "Bool"
                 });
             }
+
+            // Rooms (目标房间)
+            if (ev.roomsUsage != RoomsUsage.NotUsed)
+            {
+                list.Add(new PropertyData
+                {
+                    name = "rooms",
+                    displayName = RDString.Get("editor.rooms") ?? "目标房间",
+                    value = string.Join(",", ev.rooms ?? new int[] { 0 }),
+                    type = "Rooms",
+                    roomCount = TryGetRoomCount(),
+                    roomsUsage = ev.roomsUsage.ToString()
+                });
+            }
+        }
+
+        private int TryGetRoomCount()
+        {
+            try
+            {
+                var gameField = typeof(scnEditor).GetProperty("game") ?? (System.Reflection.MemberInfo)typeof(scnEditor).GetField("game");
+                object game = null;
+                if (gameField is System.Reflection.PropertyInfo pi) game = pi.GetValue(scnEditor.instance);
+                else if (gameField is System.Reflection.FieldInfo fi) game = fi.GetValue(scnEditor.instance);
+                if (game == null) return 4;
+                var roomsProp = game.GetType().GetProperty("rooms") ?? (System.Reflection.MemberInfo)game.GetType().GetField("rooms");
+                System.Collections.ICollection rooms = null;
+                if (roomsProp is System.Reflection.PropertyInfo rpi) rooms = rpi.GetValue(game) as System.Collections.ICollection;
+                else if (roomsProp is System.Reflection.FieldInfo rfi) rooms = rfi.GetValue(game) as System.Collections.ICollection;
+                return rooms?.Count ?? 4;
+            }
+            catch { return 4; }
         }
 
         private string GetLocalizedPropertyName(LevelEvent_Base ev, BasePropertyInfo prop)
@@ -2279,6 +2317,8 @@ namespace RDLevelEditorAccess.IPC
             public bool isVisible = true;   // NEW: 该属性是否应该显示（enableIf判断结果）
             public string customName;       // Character 类型专用：自定义角色名称
             public int arrayLength;         // Array 类型专用：元素个数
+            public int roomCount;           // Rooms 类型专用：房间总数
+            public string roomsUsage;       // Rooms 类型专用：使用模式
         }
 
         // NEW: Helper → Mod 请求数据类
