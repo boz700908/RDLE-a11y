@@ -1269,7 +1269,7 @@ namespace RDLevelEditorAccess.IPC
                 else if (prop is SoundDataPropertyInfo soundProp)
                 {
                     dto.type = "SoundData";
-                    dto.itsASong = true; // 新版游戏移除了 itsASong 字段，默认为 true
+                    dto.itsASong = ev is LevelEvent_PlaySong;
 
                     // 提取 SoundAttribute 配置
                     ExtractSoundAttributeConfig(prop, ev, dto);
@@ -1281,7 +1281,7 @@ namespace RDLevelEditorAccess.IPC
                     if (underlying is SoundDataPropertyInfo underlyingSoundProp)
                     {
                         dto.type = "SoundData";
-                        dto.itsASong = true; // 新版游戏移除了 itsASong 字段，默认为 true
+                        dto.itsASong = ev is LevelEvent_PlaySong;
                         dto.isNullable = true;
                         
                         // 提取 SoundAttribute 配置（从 NullablePropertyInfo 获取）
