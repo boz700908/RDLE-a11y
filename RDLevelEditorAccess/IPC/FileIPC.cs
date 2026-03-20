@@ -1001,6 +1001,19 @@ namespace RDLevelEditorAccess.IPC
                                         }
                                         valToSet = typedArr;
                                     }
+                                    else if (et == typeof(SoundDataStruct))
+                                    {
+                                        var items = (strVal ?? "").Split(';');
+                                        valToSet = items.Select(s => {
+                                            var p = s.Split('|');
+                                            string fn  = p.Length > 0 ? p[0] : "";
+                                            int vol = p.Length > 1 && int.TryParse(p[1], out int v)  ? v  : 100;
+                                            int pit = p.Length > 2 && int.TryParse(p[2], out int pi) ? pi : 100;
+                                            int pan = p.Length > 3 && int.TryParse(p[3], out int pn) ? pn : 0;
+                                            int off = p.Length > 4 && int.TryParse(p[4], out int o)  ? o  : 0;
+                                            return new SoundDataStruct(fn, vol, pit, pan, off);
+                                        }).ToArray();
+                                    }
                                     else
                                         valToSet = strVal;
                                 }
@@ -1322,6 +1335,11 @@ namespace RDLevelEditorAccess.IPC
                     else if (elemType == typeof(float)) dto.type = "FloatArray";
                     else if (elemType == typeof(bool))  dto.type = "BoolArray";
                     else if (elemType.IsEnum)           dto.type = "EnumArray";
+                    else if (elemType == typeof(SoundDataStruct))
+                    {
+                        dto.type = "SoundDataArray";
+                        ExtractSoundAttributeConfig(prop, ev, dto);
+                    }
                     else                                dto.type = "String";
 
                     if (rawValue is Array arr2) dto.arrayLength = arr2.Length;
@@ -2151,6 +2169,23 @@ namespace RDLevelEditorAccess.IPC
                     string xStr = xExpr?.ToString() ?? "";
                     string yStr = yExpr?.ToString() ?? "";
                     return $"{xStr},{yStr}";
+                }
+                // SoundDataStruct[] 类型
+                if (valueType.IsArray && valueType.GetElementType()?.Name == "SoundDataStruct")
+                {
+                    var arr = (Array)value;
+                    var parts = new List<string>();
+                    foreach (var item in arr)
+                    {
+                        var t = item.GetType();
+                        var fn  = t.GetField("filename")?.GetValue(item);
+                        var vol = t.GetField("volume")?.GetValue(item);
+                        var pit = t.GetField("pitch")?.GetValue(item);
+                        var pan = t.GetField("pan")?.GetValue(item);
+                        var off = t.GetField("offset")?.GetValue(item);
+                        parts.Add($"{fn}|{vol}|{pit}|{pan}|{off}");
+                    }
+                    return string.Join(";", parts);
                 }
                 // SoundDataStruct 类型
                 if (valueType.Name == "SoundDataStruct")

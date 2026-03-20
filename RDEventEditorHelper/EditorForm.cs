@@ -651,406 +651,39 @@ namespace RDEventEditorHelper
                         break;
 
                     case "SoundData":
-                        // 解析 "filename|volume|pitch|pan|offset" 格式
+                    {
                         var soundParts = (prop.value ?? "|||").Split('|');
-                        string soundFilename = soundParts.Length > 0 ? soundParts[0] : "";
-                        string soundVolume = soundParts.Length > 1 ? soundParts[1] : "100";
-                        string soundPitch = soundParts.Length > 2 ? soundParts[2] : "100";
-                        string soundPan = soundParts.Length > 3 ? soundParts[3] : "0";
-                        string soundOffset = soundParts.Length > 4 ? soundParts[4] : "0";
-                        
-                        bool hasSoundOptions = prop.soundOptions != null && prop.soundOptions.Length > 0;
-                        bool canBrowseFile = prop.allowCustomFile;
-                        
-                        group.Height = 240;  // 需要更多空间给 ListView
-                        
-                        var soundPanel = new Panel
-                        {
-                            Width = 420,
-                            Height = 210,
-                            Top = 20,
-                            Left = 10
-                        };
-                        
-                        // 第一行：搜索框 + 浏览按钮
-                        var lblSearch = new Label { Text = "搜索 (Search):", Width = 65, Top = 5, Left = 0 };
-                        var txtSearch = new TextBox { Width = hasSoundOptions ? 200 : 320, Top = 3, Left = 70, Name = "SearchBox", AccessibleName = "搜索 (Search)" };
-                        
-                        // 隐藏的文件名存储（用于保存时获取值）
-                        var txtHiddenFilename = new TextBox { Text = soundFilename, Width = 1, Top = 0, Left = 0, Name = "Filename", Visible = false };
-                        soundPanel.Controls.Add(txtHiddenFilename);
-                        
-                        // 保存原始值作为后备（确保用户不修改时保留原值）
-                        var txtOriginalFilename = new TextBox { Text = soundFilename, Width = 1, Top = 0, Left = 0, Name = "OriginalFilename", Visible = false };
-                        soundPanel.Controls.Add(txtOriginalFilename);
-                        
-                        if (canBrowseFile)
-                        {
-                            var btnBrowse = new Button
-                            {
-                                Text = "浏览文件... (Browse)",
-                                Width = 100,
-                                Top = 2,
-                                Left = 260,
-                                AccessibleName = "浏览文件 (Browse File)"
-                            };
-                            btnBrowse.Click += (s, e) =>
-                            {
-                                using (var ofd = new OpenFileDialog())
-                                {
-                                    ofd.Filter = "音频文件 (Audio)|*.wav;*.ogg;*.mp3;*.aiff;*.aif|所有文件|*.*";
-                                    ofd.Title = prop.itsASong ? "选择歌曲文件 (Select Song File)" : "选择音效文件 (Select Sound File)";
-                                    if (ofd.ShowDialog() == DialogResult.OK)
-                                    {
-                                        string selectedFile = ofd.FileName;
-                                        string fileName = System.IO.Path.GetFileName(selectedFile);
-
-                                        // 验证文件格式
-                                        string ext = System.IO.Path.GetExtension(fileName).ToLowerInvariant();
-                                        var supportedExts = new[] { ".mp3", ".wav", ".ogg", ".aiff", ".aif" };
-                                        if (!supportedExts.Contains(ext))
-                                        {
-                                            MessageBox.Show(
-                                                $"不支持的音频格式: {ext}\n支持的格式: .mp3, .wav, .ogg, .aiff, .aif\n\nUnsupported audio format: {ext}\nSupported formats: .mp3, .wav, .ogg, .aiff, .aif",
-                                                "格式错误 (Format Error)",
-                                                MessageBoxButtons.OK,
-                                                MessageBoxIcon.Error);
-                                            return;
-                                        }
-
-                                        // 复制文件到关卡目录（如果路径可用）
-                                        if (!string.IsNullOrEmpty(_levelDirectory))
-                                        {
-                                            try
-                                            {
-                                                string destPath = System.IO.Path.Combine(_levelDirectory, fileName);
-
-                                                // 检查是否为同一文件
-                                                bool isSameFile = System.IO.Path.GetFullPath(selectedFile).Equals(
-                                                    System.IO.Path.GetFullPath(destPath),
-                                                    StringComparison.OrdinalIgnoreCase);
-
-                                                if (!isSameFile)
-                                                {
-                                                    // 检查目标文件是否已存在
-                                                    if (System.IO.File.Exists(destPath))
-                                                    {
-                                                        var result = MessageBox.Show(
-                                                            $"文件 '{fileName}' 已存在。是否覆盖？\n\nFile '{fileName}' already exists. Overwrite?",
-                                                            "文件已存在 (File Exists)",
-                                                            MessageBoxButtons.YesNo,
-                                                            MessageBoxIcon.Question);
-
-                                                        if (result == DialogResult.No)
-                                                        {
-                                                            return;
-                                                        }
-                                                    }
-
-                                                    // 复制文件
-                                                    System.IO.File.Copy(selectedFile, destPath, overwrite: true);
-                                                }
-                                            }
-                                            catch (UnauthorizedAccessException)
-                                            {
-                                                MessageBox.Show(
-                                                    "权限不足，无法复制文件\n\nInsufficient permissions to copy file",
-                                                    "权限错误 (Permission Error)",
-                                                    MessageBoxButtons.OK,
-                                                    MessageBoxIcon.Error);
-                                                return;
-                                            }
-                                            catch (System.IO.IOException ex)
-                                            {
-                                                MessageBox.Show(
-                                                    $"文件复制失败: {ex.Message}\n\nFile copy failed: {ex.Message}",
-                                                    "复制失败 (Copy Failed)",
-                                                    MessageBoxButtons.OK,
-                                                    MessageBoxIcon.Error);
-                                                return;
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                MessageBox.Show(
-                                                    $"未知错误: {ex.Message}\n\nUnknown error: {ex.Message}",
-                                                    "错误 (Error)",
-                                                    MessageBoxButtons.OK,
-                                                    MessageBoxIcon.Error);
-                                                return;
-                                            }
-                                        }
-
-                                        // 更新隐藏文本框
-                                        txtHiddenFilename.Text = fileName;
-
-                                        // 如果有 ListView，添加并选中
-                                        var lv = soundPanel.Controls.Find("SoundListView", false).FirstOrDefault() as ListView;
-                                        if (lv != null)
-                                        {
-                                            // 检查是否已存在
-                                            foreach (ListViewItem item in lv.Items)
-                                            {
-                                                if (item.Tag as string == fileName)
-                                                {
-                                                    item.Selected = true;
-                                                    item.Focused = true;
-                                                    lv.EnsureVisible(lv.Items.IndexOf(item));
-                                                    lv.Focus();
-                                                    return;
-                                                }
-                                            }
-
-                                            // 添加新项
-                                            var newItem = new ListViewItem(fileName);
-                                            newItem.Tag = fileName;
-                                            lv.Items.Add(newItem);
-                                            newItem.Selected = true;
-                                            newItem.Focused = true;
-                                            lv.EnsureVisible(lv.Items.Count - 1);
-                                            lv.Focus();
-                                        }
-                                    }
-                                }
-                            };
-                            soundPanel.Controls.Add(btnBrowse);
-                        }
-                        
-                        soundPanel.Controls.Add(lblSearch);
-                        soundPanel.Controls.Add(txtSearch);
-                        
-                        // 第二行：ListView
-                        var listView = new ListView
-                        {
-                            Width = 405,
-                            Height = 120,
-                            Top = 30,
-                            Left = 5,
-                            View = View.Details,
-                            FullRowSelect = true,
-                            HideSelection = false,
-                            Name = "SoundListView",
-                            TabIndex = 0,
-                            AccessibleName = displayName
-                        };
-                        listView.Columns.Add("音效名称 (Sound Name)", 400);
-                        
-                        // 填充预设选项
-                        if (hasSoundOptions)
-                        {
-                            // 只有当 SoundData 可空时，才添加"轨道默认"选项
-                            if (prop.isNullable)
-                            {
-                                // 添加"轨道默认"选项（第一项）
-                                var defaultItem = new ListViewItem("(使用轨道默认 / Track Default)");
-                                defaultItem.Tag = "__track_default__";  // 特殊标记
-                                listView.Items.Add(defaultItem);
-                                
-                                // 如果当前没有音效（使用轨道默认），默认选中第一项
-                                if (string.IsNullOrEmpty(soundFilename))
-                                {
-                                    defaultItem.Selected = true;
-                                }
-                            }
-
-                            // 获取原始和本地化数组
-                            var rawSoundOptions = prop.soundOptions;
-                            var localizedSoundOptions = prop.localizedSoundOptions ?? rawSoundOptions;
-
-                            for (int i = 0; i < rawSoundOptions.Length; i++)
-                            {
-                                var item = new ListViewItem(localizedSoundOptions[i]);  // 显示本地化名称
-                                item.Tag = rawSoundOptions[i];  // 保存原始名��到 Tag
-                                listView.Items.Add(item);
-                                if (rawSoundOptions[i] == soundFilename) item.Selected = true;
-                            }
-                        }
-
-                        // 填充内置音乐（仅当 itsASong = true 时）
-                        if (prop.itsASong && _internalSongs != null && _internalSongs.Count > 0)
-                        {
-                            foreach (var kvp in _internalSongs.OrderBy(x => x.Value))
-                            {
-                                string filename = kvp.Key;
-                                string songDisplayName = kvp.Value;
-
-                                // 检查是否已在列表中（避免重复）
-                                bool alreadyInList = listView.Items.Cast<ListViewItem>()
-                                    .Any(item => string.Equals(item.Tag as string, filename, StringComparison.OrdinalIgnoreCase));
-                                if (alreadyInList) continue;
-
-                                var lvItem = new ListViewItem(songDisplayName);
-                                lvItem.Tag = filename;
-                                listView.Items.Add(lvItem);
-                                if (filename == soundFilename) lvItem.Selected = true;
-                            }
-                        }
-
-                        // 填充关卡目录音频文件
-                        if (_levelAudioFiles != null)
-                        {
-                            for (int i = 0; i < _levelAudioFiles.Length; i++)
-                            {
-                                string audioFile = _levelAudioFiles[i];
-                                string audioDisplayName = (_localizedLevelAudioFiles != null && i < _localizedLevelAudioFiles.Length)
-                                    ? _localizedLevelAudioFiles[i]
-                                    : audioFile;
-
-                                bool alreadyInList = listView.Items.Cast<ListViewItem>()
-                                    .Any(item => string.Equals(item.Tag as string, audioFile, StringComparison.OrdinalIgnoreCase));
-                                if (alreadyInList) continue;
-
-                                var lvItem = new ListViewItem(audioDisplayName);  // 显示本地化名称
-                                lvItem.Tag = audioFile;  // 保存原始文件名到 Tag
-                                listView.Items.Add(lvItem);
-                                if (audioFile == soundFilename) lvItem.Selected = true;
-                            }
-                        }
-
-                        // 如果当前值不在列表中，添加为外部文件
-                        if (!string.IsNullOrEmpty(soundFilename))
-                        {
-                            bool found = false;
-                            foreach (ListViewItem item in listView.Items)
-                            {
-                                if (item.Tag as string == soundFilename)
-                                {
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if (!found)
-                            {
-                                var extItem = new ListViewItem(soundFilename);
-                                extItem.Tag = soundFilename;
-                                listView.Items.Add(extItem);
-                                extItem.Selected = true;
-                            }
-                        }
-                        
-                        // 选中项变化时更新隐藏的文件名
-                        listView.SelectedIndexChanged += (s, e) =>
-                        {
-                            if (listView.SelectedItems.Count > 0)
-                            {
-                                txtHiddenFilename.Text = listView.SelectedItems[0].Tag as string ?? listView.SelectedItems[0].Text;
-                            }
-                        };
-                        
-                        // 双击确认
-                        listView.DoubleClick += (s, e) =>
-                        {
-                            _isClosingByButton = true;
-                            OnOK?.Invoke(GetCurrentUpdates());
-                            this.Close();
-                        };
-
-                        // 空格键试听音效
-                        listView.KeyDown += (s, e) =>
-                        {
-                            if (e.KeyCode == Keys.Space && listView.SelectedItems.Count > 0)
-                            {
-                                e.Handled = true;  // 防止默认行为（选中/取消选中）
-
-                                // 获取选中的原始音频名称
-                                string rawSoundName = listView.SelectedItems[0].Tag as string;
-
-                                // 跳过特殊标记（轨道默认）
-                                if (rawSoundName == "__track_default__")
-                                {
-                                    return;
-                                }
-
-                                // 获取当前的音量、音调、声像参数
-                                var volTxt = soundPanel.Controls.Find("Volume", false).FirstOrDefault() as TextBox;
-                                var pitchTxt = soundPanel.Controls.Find("Pitch", false).FirstOrDefault() as TextBox;
-                                var panTxt = soundPanel.Controls.Find("Pan", false).FirstOrDefault() as TextBox;
-
-                                int volume = 100;
-                                int pitch = 100;
-                                int pan = 0;
-
-                                if (volTxt != null && int.TryParse(volTxt.Text, out int v)) volume = v;
-                                if (pitchTxt != null && int.TryParse(pitchTxt.Text, out int p)) pitch = p;
-                                if (panTxt != null && int.TryParse(panTxt.Text, out int pn)) pan = pn;
-
-                                // 发送播放请求
-                                FileIPC.SendPlaySoundRequest(rawSoundName, volume, pitch, pan, prop.itsASong);
-                            }
-                        };
-
-                        // 搜索过滤（真正移除/添加项目，屏幕阅读器友好）
-                        var allSoundItems = listView.Items.Cast<ListViewItem>().ToList();
-                        txtSearch.TextChanged += (s, e) =>
-                        {
-                            var keyword = txtSearch.Text.ToLower();
-                            listView.BeginUpdate();
-                            listView.Items.Clear();
-                            foreach (var item in allSoundItems)
-                            {
-                                if (string.IsNullOrEmpty(keyword) || item.Text.ToLower().Contains(keyword))
-                                    listView.Items.Add(item);
-                            }
-                            listView.EndUpdate();
-                            // 恢复选中状态
-                            string cur = txtHiddenFilename.Text;
-                            foreach (ListViewItem item in listView.Items)
-                            {
-                                if (item.Tag as string == cur)
-                                {
-                                    item.Selected = true;
-                                    item.Focused = true;
-                                    listView.EnsureVisible(listView.Items.IndexOf(item));
-                                    break;
-                                }
-                            }
-                        };
-
-                        soundPanel.Controls.Add(listView);
-
-                        // 确保选中状态生效，屏幕阅读器焦点跳到选中项
-                        listView.Refresh();
-                        if (listView.SelectedItems.Count > 0)
-                        {
-                            int selectedIdx = listView.SelectedIndices[0];
-                            listView.Items[selectedIdx].Focused = true;
-                            listView.EnsureVisible(selectedIdx);
-                            listView.Focus();
-                        }
-                        
-                        // 第三行：音量
-                        var lblVolume = new Label { Text = "音量 (Volume):", Width = 80, Top = 155, Left = 0 };
-                        var txtVolume = new TextBox { Text = soundVolume, Width = 60, Top = 153, Left = 85, Name = "Volume", AccessibleName = "音量 (Volume)" };
-                        var lblVolumeHint = new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 150 };
-                        soundPanel.Controls.Add(lblVolume);
-                        soundPanel.Controls.Add(txtVolume);
-                        soundPanel.Controls.Add(lblVolumeHint);
-
-                        // 音调
-                        var lblPitch = new Label { Text = "音调 (Pitch):", Width = 80, Top = 155, Left = 215 };
-                        var txtPitch = new TextBox { Text = soundPitch, Width = 60, Top = 153, Left = 295, Name = "Pitch", AccessibleName = "音调 (Pitch)" };
-                        var lblPitchHint = new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 285 };
-                        soundPanel.Controls.Add(lblPitch);
-                        soundPanel.Controls.Add(txtPitch);
-                        soundPanel.Controls.Add(lblPitchHint);
-
-                        // 第四行：声道和偏移
-                        var lblPan = new Label { Text = "声道 (Pan):", Width = 65, Top = 180, Left = 0 };
-                        var txtPan = new TextBox { Text = soundPan, Width = 60, Top = 178, Left = 70, Name = "Pan", AccessibleName = "声道 (Pan)" };
-                        var lblPanHint = new Label { Text = "(-100~100)", Width = 65, Top = 180, Left = 135 };
-
-                        var lblOffset = new Label { Text = "偏移 (Offset):", Width = 75, Top = 180, Left = 205 };
-                        var txtOffset = new TextBox { Text = soundOffset, Width = 60, Top = 178, Left = 285, Name = "Offset", AccessibleName = "偏移 (Offset)" };
-                        var lblOffsetHint = new Label { Text = "毫秒 (ms)", Width = 55, Top = 180, Left = 350 };
-                        
-                        soundPanel.Controls.Add(lblPan);
-                        soundPanel.Controls.Add(txtPan);
-                        soundPanel.Controls.Add(lblPanHint);
-                        soundPanel.Controls.Add(lblOffset);
-                        soundPanel.Controls.Add(txtOffset);
-                        soundPanel.Controls.Add(lblOffsetHint);
-                        
-                        inputCtrl = soundPanel;
+                        group.Height = 240;
+                        inputCtrl = CreateSoundDataPanel(prop,
+                            soundParts.Length > 0 ? soundParts[0] : "",
+                            soundParts.Length > 1 ? soundParts[1] : "100",
+                            soundParts.Length > 2 ? soundParts[2] : "100",
+                            soundParts.Length > 3 ? soundParts[3] : "0",
+                            soundParts.Length > 4 ? soundParts[4] : "0");
                         break;
+                    }
+
+                    case "SoundDataArray":
+                    {
+                        var elements = (prop.value ?? "").Split(new[]{';'}, StringSplitOptions.RemoveEmptyEntries);
+                        var tabCtrl = new TabControl { Width = 440, Height = 260, Name = "SoundDataArrayTabs" };
+                        for (int i = 0; i < elements.Length; i++)
+                        {
+                            var p = elements[i].Split('|');
+                            var page = new TabPage((i + 1).ToString()) { AccessibleName = $"{displayName} [{i + 1}]" };
+                            page.Controls.Add(CreateSoundDataPanel(prop,
+                                p.Length > 0 ? p[0] : "",
+                                p.Length > 1 ? p[1] : "100",
+                                p.Length > 2 ? p[2] : "100",
+                                p.Length > 3 ? p[3] : "0",
+                                p.Length > 4 ? p[4] : "0"));
+                            tabCtrl.TabPages.Add(page);
+                        }
+                        group.Height = 290;
+                        inputCtrl = tabCtrl;
+                        break;
+                    }
+
 
                     case "Character":
                         // 角色选择：ListView + 搜索框
@@ -1490,49 +1123,15 @@ namespace RDEventEditorHelper
                     else
                     {
                         // SoundData 类型
-                        var txtFilename = soundPanel.Controls.Find("Filename", false).FirstOrDefault() as TextBox;
-                        var txtVolume = soundPanel.Controls.Find("Volume", false).FirstOrDefault() as TextBox;
-                        var txtPitch = soundPanel.Controls.Find("Pitch", false).FirstOrDefault() as TextBox;
-                        var txtPan = soundPanel.Controls.Find("Pan", false).FirstOrDefault() as TextBox;
-                        var txtOffset = soundPanel.Controls.Find("Offset", false).FirstOrDefault() as TextBox;
-                        
-                        string filename = txtFilename?.Text ?? "";
-                        
-                        // 检查是否选中了"轨道默认"选项
-                        var listView = soundPanel.Controls.Find("SoundListView", false).FirstOrDefault() as ListView;
-                        if (listView != null && listView.SelectedItems.Count > 0)
-                        {
-                            string selectedTag = listView.SelectedItems[0].Tag as string;
-                            if (selectedTag == "__track_default__")
-                            {
-                                // 选中"轨道默认"，返回空字符串让游戏使用轨道默认音效
-                                value = "";
-                            }
-                            else if (!string.IsNullOrEmpty(filename))
-                            {
-                                // 正常音效
-                                string volume = txtVolume?.Text ?? "100";
-                                string pitch = txtPitch?.Text ?? "100";
-                                string pan = txtPan?.Text ?? "0";
-                                string offset = txtOffset?.Text ?? "0";
-                                value = $"{filename}|{volume}|{pitch}|{pan}|{offset}";
-                            }
-                            else
-                            {
-                                // 用户没有选择任何项，使用原始值作为后备
-                                var txtOriginalFilename = soundPanel.Controls.Find("OriginalFilename", false).FirstOrDefault() as TextBox;
-                                if (txtOriginalFilename != null && !string.IsNullOrEmpty(txtOriginalFilename.Text))
-                                {
-                                    string originalFilename = txtOriginalFilename.Text;
-                                    string volume = txtVolume?.Text ?? "100";
-                                    string pitch = txtPitch?.Text ?? "100";
-                                    string pan = txtPan?.Text ?? "0";
-                                    string offset = txtOffset?.Text ?? "0";
-                                    value = $"{originalFilename}|{volume}|{pitch}|{pan}|{offset}";
-                                }
-                            }
-                        }
+                        value = GetSoundDataPanelValue(soundPanel);
                     }
+                }
+                else if (ctrl is TabControl tabCtrl2)
+                {
+                    // SoundDataArray：逐 Tab 取值，以 ; 拼接
+                    value = string.Join(";", tabCtrl2.TabPages.Cast<TabPage>()
+                        .Select(tp => GetSoundDataPanelValue(
+                            tp.Controls.OfType<Panel>().FirstOrDefault())));
                 }
 
                 if (value != null)
@@ -1655,6 +1254,196 @@ namespace RDEventEditorHelper
             // 使用较低优先级的通知（不打断用户当前操作）
             // 注：具体实现需要根据项目的屏幕阅读器支持库来完成
             System.Diagnostics.Debug.WriteLine($"[Accessibility] {message}");
+        }
+
+        private Panel CreateSoundDataPanel(PropertyData prop, string filename, string volume, string pitch, string pan, string offset)
+        {
+            bool hasSoundOptions = prop.soundOptions != null && prop.soundOptions.Length > 0;
+            bool canBrowseFile = prop.allowCustomFile;
+            var soundPanel = new Panel { Width = 420, Height = 210, Top = 20, Left = 10 };
+            var txtHiddenFilename = new TextBox { Text = filename, Width = 1, Top = 0, Left = 0, Name = "Filename", Visible = false };
+            var txtOriginalFilename = new TextBox { Text = filename, Width = 1, Top = 0, Left = 0, Name = "OriginalFilename", Visible = false };
+            soundPanel.Controls.Add(txtHiddenFilename);
+            soundPanel.Controls.Add(txtOriginalFilename);
+            var lblSearch = new Label { Text = "搜索 (Search):", Width = 65, Top = 5, Left = 0 };
+            var txtSearch = new TextBox { Width = hasSoundOptions ? 200 : 320, Top = 3, Left = 70, Name = "SearchBox", AccessibleName = "搜索 (Search)" };
+            if (canBrowseFile)
+            {
+                var btnBrowse = new Button { Text = "浏览文件... (Browse)", Width = 100, Top = 2, Left = 260, AccessibleName = "浏览文件 (Browse File)" };
+                btnBrowse.Click += (s, e) =>
+                {
+                    using (var ofd = new OpenFileDialog())
+                    {
+                        ofd.Filter = "音频文件 (Audio)|*.wav;*.ogg;*.mp3;*.aiff;*.aif|所有文件|*.*";
+                        ofd.Title = prop.itsASong ? "选择歌曲文件 (Select Song File)" : "选择音效文件 (Select Sound File)";
+                        if (ofd.ShowDialog() == DialogResult.OK)
+                        {
+                            string selectedFile = ofd.FileName;
+                            string fileName = System.IO.Path.GetFileName(selectedFile);
+                            string ext = System.IO.Path.GetExtension(fileName).ToLowerInvariant();
+                            var supportedExts = new[] { ".mp3", ".wav", ".ogg", ".aiff", ".aif" };
+                            if (!supportedExts.Contains(ext))
+                            {
+                                MessageBox.Show($"不支持的音频格式: {ext}\n支持的格式: .mp3, .wav, .ogg, .aiff, .aif\n\nUnsupported audio format: {ext}\nSupported formats: .mp3, .wav, .ogg, .aiff, .aif", "格式错误 (Format Error)", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
+                            }
+                            if (!string.IsNullOrEmpty(_levelDirectory))
+                            {
+                                try
+                                {
+                                    string destPath = System.IO.Path.Combine(_levelDirectory, fileName);
+                                    bool isSameFile = System.IO.Path.GetFullPath(selectedFile).Equals(System.IO.Path.GetFullPath(destPath), StringComparison.OrdinalIgnoreCase);
+                                    if (!isSameFile)
+                                    {
+                                        if (System.IO.File.Exists(destPath))
+                                        {
+                                            var res = MessageBox.Show($"文件 '{fileName}' 已存在。是否覆盖？\n\nFile '{fileName}' already exists. Overwrite?", "文件已存在 (File Exists)", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                                            if (res == DialogResult.No) return;
+                                        }
+                                        System.IO.File.Copy(selectedFile, destPath, overwrite: true);
+                                    }
+                                }
+                                catch (UnauthorizedAccessException) { MessageBox.Show("权限不足，无法复制文件\n\nInsufficient permissions to copy file", "权限错误 (Permission Error)", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+                                catch (System.IO.IOException ex) { MessageBox.Show($"文件复制失败: {ex.Message}\n\nFile copy failed: {ex.Message}", "复制失败 (Copy Failed)", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+                                catch (Exception ex) { MessageBox.Show($"未知错误: {ex.Message}\n\nUnknown error: {ex.Message}", "错误 (Error)", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+                            }
+                            txtHiddenFilename.Text = fileName;
+                            var lv = soundPanel.Controls.Find("SoundListView", false).FirstOrDefault() as ListView;
+                            if (lv != null)
+                            {
+                                foreach (ListViewItem item in lv.Items)
+                                {
+                                    if (item.Tag as string == fileName) { item.Selected = true; item.Focused = true; lv.EnsureVisible(lv.Items.IndexOf(item)); lv.Focus(); return; }
+                                }
+                                var newItem = new ListViewItem(fileName) { Tag = fileName };
+                                lv.Items.Add(newItem);
+                                newItem.Selected = true; newItem.Focused = true;
+                                lv.EnsureVisible(lv.Items.Count - 1); lv.Focus();
+                            }
+                        }
+                    }
+                };
+                soundPanel.Controls.Add(btnBrowse);
+            }
+            soundPanel.Controls.Add(lblSearch);
+            soundPanel.Controls.Add(txtSearch);
+            var listView = new ListView { Width = 405, Height = 120, Top = 30, Left = 5, View = View.Details, FullRowSelect = true, HideSelection = false, Name = "SoundListView", TabIndex = 0, AccessibleName = prop.displayName };
+            listView.Columns.Add("音效名称 (Sound Name)", 400);
+            if (hasSoundOptions)
+            {
+                if (prop.isNullable)
+                {
+                    var defaultItem = new ListViewItem("(使用轨道默认 / Track Default)") { Tag = "__track_default__" };
+                    listView.Items.Add(defaultItem);
+                    if (string.IsNullOrEmpty(filename)) defaultItem.Selected = true;
+                }
+                var rawSoundOptions = prop.soundOptions;
+                var localizedSoundOptions = prop.localizedSoundOptions ?? rawSoundOptions;
+                for (int i = 0; i < rawSoundOptions.Length; i++)
+                {
+                    var item = new ListViewItem(localizedSoundOptions[i]) { Tag = rawSoundOptions[i] };
+                    listView.Items.Add(item);
+                    if (rawSoundOptions[i] == filename) item.Selected = true;
+                }
+            }
+            if (prop.itsASong && _internalSongs != null && _internalSongs.Count > 0)
+            {
+                foreach (var kvp in _internalSongs.OrderBy(x => x.Value))
+                {
+                    string songFn = kvp.Key; string songDn = kvp.Value;
+                    bool already = listView.Items.Cast<ListViewItem>().Any(it => string.Equals(it.Tag as string, songFn, StringComparison.OrdinalIgnoreCase));
+                    if (already) continue;
+                    var lvItem = new ListViewItem(songDn) { Tag = songFn };
+                    listView.Items.Add(lvItem);
+                    if (songFn == filename) lvItem.Selected = true;
+                }
+            }
+            if (_levelAudioFiles != null)
+            {
+                for (int i = 0; i < _levelAudioFiles.Length; i++)
+                {
+                    string af = _levelAudioFiles[i];
+                    string adn = (_localizedLevelAudioFiles != null && i < _localizedLevelAudioFiles.Length) ? _localizedLevelAudioFiles[i] : af;
+                    bool already = listView.Items.Cast<ListViewItem>().Any(it => string.Equals(it.Tag as string, af, StringComparison.OrdinalIgnoreCase));
+                    if (already) continue;
+                    var lvItem = new ListViewItem(adn) { Tag = af };
+                    listView.Items.Add(lvItem);
+                    if (af == filename) lvItem.Selected = true;
+                }
+            }
+            if (!string.IsNullOrEmpty(filename))
+            {
+                bool found = listView.Items.Cast<ListViewItem>().Any(it => it.Tag as string == filename);
+                if (!found) { var extItem = new ListViewItem(filename) { Tag = filename }; listView.Items.Add(extItem); extItem.Selected = true; }
+            }
+            listView.SelectedIndexChanged += (s, e) => { if (listView.SelectedItems.Count > 0) txtHiddenFilename.Text = listView.SelectedItems[0].Tag as string ?? listView.SelectedItems[0].Text; };
+            listView.DoubleClick += (s, e) => { _isClosingByButton = true; OnOK?.Invoke(GetCurrentUpdates()); this.Close(); };
+            listView.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Space && listView.SelectedItems.Count > 0)
+                {
+                    e.Handled = true;
+                    string rawSoundName = listView.SelectedItems[0].Tag as string;
+                    if (rawSoundName == "__track_default__") return;
+                    var volTxt = soundPanel.Controls.Find("Volume", false).FirstOrDefault() as TextBox;
+                    var pitchTxt = soundPanel.Controls.Find("Pitch", false).FirstOrDefault() as TextBox;
+                    var panTxt = soundPanel.Controls.Find("Pan", false).FirstOrDefault() as TextBox;
+                    int volVal = 100, pitVal = 100, panVal = 0;
+                    if (volTxt != null && int.TryParse(volTxt.Text, out int vv)) volVal = vv;
+                    if (pitchTxt != null && int.TryParse(pitchTxt.Text, out int pv)) pitVal = pv;
+                    if (panTxt != null && int.TryParse(panTxt.Text, out int pnv)) panVal = pnv;
+                    FileIPC.SendPlaySoundRequest(rawSoundName, volVal, pitVal, panVal, prop.itsASong);
+                }
+            };
+            var allSoundItems = listView.Items.Cast<ListViewItem>().ToList();
+            txtSearch.TextChanged += (s, e) =>
+            {
+                var keyword = txtSearch.Text.ToLower();
+                listView.BeginUpdate(); listView.Items.Clear();
+                foreach (var item in allSoundItems) { if (string.IsNullOrEmpty(keyword) || item.Text.ToLower().Contains(keyword)) listView.Items.Add(item); }
+                listView.EndUpdate();
+                string cur = txtHiddenFilename.Text;
+                foreach (ListViewItem item in listView.Items) { if (item.Tag as string == cur) { item.Selected = true; item.Focused = true; listView.EnsureVisible(listView.Items.IndexOf(item)); break; } }
+            };
+            soundPanel.Controls.Add(listView);
+            listView.Refresh();
+            if (listView.SelectedItems.Count > 0) { int si = listView.SelectedIndices[0]; listView.Items[si].Focused = true; listView.EnsureVisible(si); listView.Focus(); }
+            soundPanel.Controls.Add(new Label { Text = "音量 (Volume):", Width = 80, Top = 155, Left = 0 });
+            soundPanel.Controls.Add(new TextBox { Text = volume, Width = 60, Top = 153, Left = 85, Name = "Volume", AccessibleName = "音量 (Volume)" });
+            soundPanel.Controls.Add(new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 150 });
+            soundPanel.Controls.Add(new Label { Text = "音调 (Pitch):", Width = 80, Top = 155, Left = 215 });
+            soundPanel.Controls.Add(new TextBox { Text = pitch, Width = 60, Top = 153, Left = 295, Name = "Pitch", AccessibleName = "音调 (Pitch)" });
+            soundPanel.Controls.Add(new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 285 });
+            soundPanel.Controls.Add(new Label { Text = "声道 (Pan):", Width = 65, Top = 180, Left = 0 });
+            soundPanel.Controls.Add(new TextBox { Text = pan, Width = 60, Top = 178, Left = 70, Name = "Pan", AccessibleName = "声道 (Pan)" });
+            soundPanel.Controls.Add(new Label { Text = "(-100~100)", Width = 65, Top = 180, Left = 135 });
+            soundPanel.Controls.Add(new Label { Text = "偏移 (Offset):", Width = 75, Top = 180, Left = 205 });
+            soundPanel.Controls.Add(new TextBox { Text = offset, Width = 60, Top = 178, Left = 285, Name = "Offset", AccessibleName = "偏移 (Offset)" });
+            soundPanel.Controls.Add(new Label { Text = "毫秒 (ms)", Width = 55, Top = 180, Left = 350 });
+            return soundPanel;
+        }
+
+        private string GetSoundDataPanelValue(Panel panel)
+        {
+            if (panel == null) return "";
+            var txtFilename = panel.Controls.Find("Filename", false).FirstOrDefault() as TextBox;
+            var txtVolume = panel.Controls.Find("Volume", false).FirstOrDefault() as TextBox;
+            var txtPitch = panel.Controls.Find("Pitch", false).FirstOrDefault() as TextBox;
+            var txtPan = panel.Controls.Find("Pan", false).FirstOrDefault() as TextBox;
+            var txtOffset = panel.Controls.Find("Offset", false).FirstOrDefault() as TextBox;
+            string fn = txtFilename?.Text ?? "";
+            var lv = panel.Controls.Find("SoundListView", false).FirstOrDefault() as ListView;
+            if (lv != null && lv.SelectedItems.Count > 0)
+            {
+                string tag = lv.SelectedItems[0].Tag as string;
+                if (tag == "__track_default__") return "";
+                if (!string.IsNullOrEmpty(fn))
+                    return $"{fn}|{txtVolume?.Text ?? "100"}|{txtPitch?.Text ?? "100"}|{txtPan?.Text ?? "0"}|{txtOffset?.Text ?? "0"}";
+                var txtOrig = panel.Controls.Find("OriginalFilename", false).FirstOrDefault() as TextBox;
+                if (txtOrig != null && !string.IsNullOrEmpty(txtOrig.Text))
+                    return $"{txtOrig.Text}|{txtVolume?.Text ?? "100"}|{txtPitch?.Text ?? "100"}|{txtPan?.Text ?? "0"}|{txtOffset?.Text ?? "0"}";
+            }
+            return "";
         }
 
         private Color ParseColor(string colorStr)
