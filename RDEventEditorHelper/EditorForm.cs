@@ -30,6 +30,8 @@ namespace RDEventEditorHelper
         public int arrayLength;         // Array 类型专用：元素个数
         public int roomCount;           // Rooms 类型专用：房间总数
         public string roomsUsage;       // Rooms 类型专用：使用模式
+        public string[] rowNames;       // EnumArray 专用：轨道显示名称列表
+        public int rowCount;            // EnumArray 专用：实际显示的行数
     }
 
     // NEW: Helper → Mod 请求数据类
@@ -1213,7 +1215,56 @@ namespace RDEventEditorHelper
                         break;
                     }
 
-                    case "Rooms":
+                    case "EnumArray":
+                    {
+                        var vals = (prop.value ?? "").Split(',').Select(s => s.Trim()).ToArray();
+                        int visibleCount = prop.rowCount > 0 ? prop.rowCount : prop.arrayLength;
+                        var rawOpts = prop.options ?? new string[0];
+                        var displayOpts = prop.localizedOptions ?? prop.options ?? new string[0];
+                        var arrPanel2 = new FlowLayoutPanel
+                        {
+                            FlowDirection = FlowDirection.TopDown,
+                            AutoSize = true,
+                            WrapContents = false,
+                            Padding = new Padding(0),
+                            Tag = prop.value  // 存储原始完整值，供尾部补全
+                        };
+                        for (int i = 0; i < visibleCount; i++)
+                        {
+                            string rowLabel = (prop.rowNames != null && i < prop.rowNames.Length && !string.IsNullOrEmpty(prop.rowNames[i]))
+                                ? prop.rowNames[i] : $"{i + 1}:";
+                            var rowPanel2 = new FlowLayoutPanel
+                            {
+                                FlowDirection = FlowDirection.LeftToRight,
+                                AutoSize = true,
+                                WrapContents = false,
+                                Margin = new Padding(0, 2, 0, 2)
+                            };
+                            var lbl2b = new Label
+                            {
+                                Text = rowLabel,
+                                Width = 80,
+                                TextAlign = ContentAlignment.MiddleRight
+                            };
+                            var combo2 = new ComboBox
+                            {
+                                DropDownStyle = ComboBoxStyle.DropDownList,
+                                Width = 120,
+                                Name = $"ArrayElement_{i}",
+                                AccessibleName = $"{displayName} [{rowLabel}]",
+                                Tag = rawOpts
+                            };
+                            combo2.Items.AddRange(displayOpts);
+                            string curVal = i < vals.Length ? vals[i] : (rawOpts.Length > 0 ? rawOpts[0] : "");
+                            int selIdx = Array.IndexOf(rawOpts, curVal);
+                            combo2.SelectedIndex = selIdx >= 0 ? selIdx : 0;
+                            rowPanel2.Controls.Add(lbl2b);
+                            rowPanel2.Controls.Add(combo2);
+                            arrPanel2.Controls.Add(rowPanel2);
+                        }
+                        inputCtrl = arrPanel2;
+                        break;
+                    }
                     {
                         var selectedRooms = (prop.value ?? "0").Split(',')
                             .Select(s => int.TryParse(s.Trim(), out int r) ? r : 0).ToHashSet();
@@ -1385,10 +1436,18 @@ namespace RDEventEditorHelper
                         if (ec == null) break;
                         if (ec is TextBox et2) arrayElems.Add(et2.Text);
                         else if (ec is CheckBox ec2) arrayElems.Add(ec2.Checked ? "true" : "false");
+                        else if (ec is ComboBox ec3 && ec3.Tag is string[] rawOpts2 && ec3.SelectedIndex >= 0)
+                            arrayElems.Add(rawOpts2[ec3.SelectedIndex]);
                         ai++;
                     }
                     if (arrayElems.Count > 0)
                     {
+                        // EnumArray：补全尾部未显示的元素（保留原始值）
+                        if (panel.Tag is string originalFull)
+                        {
+                            var tail = originalFull.Split(',').Select(s => s.Trim()).ToArray();
+                            for (int ti = arrayElems.Count; ti < tail.Length; ti++) arrayElems.Add(tail[ti]);
+                        }
                         value = string.Join(",", arrayElems);
                     }
                     else

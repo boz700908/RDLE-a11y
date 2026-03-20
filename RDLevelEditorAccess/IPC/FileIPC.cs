@@ -991,6 +991,16 @@ namespace RDLevelEditorAccess.IPC
                                         valToSet = parts.Select(p => float.TryParse(p, out float vf) ? vf : 0f).ToArray();
                                     else if (et == typeof(bool))
                                         valToSet = parts.Select(p => p == "true").ToArray();
+                                    else if (et.IsEnum)
+                                    {
+                                        var typedArr = Array.CreateInstance(et, parts.Length);
+                                        for (int i = 0; i < parts.Length; i++)
+                                        {
+                                            try { typedArr.SetValue(Enum.Parse(et, parts[i]), i); }
+                                            catch { typedArr.SetValue(Enum.GetValues(et).GetValue(0), i); }
+                                        }
+                                        valToSet = typedArr;
+                                    }
                                     else
                                         valToSet = strVal;
                                 }
@@ -1311,11 +1321,47 @@ namespace RDLevelEditorAccess.IPC
                     if      (elemType == typeof(int))   dto.type = "IntArray";
                     else if (elemType == typeof(float)) dto.type = "FloatArray";
                     else if (elemType == typeof(bool))  dto.type = "BoolArray";
+                    else if (elemType.IsEnum)           dto.type = "EnumArray";
                     else                                dto.type = "String";
 
                     if (rawValue is Array arr2) dto.arrayLength = arr2.Length;
+
+                    if (elemType.IsEnum)
+                    {
+                        dto.options = Enum.GetNames(elemType);
+                        dto.localizedOptions = Enum.GetNames(elemType).Select(n =>
+                        {
+                            string k = $"enum.{elemType.Name}.{n}";
+                            string v = RDString.GetWithCheck(k, out bool ok);
+                            return ok ? v : n;
+                        }).ToArray();
+                    }
                 }
                 else dto.type = "String";
+
+                // 特殊处理：ChangePlayersRows 的 players/cpuMarkers 补充行上下文
+                if (ev.type == LevelEventType.ChangePlayersRows &&
+                    (prop.propertyInfo.Name == "players" || prop.propertyInfo.Name == "cpuMarkers"))
+                {
+                    var rowCtrls = scnEditor.instance?.eventControls_rows;
+                    if (rowCtrls != null)
+                    {
+                        dto.rowCount = rowCtrls.Count;
+                        dto.rowNames = rowCtrls
+                            .Select(r => (r?.FirstOrDefault()?.levelEvent as LevelEvent_MakeRow)?.GetRowString(shortName: true) ?? "")
+                            .ToArray();
+                    }
+                    if (prop.propertyInfo.Name == "cpuMarkers")
+                    {
+                        dto.options = RDEditorConstants.AvailableCPUCharacters.Select(c => c.ToString()).ToArray();
+                        dto.localizedOptions = RDEditorConstants.AvailableCPUCharacters.Select(c =>
+                        {
+                            string k = $"enum.Character.{c}";
+                            string v = RDString.GetWithCheck(k, out bool ok);
+                            return ok ? v : c.ToString();
+                        }).ToArray();
+                    }
+                }
 
                 list.Add(dto);
             }
@@ -2324,6 +2370,8 @@ namespace RDLevelEditorAccess.IPC
             public int arrayLength;         // Array 类型专用：元素个数
             public int roomCount;           // Rooms 类型专用：房间总数
             public string roomsUsage;       // Rooms 类型专用：使用模式
+            public string[] rowNames;       // EnumArray 专用：轨道显示名称列表
+            public int rowCount;            // EnumArray 专用：实际显示的行数
         }
 
         // NEW: Helper → Mod 请求数据类
