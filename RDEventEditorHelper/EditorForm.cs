@@ -652,14 +652,8 @@ namespace RDEventEditorHelper
 
                     case "SoundData":
                     {
-                        var soundParts = (prop.value ?? "|||").Split('|');
                         group.Height = 240;
-                        inputCtrl = CreateSoundDataPanel(prop,
-                            soundParts.Length > 0 ? soundParts[0] : "",
-                            soundParts.Length > 1 ? soundParts[1] : "100",
-                            soundParts.Length > 2 ? soundParts[2] : "100",
-                            soundParts.Length > 3 ? soundParts[3] : "0",
-                            soundParts.Length > 4 ? soundParts[4] : "0");
+                        inputCtrl = CreateSoundDataPanelFromValue(prop, prop.value);
                         break;
                     }
 
@@ -669,14 +663,8 @@ namespace RDEventEditorHelper
                         var tabCtrl = new TabControl { Width = 440, Height = 260, Name = "SoundDataArrayTabs" };
                         for (int i = 0; i < elements.Length; i++)
                         {
-                            var p = elements[i].Split('|');
                             var page = new TabPage((i + 1).ToString()) { AccessibleName = $"{displayName} [{i + 1}]" };
-                            page.Controls.Add(CreateSoundDataPanel(prop,
-                                p.Length > 0 ? p[0] : "",
-                                p.Length > 1 ? p[1] : "100",
-                                p.Length > 2 ? p[2] : "100",
-                                p.Length > 3 ? p[3] : "0",
-                                p.Length > 4 ? p[4] : "0"));
+                            page.Controls.Add(CreateSoundDataPanelFromValue(prop, elements[i]));
                             tabCtrl.TabPages.Add(page);
                         }
                         group.Height = 290;
@@ -1254,6 +1242,20 @@ namespace RDEventEditorHelper
             // 使用较低优先级的通知（不打断用户当前操作）
             // 注：具体实现需要根据项目的屏幕阅读器支持库来完成
             System.Diagnostics.Debug.WriteLine($"[Accessibility] {message}");
+        }
+
+        /// <summary>
+        /// 从管道分隔的值字符串创建 SoundData 面板（用于数组元素）
+        /// </summary>
+        private Panel CreateSoundDataPanelFromValue(PropertyData prop, string value)
+        {
+            var parts = (value ?? "|||").Split('|');
+            return CreateSoundDataPanel(prop,
+                parts.Length > 0 ? parts[0] : "",
+                parts.Length > 1 ? parts[1] : "100",
+                parts.Length > 2 ? parts[2] : "100",
+                parts.Length > 3 ? parts[3] : "0",
+                parts.Length > 4 ? parts[4] : "0");
         }
 
         private Panel CreateSoundDataPanel(PropertyData prop, string filename, string volume, string pitch, string pan, string offset)

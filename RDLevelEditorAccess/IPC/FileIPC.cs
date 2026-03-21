@@ -2122,6 +2122,23 @@ namespace RDLevelEditorAccess.IPC
                 if (value is int[]   ia) return string.Join(",", ia);
                 if (value is float[] fa) return string.Join(",", fa);
                 if (value is bool[]  ba) return string.Join(",", ba.Select(b => b ? "true" : "false"));
+                // SoundDataStruct[] 必须在通用 Array 之前处理
+                if (valueType.IsArray && valueType.GetElementType()?.Name == "SoundDataStruct")
+                {
+                    var arr = (Array)value;
+                    var parts = new List<string>();
+                    foreach (var item in arr)
+                    {
+                        var t = item.GetType();
+                        var fn  = t.GetField("filename")?.GetValue(item);
+                        var vol = t.GetField("volume")?.GetValue(item);
+                        var pit = t.GetField("pitch")?.GetValue(item);
+                        var pan = t.GetField("pan")?.GetValue(item);
+                        var off = t.GetField("offset")?.GetValue(item);
+                        parts.Add($"{fn}|{vol}|{pit}|{pan}|{off}");
+                    }
+                    return string.Join(";", parts);
+                }
                 if (value is Array   ga) return string.Join(",", ga.Cast<object>().Select(o => o?.ToString() ?? ""));
 
                 if (value is UnityEngine.Vector2 v2) return $"{v2.x},{v2.y}";
@@ -2169,23 +2186,6 @@ namespace RDLevelEditorAccess.IPC
                     string xStr = xExpr?.ToString() ?? "";
                     string yStr = yExpr?.ToString() ?? "";
                     return $"{xStr},{yStr}";
-                }
-                // SoundDataStruct[] 类型
-                if (valueType.IsArray && valueType.GetElementType()?.Name == "SoundDataStruct")
-                {
-                    var arr = (Array)value;
-                    var parts = new List<string>();
-                    foreach (var item in arr)
-                    {
-                        var t = item.GetType();
-                        var fn  = t.GetField("filename")?.GetValue(item);
-                        var vol = t.GetField("volume")?.GetValue(item);
-                        var pit = t.GetField("pitch")?.GetValue(item);
-                        var pan = t.GetField("pan")?.GetValue(item);
-                        var off = t.GetField("offset")?.GetValue(item);
-                        parts.Add($"{fn}|{vol}|{pit}|{pan}|{off}");
-                    }
-                    return string.Join(";", parts);
                 }
                 // SoundDataStruct 类型
                 if (valueType.Name == "SoundDataStruct")
