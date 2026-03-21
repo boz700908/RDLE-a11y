@@ -1,3 +1,14 @@
+1.4 (2026-03-21)
+1. Fixed an issue where cursor navigation occasionally freezes (hopefully).
+2. Adapted to the new version, fixed an issue where the helper could not open in game version 1.0.5. If you haven't updated the game, the old version should still work with this version of the mod.
+3. Added support for editing more properties:
+3.1 For certain events that allow specifying a room (e.g. SetTheme), added support for room selection.
+3.2 Added support for editing Change Players' Rows events.
+3.3 Added preliminary support for editing Set Game Sound events, allowing customization of various in-game sound effects. Note: there are quite a few issues at the moment, so it's best not to use this yet.
+3.4 Added support for editing rank max mistakes and rank descriptions.
+3.5 There should be a few more, but I can't remember them all right now.
+4. When navigating events, the tooltip will now be announced last, which helps quickly understand the important properties of an event.
+
 1.31 (2026-03-12)
 1. Fixed a bug where Alt+Shift+R/T did not work as expected.
 2. Optimized the announcement for adjusting attribute values using R/T.
