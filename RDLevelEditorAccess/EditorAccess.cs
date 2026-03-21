@@ -99,8 +99,7 @@ namespace RDLevelEditorAccess
         private LevelEvent_Base? lastSelectedEvent = null;  // 上次选中的事件
 
         // 光标导航修复：记录期望的导航目标，下帧检查游戏是否成功切换
-        private LevelEventControl_Base _pendingNavTarget = null;
-        private LevelEventControl_Base _pendingNavFrom = null;
+        private LevelEventControl_Base _lastFrameSelectedControl = null;
 
         public void Awake()
         {
@@ -546,25 +545,6 @@ namespace RDLevelEditorAccess
             var editor = scnEditor.instance;
             if (editor == null) return;
 
-            // 检查上一帧的导航是否成功，若游戏未切换则由 mod 主动切换
-            if (_pendingNavTarget != null)
-            {
-                var target = _pendingNavTarget;
-                var from = _pendingNavFrom;
-                _pendingNavTarget = null;
-                _pendingNavFrom = null;
-
-                if (editor.selectedControl == from)
-                {
-                    editor.SelectEventControl(target, sound: true);
-                    editor.timeline.UnfollowPlayhead();
-                    editor.timeline.CenterOnPosition(
-                        (target.rt.anchoredPosition.x + target.rightPosition) / 2f, 0.3f);
-                    editor.timeline.CenterOnVertPosition(
-                        (0f - (target.rt.anchoredPosition.y + target.bottomPosition)) / 2f, 0.3f);
-                }
-            }
-
             // 虚拟菜单优先处理
             if (virtualMenuState != VirtualMenuState.None)
             {
@@ -589,21 +569,32 @@ namespace RDLevelEditorAccess
                 // 如果已经选中了事件
                 if (editor.selectedControl != null)
                 {
-                    // 检查是否已经在边界
-                    var nextControl = isLeftArrow
-                        ? editor.GetControlToTheLeft(editor.selectedControl)
-                        : editor.GetControlToTheRight(editor.selectedControl);
+                    // 比较上一帧末尾的 selectedControl 与当前帧的，判断游戏原生导航是否已经生效
+                    bool nativeNavWorked = (_lastFrameSelectedControl != null
+                        && editor.selectedControl != _lastFrameSelectedControl);
 
-                    if (nextControl == null)
+                    if (!nativeNavWorked)
                     {
-                        // 已经在边界，重新朗读当前事件信息
-                        ModUtils.AnnounceEventSelection(editor.selectedControl.levelEvent);
-                        return; // 不需要继续处理
-                    }
+                        // 游戏没有处理导航，由 mod 主动切换
+                        var nextControl = isLeftArrow
+                            ? editor.GetControlToTheLeft(editor.selectedControl)
+                            : editor.GetControlToTheRight(editor.selectedControl);
 
-                    // 记录期望的导航目标，下帧检查游戏是否成功切换
-                    _pendingNavFrom = editor.selectedControl;
-                    _pendingNavTarget = nextControl;
+                        if (nextControl == null)
+                        {
+                            // 已经在边界，重新朗读当前事件信息
+                            ModUtils.AnnounceEventSelection(editor.selectedControl.levelEvent);
+                            return; // 不需要继续处理
+                        }
+
+                        editor.SelectEventControl(nextControl, sound: true);
+                        editor.timeline.UnfollowPlayhead();
+                        editor.timeline.CenterOnPosition(
+                            (nextControl.rt.anchoredPosition.x + nextControl.rightPosition) / 2f, 0.3f);
+                        editor.timeline.CenterOnVertPosition(
+                            (0f - (nextControl.rt.anchoredPosition.y + nextControl.bottomPosition)) / 2f, 0.3f);
+                    }
+                    // 原生导航已生效，无需额外操作（Harmony postfix 会处理朗读）
                 }
                 // 如果没有选中事件，或者选中的事件不属于当前 Tab，则重新选择
                 else if (editor.selectedControls.Count <= 0 || !IsSelectedEventInCurrentTab(editor))
@@ -879,6 +870,9 @@ namespace RDLevelEditorAccess
                 else if (moveMode != EventMoveMode.BarOnly)
                     SnapSelectedEventsToHalfBeat();
             }
+
+            // 记录本帧末尾的选中状态，供下帧即时检测使用
+            _lastFrameSelectedControl = editor.selectedControl;
         }
 
         // ===================================================================================
