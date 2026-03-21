@@ -1,3 +1,6 @@
+1.4.0.1 (2026-03-21)
+Fixed a bug introduced in v1.4 where left/right cursor navigation would switch to an extra event.
+
 1.4 (2026-03-21)
 1. Fixed an issue where cursor navigation occasionally freezes (hopefully).
 2. Adapted to the new version, fixed an issue where the helper could not open in game version 1.0.5. If you haven't updated the game, the old version should still work with this version of the mod.
@@ -9,7 +12,7 @@
 3.5 There should be a few more, but I can't remember them all right now.
 4. When navigating events, the tooltip will now be announced last, which helps quickly understand the important properties of an event.
 
-1.31 (2026-03-12)
+1.3.1 (2026-03-12)
 1. Fixed a bug where Alt+Shift+R/T did not work as expected.
 2. Optimized the announcement for adjusting attribute values using R/T.
 3. Fixed an issue with floating-point precision loss.
