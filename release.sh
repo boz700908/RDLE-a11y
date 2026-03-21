@@ -23,17 +23,26 @@ fi
 
 RELEASE_DIR="release/main"
 
+# 从 docs/changelog-en.txt 第一行提取版本号
+VERSION=$(head -1 docs/changelog-en.txt | sed 's/ .*//' | tr -d '\r')
+if [ -z "$VERSION" ]; then
+  echo "错误：无法从 docs/changelog-en.txt 提取版本号"
+  exit 1
+fi
+echo "当前版本: $VERSION"
+echo ""
+
 # 1. 清理并编译 Release 版本
-echo "[1/4] 清理旧的编译产物..."
+echo "[1/6] 清理旧的编译产物..."
 dotnet clean RDLE-a11y.sln -c Release
 
 echo ""
-echo "[2/4] 编译 Release 版本..."
+echo "[2/6] 编译 Release 版本..."
 dotnet build RDLE-a11y.sln -c Release
 
 # 2. 复制编译产物到 release 文件夹
 echo ""
-echo "[3/4] 复制编译产物到 release 文件夹..."
+echo "[3/6] 复制编译产物到 release 文件夹..."
 
 # 创建目标目录（如果不存在）
 mkdir -p "$RELEASE_DIR/BepInEx/plugins"
@@ -58,7 +67,7 @@ fi
 
 # 3. 复制文档到 release 文件夹
 echo ""
-echo "[4/4] 复制文档到 release 文件夹..."
+echo "[4/6] 复制文档到 release 文件夹..."
 
 # 创建 docs 目录（如果不存在）
 mkdir -p "release/docs"
@@ -71,6 +80,24 @@ else
     echo "  ⚠ 警告: docs 文件夹不存在，跳过文档复制"
 fi
 
+# 4. 打包发布压缩包
+echo ""
+echo "[5/6] 打包发布压缩包..."
+
+RELEASE_ZIP="release/RDLE-Access-Release.zip"
+rm -f "$RELEASE_ZIP"
+powershell.exe -NoProfile -Command "Compress-Archive -Path 'release/docs','release/main' -DestinationPath '$RELEASE_ZIP'"
+echo "  ✓ 已创建 $RELEASE_ZIP"
+
+# 5. 归档版本压缩包
+echo ""
+echo "[6/6] 归档版本压缩包..."
+
+ARCHIVE_DIR="release/archive"
+mkdir -p "$ARCHIVE_DIR"
+cp "$RELEASE_ZIP" "$ARCHIVE_DIR/RDLE-Access-${VERSION}.zip"
+echo "  ✓ 已归档 $ARCHIVE_DIR/RDLE-Access-${VERSION}.zip"
+
 # 完成
 echo ""
 echo "=========================================="
@@ -78,6 +105,8 @@ echo "✓ 发布完成！"
 echo "=========================================="
 echo ""
 echo "发布文件位置: $RELEASE_DIR"
+echo "发布压缩包:   $RELEASE_ZIP"
+echo "归档压缩包:   $ARCHIVE_DIR/RDLE-Access-${VERSION}.zip"
 echo ""
 echo "包含文件:"
 echo "  - BepInEx/plugins/RDLevelEditorAccess.dll (Mod)"
