@@ -98,6 +98,10 @@ namespace RDLevelEditorAccess
         private List<BasePropertyInfo>? adjustableProperties = null;  // 当前事件的可调节属性列表
         private LevelEvent_Base? lastSelectedEvent = null;  // 上次选中的事件
 
+        // 光标导航修复：记录期望的导航目标，下帧检查游戏是否成功切换
+        private LevelEventControl_Base _pendingNavTarget = null;
+        private LevelEventControl_Base _pendingNavFrom = null;
+
         public void Awake()
         {
             Instance = this;
@@ -542,6 +546,25 @@ namespace RDLevelEditorAccess
             var editor = scnEditor.instance;
             if (editor == null) return;
 
+            // 检查上一帧的导航是否成功，若游戏未切换则由 mod 主动切换
+            if (_pendingNavTarget != null)
+            {
+                var target = _pendingNavTarget;
+                var from = _pendingNavFrom;
+                _pendingNavTarget = null;
+                _pendingNavFrom = null;
+
+                if (editor.selectedControl == from)
+                {
+                    editor.SelectEventControl(target, sound: true);
+                    editor.timeline.UnfollowPlayhead();
+                    editor.timeline.CenterOnPosition(
+                        (target.rt.anchoredPosition.x + target.rightPosition) / 2f, 0.3f);
+                    editor.timeline.CenterOnVertPosition(
+                        (0f - (target.rt.anchoredPosition.y + target.bottomPosition)) / 2f, 0.3f);
+                }
+            }
+
             // 虚拟菜单优先处理
             if (virtualMenuState != VirtualMenuState.None)
             {
@@ -577,6 +600,10 @@ namespace RDLevelEditorAccess
                         ModUtils.AnnounceEventSelection(editor.selectedControl.levelEvent);
                         return; // 不需要继续处理
                     }
+
+                    // 记录期望的导航目标，下帧检查游戏是否成功切换
+                    _pendingNavFrom = editor.selectedControl;
+                    _pendingNavTarget = nextControl;
                 }
                 // 如果没有选中事件，或者选中的事件不属于当前 Tab，则重新选择
                 else if (editor.selectedControls.Count <= 0 || !IsSelectedEventInCurrentTab(editor))
