@@ -1353,6 +1353,13 @@ namespace RDLevelEditorAccess.IPC
                             string v = RDString.GetWithCheck(k, out bool ok);
                             return ok ? v : n;
                         }).ToArray();
+
+                        // 确保 value 使用枚举名称（而非整数），与 options 格式一致
+                        if (rawValue is Array enumArr)
+                        {
+                            dto.value = string.Join(",", enumArr.Cast<object>().Select(o =>
+                                Enum.GetName(elemType, o) ?? o?.ToString() ?? ""));
+                        }
                     }
                 }
                 else dto.type = "String";
