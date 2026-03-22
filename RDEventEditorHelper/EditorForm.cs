@@ -886,6 +886,8 @@ namespace RDEventEditorHelper
                         inputCtrl = arrPanel2;
                         break;
                     }
+
+                    case "Rooms":
                     {
                         var selectedRooms = (prop.value ?? "0").Split(',')
                             .Select(s => int.TryParse(s.Trim(), out int r) ? r : 0).ToHashSet();
