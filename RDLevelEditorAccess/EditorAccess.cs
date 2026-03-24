@@ -95,6 +95,10 @@ namespace RDLevelEditorAccess
         private LevelEvent_Base? _pendingSoundRestoreEvent;
         private Dictionary<string, object>? _pendingSoundRestoreSnapshot;
 
+        // [调试用] SoundData 偏移监听
+        private LevelEvent_Base? _debugWatchedEvent;
+        private Dictionary<string, int> _debugLastOffsets = new Dictionary<string, int>();
+
         // ===================================================================================
         // 属性快速调节状态
         // ===================================================================================
@@ -135,6 +139,9 @@ namespace RDLevelEditorAccess
             {
                 debugTimer = 0f;
             }
+
+            // --- [调试用] SoundData 偏移监听 ---
+            DebugWatchSoundDataOffsets();
 
             // --- FileIPC 轮询 ---
             AccessibilityBridge.Update();
@@ -2120,6 +2127,82 @@ namespace RDLevelEditorAccess
                 else
                 {
                     Debug.Log($"[SoundDataGuard] 属性 {evt.type}.{propName} 未变化，无需恢复");
+                }
+            }
+        }
+
+        /// <summary>
+        /// [调试用] 每帧监听当前选中事件的 SoundData offset，变化时立即修正
+        /// </summary>
+        private void DebugWatchSoundDataOffsets()
+        {
+            var editor = scnEditor.instance;
+            var evt = editor?.selectedControl?.levelEvent;
+
+            // 选中事件变化时，重置监听
+            if (evt != _debugWatchedEvent)
+            {
+                _debugWatchedEvent = evt;
+                _debugLastOffsets.Clear();
+
+                if (evt?.info != null)
+                {
+                    foreach (var prop in evt.info.propertiesInfo)
+                    {
+                        bool isSoundData = prop is SoundDataPropertyInfo
+                            || (prop is NullablePropertyInfo np && np.underlyingPropertyInfo is SoundDataPropertyInfo);
+                        bool isSoundDataArray = prop.propertyInfo.PropertyType == typeof(SoundDataStruct[]);
+
+                        if (!isSoundData && !isSoundDataArray) continue;
+
+                        var value = prop.propertyInfo.GetValue(evt);
+                        if (value is SoundDataStruct sd)
+                            _debugLastOffsets[prop.propertyInfo.Name] = sd.offset;
+                        else if (value is SoundDataStruct[] arr)
+                            for (int i = 0; i < arr.Length; i++)
+                                _debugLastOffsets[$"{prop.propertyInfo.Name}[{i}]"] = arr[i].offset;
+                    }
+                }
+                return;
+            }
+
+            if (evt?.info == null) return;
+
+            foreach (var prop in evt.info.propertiesInfo)
+            {
+                bool isSoundData = prop is SoundDataPropertyInfo
+                    || (prop is NullablePropertyInfo np && np.underlyingPropertyInfo is SoundDataPropertyInfo);
+                bool isSoundDataArray = prop.propertyInfo.PropertyType == typeof(SoundDataStruct[]);
+
+                if (!isSoundData && !isSoundDataArray) continue;
+
+                var value = prop.propertyInfo.GetValue(evt);
+                if (value is SoundDataStruct sd)
+                {
+                    string key = prop.propertyInfo.Name;
+                    if (_debugLastOffsets.TryGetValue(key, out int last) && last != sd.offset)
+                    {
+                        Debug.LogWarning($"[SoundDataWatch] {evt.type}.{key} offset 跑偏: {last} -> {sd.offset}，正在修正");
+                        prop.propertyInfo.SetValue(evt, new SoundDataStruct(sd.filename, sd.volume, sd.pitch, sd.pan, last, sd.used));
+                    }
+                    // 不更新 _debugLastOffsets，始终以初始值为准
+                }
+                else if (value is SoundDataStruct[] arr)
+                {
+                    bool anyFixed = false;
+                    var fixedArr = (SoundDataStruct[])arr.Clone();
+                    for (int i = 0; i < arr.Length; i++)
+                    {
+                        string key = $"{prop.propertyInfo.Name}[{i}]";
+                        if (_debugLastOffsets.TryGetValue(key, out int last) && last != arr[i].offset)
+                        {
+                            Debug.LogWarning($"[SoundDataWatch] {evt.type}.{key} offset 跑偏: {last} -> {arr[i].offset}，正在修正");
+                            fixedArr[i] = new SoundDataStruct(arr[i].filename, arr[i].volume, arr[i].pitch, arr[i].pan, last, arr[i].used);
+                            anyFixed = true;
+                        }
+                    }
+                    if (anyFixed)
+                        prop.propertyInfo.SetValue(evt, fixedArr);
                 }
             }
         }
