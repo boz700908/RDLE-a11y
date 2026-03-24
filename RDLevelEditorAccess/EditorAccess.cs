@@ -2201,7 +2201,7 @@ namespace RDLevelEditorAccess
         /// <summary>
         /// 获取虚拟选区按时间轴顺序排序的列表（自动清除无效引用）
         /// </summary>
-        private List<LevelEventControl_Base> GetSortedVirtualSelection()
+        internal List<LevelEventControl_Base> GetSortedVirtualSelection()
         {
             virtualSelection.RemoveWhere(c => c == null || c.levelEvent == null);
             return virtualSelection
@@ -2771,6 +2771,30 @@ namespace RDLevelEditorAccess
                 var barAndBeat = __instance.timeline.GetBarAndBeatWithPosX(__instance.timeline.playhead.anchoredPosition.x);
                 Narration.Say(string.Format(RDString.Get("eam.barbeat.format"), barAndBeat.bar, AccessLogic.FormatBeat(barAndBeat.beat)), NarrationCategory.Navigation);
             }
+        }
+    }
+
+    // ===================================================================================
+    // 复制时支持虚拟选区替换
+    // ===================================================================================
+    // Ctrl+Shift+C 时，先用虚拟选区替换游戏内选区，再让游戏执行复制
+
+    [HarmonyPatch(typeof(scnEditor), "Copy")]
+    public static class CopyVirtualSelectionPatch
+    {
+        [HarmonyPrefix]
+        public static void CopyPrefix(scnEditor __instance)
+        {
+            if (AccessLogic.Instance == null || __instance == null) return;
+
+            bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (!shiftHeld) return;
+
+            var sorted = AccessLogic.Instance.GetSortedVirtualSelection();
+            if (sorted.Count == 0) return;
+
+            // 用虚拟选区替换当前游戏内选区
+            __instance.SelectEventControls(sorted);
         }
     }
 
