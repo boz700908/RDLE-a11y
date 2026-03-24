@@ -100,6 +100,14 @@ namespace RDLevelEditorAccess
         private Dictionary<string, int> _debugLastOffsets = new Dictionary<string, int>();
 
         // ===================================================================================
+        // 虚拟选区状态
+        // ===================================================================================
+        private HashSet<LevelEventControl_Base> virtualSelection = new HashSet<LevelEventControl_Base>();
+        private int virtualSelectionBrowseIndex = -1;
+
+        private enum BrowseDirection { Previous, Next, First, Last }
+
+        // ===================================================================================
         // 属性快速调节状态
         // ===================================================================================
         private int currentPropertyIndex = -1;  // 当前选中的属性索引（-1 表示未选择）
@@ -563,7 +571,15 @@ namespace RDLevelEditorAccess
         private void HandleTimelineNavigation()
         {
             var editor = scnEditor.instance;
-            if (editor == null) return;
+            if (editor == null)
+            {
+                if (virtualSelection.Count > 0)
+                {
+                    virtualSelection.Clear();
+                    virtualSelectionBrowseIndex = -1;
+                }
+                return;
+            }
 
             // 虚拟菜单优先处理
             if (virtualMenuState != VirtualMenuState.None)
@@ -889,6 +905,53 @@ namespace RDLevelEditorAccess
                     Narration.Say(RDString.Get("eam.event.mixedMoveBlocked"), NarrationCategory.Navigation);
                 else if (moveMode != EventMoveMode.BarOnly)
                     SnapSelectedEventsToHalfBeat();
+            }
+
+            // ===================================================================================
+            // 虚拟选区快捷键
+            // ===================================================================================
+
+            bool shiftPressed = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+            // Ctrl+Shift+Space：清空虚拟选区
+            if (Input.GetKeyDown(KeyCode.Space) && shiftPressed && ctrlPressed)
+            {
+                virtualSelection.Clear();
+                virtualSelectionBrowseIndex = -1;
+                Narration.Say(RDString.Get("eam.vsel.cleared"), NarrationCategory.Notification);
+            }
+            // Shift+Space（不含 Ctrl）：切换当前选中事件的虚拟选区状态
+            else if (Input.GetKeyDown(KeyCode.Space) && shiftPressed && !ctrlPressed)
+            {
+                if (editor.selectedControl != null && editor.selectedControl.levelEvent != null)
+                {
+                    var control = editor.selectedControl;
+                    if (virtualSelection.Contains(control))
+                    {
+                        virtualSelection.Remove(control);
+                        Narration.Say(string.Format(RDString.Get("eam.vsel.removed"),
+                            ModUtils.eventNameI18n(control.levelEvent)), NarrationCategory.Notification);
+                    }
+                    else
+                    {
+                        virtualSelection.Add(control);
+                        Narration.Say(string.Format(RDString.Get("eam.vsel.added"),
+                            ModUtils.eventNameI18n(control.levelEvent)), NarrationCategory.Notification);
+                    }
+                    virtualSelectionBrowseIndex = -1;
+                }
+            }
+
+            // 减号：浏览虚拟选区（上一个 / Shift：第一个）
+            if (Input.GetKeyDown(KeyCode.Minus))
+            {
+                BrowseVirtualSelection(shiftPressed ? BrowseDirection.First : BrowseDirection.Previous);
+            }
+
+            // 等号：浏览虚拟选区（下一个 / Shift：最后一个）
+            if (Input.GetKeyDown(KeyCode.Equals))
+            {
+                BrowseVirtualSelection(shiftPressed ? BrowseDirection.Last : BrowseDirection.Next);
             }
 
             // 记录本帧末尾的选中状态，供下帧即时检测使用
@@ -2131,6 +2194,111 @@ namespace RDLevelEditorAccess
             }
         }
 
+        // ===================================================================================
+        // 虚拟选区方法
+        // ===================================================================================
+
+        /// <summary>
+        /// 获取虚拟选区按时间轴顺序排序的列表（自动清除无效引用）
+        /// </summary>
+        private List<LevelEventControl_Base> GetSortedVirtualSelection()
+        {
+            virtualSelection.RemoveWhere(c => c == null || c.levelEvent == null);
+            return virtualSelection
+                .OrderBy(c => c.levelEvent.sortOrder)
+                .ThenBy(c => c.levelEvent.y)
+                .ToList();
+        }
+
+        /// <summary>
+        /// 浏览虚拟选区中的事件
+        /// </summary>
+        private void BrowseVirtualSelection(BrowseDirection direction)
+        {
+            var sorted = GetSortedVirtualSelection();
+            if (sorted.Count == 0)
+            {
+                Narration.Say(RDString.Get("eam.vsel.empty"), NarrationCategory.Navigation);
+                return;
+            }
+
+            int targetIndex;
+            switch (direction)
+            {
+                case BrowseDirection.First:
+                    targetIndex = 0;
+                    break;
+                case BrowseDirection.Last:
+                    targetIndex = sorted.Count - 1;
+                    break;
+                case BrowseDirection.Previous:
+                    targetIndex = virtualSelectionBrowseIndex <= 0 ? 0 : virtualSelectionBrowseIndex - 1;
+                    break;
+                case BrowseDirection.Next:
+                default:
+                    targetIndex = virtualSelectionBrowseIndex < 0 ? 0
+                        : virtualSelectionBrowseIndex >= sorted.Count - 1 ? sorted.Count - 1
+                        : virtualSelectionBrowseIndex + 1;
+                    break;
+            }
+
+            virtualSelectionBrowseIndex = targetIndex;
+            NavigateToEventControl(sorted[targetIndex]);
+        }
+
+        /// <summary>
+        /// 导航到指定事件控件：切换 Tab、选择 Row/Sprite、选中事件并居中显示
+        /// </summary>
+        private void NavigateToEventControl(LevelEventControl_Base control)
+        {
+            var editor = scnEditor.instance;
+            if (editor == null || control == null || control.levelEvent == null) return;
+
+            var levelEvent = control.levelEvent;
+            Tab targetTab = control.tab;
+
+            // 1. 切换 Tab
+            if (editor.currentTab != targetTab)
+            {
+                editor.ShowTabSection(targetTab);
+                currentTab = targetTab;
+            }
+
+            // 2. 切换 Row/Sprite
+            if (targetTab == Tab.Rows && levelEvent.row >= 0)
+            {
+                if (editor.selectedRowIndex != levelEvent.row)
+                {
+                    RowHeader.ShowPanel(levelEvent.row);
+                }
+            }
+            else if (targetTab == Tab.Sprites && levelEvent.row >= 0
+                     && levelEvent.row < editor.spritesData.Count)
+            {
+                string spriteId = editor.spritesData[levelEvent.row].spriteId;
+                if (editor.selectedSprite != spriteId)
+                {
+                    SpriteHeader.ShowPanel(spriteId);
+                }
+            }
+
+            // 3. 选中事件（带 SoundData 保护）
+            var soundSnapshot = SnapshotSoundDataValues(levelEvent);
+            editor.SelectEventControl(control, true);
+            if (soundSnapshot.Count > 0)
+            {
+                _pendingSoundRestoreEvent = levelEvent;
+                _pendingSoundRestoreSnapshot = soundSnapshot;
+            }
+
+            // 4. 居中显示
+            editor.timeline.UnfollowPlayhead();
+            editor.timeline.CenterOnPosition(
+                (control.rt.anchoredPosition.x + control.rightPosition) / 2f, 0.3f);
+            editor.timeline.CenterOnVertPosition(
+                (0f - (control.rt.anchoredPosition.y + control.bottomPosition)) / 2f, 0.3f);
+        }
+
         /// <summary>
         /// [调试用] 每帧监听当前选中事件的 SoundData offset，变化时立即修正
         /// </summary>
@@ -2805,6 +2973,11 @@ namespace RDLevelEditorAccess
             ["eam.link.menu.count"]              = "共 {0} 个链接",
             ["eam.link.opening"]                 = "正在打开链接：{0}",
             ["eam.link.cancelled"]               = "已取消",
+            // 虚拟选区
+            ["eam.vsel.added"]                   = "已选择{0}",
+            ["eam.vsel.removed"]                 = "未选择{0}",
+            ["eam.vsel.cleared"]                 = "清空虚拟选区",
+            ["eam.vsel.empty"]                   = "虚拟选区为空",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -2907,6 +3080,11 @@ namespace RDLevelEditorAccess
             ["eam.link.menu.count"]              = "{0} links in total",
             ["eam.link.opening"]                 = "Opening link: {0}",
             ["eam.link.cancelled"]               = "Cancelled",
+            // Virtual selection
+            ["eam.vsel.added"]                   = "Selected {0}",
+            ["eam.vsel.removed"]                 = "Deselected {0}",
+            ["eam.vsel.cleared"]                 = "Virtual selection cleared",
+            ["eam.vsel.empty"]                   = "Virtual selection is empty",
         };
 
         [HarmonyPrefix]
