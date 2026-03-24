@@ -91,6 +91,10 @@ namespace RDLevelEditorAccess
         // 编辑光标：时间轴上的虚拟锚点，用于精确控制事件插入/粘贴位置
         internal BarAndBeat _editCursor = new BarAndBeat(1, 1f);
 
+        // SoundData 偏移保护：延迟到下一帧恢复
+        private LevelEvent_Base? _pendingSoundRestoreEvent;
+        private Dictionary<string, object>? _pendingSoundRestoreSnapshot;
+
         // ===================================================================================
         // 属性快速调节状态
         // ===================================================================================
@@ -116,6 +120,15 @@ namespace RDLevelEditorAccess
 
         public void Update()
         {
+            // --- SoundData 偏移保护：在下一帧开头恢复 ---
+            if (_pendingSoundRestoreEvent != null && _pendingSoundRestoreSnapshot != null)
+            {
+                Debug.Log($"[SoundDataGuard] 下一帧开始，执行延迟恢复检查 (事件类型: {_pendingSoundRestoreEvent.type})");
+                RestoreSoundDataValues(_pendingSoundRestoreEvent, _pendingSoundRestoreSnapshot);
+                _pendingSoundRestoreEvent = null;
+                _pendingSoundRestoreSnapshot = null;
+            }
+
             // --- 心跳检测 ---
             debugTimer += Time.unscaledDeltaTime;
             if (debugTimer > 10f)
@@ -1988,7 +2001,127 @@ namespace RDLevelEditorAccess
             LevelEventControl_Base toSelect = FindNearestToEditCursor(validEvents, editor);
             Debug.Log($"[chooseNearestEvent] 选择最接近编辑光标的事件: {toSelect.levelEvent.type} (bar={toSelect.bar}, beat={toSelect.beat:0.##})");
 
+            // 快照 SoundData 属性（防止选择时偏移跑偏）
+            var soundSnapshot = SnapshotSoundDataValues(toSelect.levelEvent);
+
             editor.SelectEventControl(toSelect, true);
+
+            // 延迟到下一帧恢复被意外修改的 SoundData 属性
+            if (soundSnapshot.Count > 0)
+            {
+                _pendingSoundRestoreEvent = toSelect.levelEvent;
+                _pendingSoundRestoreSnapshot = soundSnapshot;
+                Debug.Log($"[SoundDataGuard] 已排队延迟恢复，将在下一帧执行");
+            }
+        }
+
+        /// <summary>
+        /// 快照事件上所有 SoundData/SoundDataArray 属性的值（用于防止选择时偏移跑偏）
+        /// </summary>
+        private Dictionary<string, object> SnapshotSoundDataValues(LevelEvent_Base evt)
+        {
+            var snapshot = new Dictionary<string, object>();
+            if (evt?.info == null) return snapshot;
+
+            foreach (var prop in evt.info.propertiesInfo)
+            {
+                bool isSoundData = prop is SoundDataPropertyInfo;
+                bool isNullableSoundData = prop is NullablePropertyInfo np
+                    && np.underlyingPropertyInfo is SoundDataPropertyInfo;
+                bool isSoundDataArray = prop.propertyInfo.PropertyType == typeof(SoundDataStruct[]);
+
+                if (isSoundData || isNullableSoundData || isSoundDataArray)
+                {
+                    var value = prop.propertyInfo.GetValue(evt);
+                    string propName = prop.propertyInfo.Name;
+
+                    if (isSoundDataArray && value is SoundDataStruct[] arr)
+                    {
+                        snapshot[propName] = (SoundDataStruct[])arr.Clone();
+                        for (int i = 0; i < arr.Length; i++)
+                            Debug.Log($"[SoundDataGuard] 快照 {evt.type}.{propName}[{i}]: filename={arr[i].filename}, offset={arr[i].offset}, volume={arr[i].volume}, pitch={arr[i].pitch}, pan={arr[i].pan}");
+                    }
+                    else if (value is SoundDataStruct sd)
+                    {
+                        snapshot[propName] = value;
+                        Debug.Log($"[SoundDataGuard] 快照 {evt.type}.{propName}: filename={sd.filename}, offset={sd.offset}, volume={sd.volume}, pitch={sd.pitch}, pan={sd.pan}");
+                    }
+                    else
+                    {
+                        snapshot[propName] = value;
+                        Debug.Log($"[SoundDataGuard] 快照 {evt.type}.{propName}: value={value ?? "null"} (nullable)");
+                    }
+                }
+            }
+
+            Debug.Log($"[SoundDataGuard] 共快照 {snapshot.Count} 个 SoundData 属性 (事件类型: {evt.type})");
+            return snapshot;
+        }
+
+        /// <summary>
+        /// 对比并恢复被意外修改的 SoundData 属性值
+        /// </summary>
+        private void RestoreSoundDataValues(LevelEvent_Base evt, Dictionary<string, object> snapshot)
+        {
+            if (evt?.info == null || snapshot.Count == 0) return;
+
+            foreach (var prop in evt.info.propertiesInfo)
+            {
+                if (!snapshot.TryGetValue(prop.propertyInfo.Name, out var original)) continue;
+
+                var current = prop.propertyInfo.GetValue(evt);
+                string propName = prop.propertyInfo.Name;
+
+                bool changed;
+                if (current is SoundDataStruct[] currentArr && original is SoundDataStruct[] originalArr)
+                {
+                    changed = !currentArr.SequenceEqual(originalArr);
+                    if (changed)
+                    {
+                        Debug.LogWarning($"[SoundDataGuard] ★ 数组属性 {evt.type}.{propName} 被意外修改！");
+                        for (int i = 0; i < Math.Max(currentArr.Length, originalArr.Length); i++)
+                        {
+                            string before = i < originalArr.Length ? $"filename={originalArr[i].filename}, offset={originalArr[i].offset}, volume={originalArr[i].volume}, pitch={originalArr[i].pitch}, pan={originalArr[i].pan}" : "(不存在)";
+                            string after = i < currentArr.Length ? $"filename={currentArr[i].filename}, offset={currentArr[i].offset}, volume={currentArr[i].volume}, pitch={currentArr[i].pitch}, pan={currentArr[i].pan}" : "(不存在)";
+                            if (i < originalArr.Length && i < currentArr.Length && !Equals(originalArr[i], currentArr[i]))
+                                Debug.LogWarning($"[SoundDataGuard]   [{i}] 变更前: {before}");
+                            if (i < originalArr.Length && i < currentArr.Length && !Equals(originalArr[i], currentArr[i]))
+                                Debug.LogWarning($"[SoundDataGuard]   [{i}] 变更后: {after}");
+                        }
+                    }
+                }
+                else if (current is SoundDataStruct currentSd && original is SoundDataStruct originalSd)
+                {
+                    changed = !Equals(current, original);
+                    if (changed)
+                    {
+                        Debug.LogWarning($"[SoundDataGuard] ★ 属性 {evt.type}.{propName} 被意外修改！");
+                        Debug.LogWarning($"[SoundDataGuard]   变更前: filename={originalSd.filename}, offset={originalSd.offset}, volume={originalSd.volume}, pitch={originalSd.pitch}, pan={originalSd.pan}");
+                        Debug.LogWarning($"[SoundDataGuard]   变更后: filename={currentSd.filename}, offset={currentSd.offset}, volume={currentSd.volume}, pitch={currentSd.pitch}, pan={currentSd.pan}");
+                    }
+                }
+                else
+                {
+                    changed = !Equals(current, original);
+                    if (changed)
+                    {
+                        Debug.LogWarning($"[SoundDataGuard] ★ Nullable 属性 {evt.type}.{propName} 被意外修改！");
+                        Debug.LogWarning($"[SoundDataGuard]   变更前: {original ?? "null"}");
+                        Debug.LogWarning($"[SoundDataGuard]   变更后: {current ?? "null"}");
+                    }
+                }
+
+                if (changed)
+                {
+                    Debug.LogWarning($"[SoundDataGuard] 正在恢复 {evt.type}.{propName} 到快照值");
+                    prop.propertyInfo.SetValue(evt, original);
+                    Debug.Log($"[SoundDataGuard] 恢复完成: {evt.type}.{propName}");
+                }
+                else
+                {
+                    Debug.Log($"[SoundDataGuard] 属性 {evt.type}.{propName} 未变化，无需恢复");
+                }
+            }
         }
 
         /// <summary>
