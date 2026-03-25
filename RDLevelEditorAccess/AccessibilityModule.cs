@@ -106,6 +106,19 @@ namespace RDLevelEditorAccess
             }
             _fileIPC.StartJumpToCursorEdit();
         }
+
+        /// <summary>
+        /// 启动事件链命名对话框
+        /// </summary>
+        public static void SaveEventChain()
+        {
+            if (!_isInitialized)
+            {
+                Debug.LogError("[AccessibilityBridge] 未初始化");
+                return;
+            }
+            _fileIPC.StartChainNameEdit();
+        }
     }
 
     // ===================================================================================

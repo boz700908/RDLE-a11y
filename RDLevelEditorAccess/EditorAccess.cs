@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using BepInEx;
@@ -82,7 +83,8 @@ namespace RDLevelEditorAccess
             None,
             CharacterSelect,      // 角色选择（添加轨道/精灵）
             EventTypeSelect,      // 事件类型选择
-            LinkSelect            // 链接选择
+            LinkSelect,           // 链接选择
+            EventChainSelect      // 事件链选择
         }
 
         private VirtualMenuState virtualMenuState = VirtualMenuState.None;
@@ -93,6 +95,10 @@ namespace RDLevelEditorAccess
         // 链接相关字段
         private List<ModUtils.LinkInfo> currentElementLinks = new List<ModUtils.LinkInfo>();  // 当前元素的链接列表
         private GameObject? currentElementWithLinks = null;  // 当前包含链接的元素
+
+        // 事件链相关字段
+        private List<string> eventChainNames = new List<string>();  // 可用事件链名称列表
+        internal string? _pendingChainData;                         // 暂存序列化数据等待命名
 
         // 编辑光标：时间轴上的虚拟锚点，用于精确控制事件插入/粘贴位置
         internal BarAndBeat _editCursor = new BarAndBeat(1, 1f);
@@ -806,6 +812,25 @@ namespace RDLevelEditorAccess
                 return;
             }
 
+            // Ctrl+分号：保存虚拟选区为事件链
+            if (Input.GetKeyDown(KeyCode.Semicolon) &&
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
+            {
+                StartSaveEventChain();
+                return;
+            }
+
+            // 分号（无修饰键）：加载事件链
+            if (Input.GetKeyDown(KeyCode.Semicolon) &&
+                !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl) &&
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift) &&
+                !Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.RightAlt))
+            {
+                StartLoadEventChain();
+                return;
+            }
+
             // 逗号：编辑光标后退（Alt+Shift: 1小节，Alt: 0.01拍，Shift: 0.1拍，无修饰: 1拍）
             if (Input.GetKeyDown(KeyCode.Comma))
             {
@@ -1237,6 +1262,9 @@ namespace RDLevelEditorAccess
                 case VirtualMenuState.LinkSelect:
                     HandleLinkSelectMenu();
                     break;
+                case VirtualMenuState.EventChainSelect:
+                    HandleEventChainSelectMenu();
+                    break;
             }
         }
 
@@ -1474,6 +1502,317 @@ namespace RDLevelEditorAccess
         {
             virtualMenuState = VirtualMenuState.None;
             virtualMenuPurpose = "";
+        }
+
+        // ===================================================================================
+        // 事件链功能
+        // ===================================================================================
+
+        /// <summary>
+        /// 获取当前关卡的事件链存储目录
+        /// </summary>
+        private string? GetEventChainDirectory()
+        {
+            string filePath = scnEditor.instance?.openedFilePath;
+            if (string.IsNullOrEmpty(filePath)) return null;
+            string levelDir = Path.GetDirectoryName(filePath);
+            if (string.IsNullOrEmpty(levelDir) || !Directory.Exists(levelDir)) return null;
+            return Path.Combine(levelDir, ".RDLEAccess", "EventChains");
+        }
+
+        /// <summary>
+        /// Ctrl+分号：将虚拟选区中的事件序列化并启动命名对话框
+        /// </summary>
+        private void StartSaveEventChain()
+        {
+            var sorted = GetSortedVirtualSelection();
+            if (sorted.Count == 0)
+            {
+                Narration.Say(RDString.Get("eam.vsel.empty"), NarrationCategory.Navigation);
+                return;
+            }
+
+            string chainDir = GetEventChainDirectory();
+            if (chainDir == null)
+            {
+                Narration.Say(RDString.Get("eam.chain.noLevel"), NarrationCategory.Navigation);
+                return;
+            }
+
+            // 序列化每个事件（Encode 使用共享 StringBuilder，需逐个调用）
+            var encodedEvents = new List<string>();
+            foreach (var control in sorted)
+            {
+                if (control?.levelEvent == null) continue;
+                string encoded = "{ " + control.levelEvent.Encode() + " }";
+                encodedEvents.Add(encoded);
+            }
+
+            // 构建事件链 JSON
+            var chainDict = new Dictionary<string, object>
+            {
+                ["version"] = 1,
+                ["events"] = encodedEvents
+            };
+            var opts = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
+            _pendingChainData = System.Text.Json.JsonSerializer.Serialize(chainDict, opts);
+
+            AccessibilityBridge.SaveEventChain();
+        }
+
+        /// <summary>
+        /// 分号：列出可用事件链并进入选择菜单
+        /// </summary>
+        private void StartLoadEventChain()
+        {
+            string chainDir = GetEventChainDirectory();
+            if (chainDir == null)
+            {
+                Narration.Say(RDString.Get("eam.chain.noLevel"), NarrationCategory.Navigation);
+                return;
+            }
+
+            if (!Directory.Exists(chainDir))
+            {
+                Narration.Say(RDString.Get("eam.chain.noChains"), NarrationCategory.Navigation);
+                return;
+            }
+
+            var files = Directory.GetFiles(chainDir, "*.json");
+            if (files.Length == 0)
+            {
+                Narration.Say(RDString.Get("eam.chain.noChains"), NarrationCategory.Navigation);
+                return;
+            }
+
+            eventChainNames.Clear();
+            foreach (var f in files)
+            {
+                eventChainNames.Add(Path.GetFileNameWithoutExtension(f));
+            }
+
+            virtualMenuState = VirtualMenuState.EventChainSelect;
+            virtualMenuIndex = 0;
+            Narration.Say(eventChainNames[0], NarrationCategory.Navigation);
+            Narration.Say(RDString.Get("eam.chain.selectPrompt"), NarrationCategory.Instruction);
+        }
+
+        /// <summary>
+        /// 事件链选择菜单的导航处理
+        /// </summary>
+        private void HandleEventChainSelectMenu()
+        {
+            if (eventChainNames.Count == 0)
+            {
+                CloseVirtualMenu();
+                return;
+            }
+
+            int count = eventChainNames.Count;
+
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex - 1 + count) % count;
+                Narration.Say(eventChainNames[virtualMenuIndex], NarrationCategory.Navigation);
+            }
+            else if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex + 1) % count;
+                Narration.Say(eventChainNames[virtualMenuIndex], NarrationCategory.Navigation);
+            }
+            else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                string selectedName = eventChainNames[virtualMenuIndex];
+                CloseVirtualMenu();
+                LoadAndInsertEventChain(selectedName);
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
+                CloseVirtualMenu();
+            }
+        }
+
+        /// <summary>
+        /// 从事件链文件加载事件并插入到编辑光标位置
+        /// </summary>
+        private void LoadAndInsertEventChain(string chainName)
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            string chainDir = GetEventChainDirectory();
+            if (chainDir == null) return;
+
+            string filePath = Path.Combine(chainDir, chainName + ".json");
+            if (!File.Exists(filePath))
+            {
+                Narration.Say(string.Format(RDString.Get("eam.chain.loadFailed"), chainName), NarrationCategory.Navigation);
+                return;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(filePath);
+                var chainData = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(json);
+
+                if (!chainData.TryGetProperty("events", out var eventsArray))
+                {
+                    Narration.Say(string.Format(RDString.Get("eam.chain.loadFailed"), chainName), NarrationCategory.Navigation);
+                    return;
+                }
+
+                // 反序列化所有事件
+                var events = new List<LevelEvent_Base>();
+                int skipped = 0;
+
+                foreach (var eventElement in eventsArray.EnumerateArray())
+                {
+                    string eventStr = eventElement.GetString();
+                    if (string.IsNullOrEmpty(eventStr)) { skipped++; continue; }
+
+                    var dict = ParseEventJson(eventStr);
+                    if (dict == null || !dict.ContainsKey("type")) { skipped++; continue; }
+
+                    string typeName = dict["type"] as string;
+                    if (string.IsNullOrEmpty(typeName)) { skipped++; continue; }
+                    string fullTypeName = "RDLevelEditor.LevelEvent_" + typeName;
+                    Type eventType = Type.GetType(fullTypeName);
+                    if (eventType == null)
+                    {
+                        fullTypeName += ", Assembly-CSharp";
+                        eventType = Type.GetType(fullTypeName);
+                    }
+                    if (eventType == null || !eventType.IsSubclassOf(typeof(LevelEvent_Base)))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    var levelEvent = (LevelEvent_Base)Activator.CreateInstance(eventType);
+                    levelEvent.Decode(dict);
+                    events.Add(levelEvent);
+                }
+
+                if (events.Count == 0)
+                {
+                    Narration.Say(string.Format(RDString.Get("eam.chain.loadFailed"), chainName), NarrationCategory.Navigation);
+                    return;
+                }
+
+                // 找到第一个事件（sortOrder 最小）作为锚点
+                LevelEvent_Base firstEvent = events[0];
+                foreach (var evt in events)
+                {
+                    if (evt.sortOrder < firstEvent.sortOrder)
+                        firstEvent = evt;
+                }
+
+                // 使用像素空间计算位置偏移
+                var tl = editor.timeline;
+                float firstEventX = tl.GetPosXFromBarAndBeat(firstEvent.barAndBeat);
+                float cursorX = tl.GetPosXFromBarAndBeat(_editCursor);
+                float offsetX = cursorX - firstEventX;
+
+                // 创建事件控件并插入
+                var controls = new List<LevelEventControl_Base>();
+                using (new SaveStateScope())
+                {
+                    foreach (var evt in events)
+                    {
+                        // 应用位置偏移
+                        float currentX = tl.GetPosXFromBarAndBeat(evt.barAndBeat);
+                        float newX = Mathf.Max(0f, currentX + offsetX);
+                        var newPos = tl.GetBarAndBeatWithPosX(newX);
+                        evt.bar = newPos.bar;
+                        evt.beat = newPos.beat;
+
+                        // 生成新 UID 并创建控件
+                        evt.GenerateNewUID();
+                        var control = editor.CreateEventControl(evt, evt.defaultTab);
+                        control.UpdateUI();
+                        controls.Add(control);
+                    }
+                }
+
+                // 选中所有插入的事件
+                if (controls.Count > 0)
+                {
+                    editor.SelectEventControls(controls);
+                }
+
+                // 朗读结果
+                Narration.Say(string.Format(RDString.Get("eam.chain.inserted"), chainName, events.Count), NarrationCategory.Navigation);
+
+                if (skipped > 0)
+                {
+                    Narration.Say(string.Format(RDString.Get("eam.chain.skippedEvents"), skipped), NarrationCategory.Navigation);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[EventChain] 加载事件链失败: {ex.Message}");
+                Debug.LogException(ex);
+                Narration.Say(string.Format(RDString.Get("eam.chain.loadFailed"), chainName), NarrationCategory.Navigation);
+            }
+        }
+
+        /// <summary>
+        /// 将事件 JSON 字符串解析为 Dictionary&lt;string, object&gt;，
+        /// 值类型与游戏 MiniJSON 兼容（int/double/bool/string/List/Dict）
+        /// </summary>
+        private static Dictionary<string, object> ParseEventJson(string jsonStr)
+        {
+            try
+            {
+                var doc = System.Text.Json.JsonDocument.Parse(jsonStr);
+                return JsonElementToDict(doc.RootElement);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static Dictionary<string, object> JsonElementToDict(System.Text.Json.JsonElement element)
+        {
+            var dict = new Dictionary<string, object>();
+            foreach (var prop in element.EnumerateObject())
+            {
+                dict[prop.Name] = JsonElementToObject(prop.Value);
+            }
+            return dict;
+        }
+
+        private static object JsonElementToObject(System.Text.Json.JsonElement element)
+        {
+            switch (element.ValueKind)
+            {
+                case System.Text.Json.JsonValueKind.String:
+                    return element.GetString();
+                case System.Text.Json.JsonValueKind.True:
+                    return true;
+                case System.Text.Json.JsonValueKind.False:
+                    return false;
+                case System.Text.Json.JsonValueKind.Null:
+                    return null;
+                case System.Text.Json.JsonValueKind.Number:
+                    // MiniJSON 兼容：整数返回 int，小数返回 double
+                    if (element.TryGetInt32(out int intVal))
+                        return intVal;
+                    if (element.TryGetInt64(out long longVal))
+                        return longVal;
+                    return element.GetDouble();
+                case System.Text.Json.JsonValueKind.Array:
+                    var list = new List<object>();
+                    foreach (var item in element.EnumerateArray())
+                        list.Add(JsonElementToObject(item));
+                    return list;
+                case System.Text.Json.JsonValueKind.Object:
+                    return JsonElementToDict(element);
+                default:
+                    return element.ToString();
+            }
         }
 
         /// <summary>
@@ -3070,6 +3409,17 @@ namespace RDLevelEditorAccess
             ["eam.vsel.removed"]                 = "未选择{0}",
             ["eam.vsel.cleared"]                 = "清空虚拟选区",
             ["eam.vsel.empty"]                   = "虚拟选区为空",
+            // 事件链
+            ["eam.chain.noChains"]               = "无可用事件链",
+            ["eam.chain.selectPrompt"]           = "选择事件链，上下箭头导航，回车确认，Escape取消",
+            ["eam.chain.inserted"]               = "已插入事件链 {0}，共 {1} 个事件",
+            ["eam.chain.saved"]                  = "已保存事件链：{0}",
+            ["eam.chain.saveFailed"]             = "保存事件链失败：{0}",
+            ["eam.chain.loadFailed"]             = "加载事件链失败：{0}",
+            ["eam.chain.invalidName"]            = "无效的事件链名称",
+            ["eam.chain.nameLabel"]              = "事件链名称",
+            ["eam.chain.noLevel"]                = "请先打开一个关卡",
+            ["eam.chain.skippedEvents"]          = "{0} 个事件因类型不存在被跳过",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -3177,6 +3527,17 @@ namespace RDLevelEditorAccess
             ["eam.vsel.removed"]                 = "Deselected {0}",
             ["eam.vsel.cleared"]                 = "Virtual selection cleared",
             ["eam.vsel.empty"]                   = "Virtual selection is empty",
+            // Event Chains
+            ["eam.chain.noChains"]               = "No event chains available",
+            ["eam.chain.selectPrompt"]           = "Select event chain, Up/Down to navigate, Enter to confirm, Escape to cancel",
+            ["eam.chain.inserted"]               = "Inserted event chain {0}, {1} events",
+            ["eam.chain.saved"]                  = "Event chain saved: {0}",
+            ["eam.chain.saveFailed"]             = "Failed to save event chain: {0}",
+            ["eam.chain.loadFailed"]             = "Failed to load event chain: {0}",
+            ["eam.chain.invalidName"]            = "Invalid event chain name",
+            ["eam.chain.nameLabel"]              = "Event Chain Name",
+            ["eam.chain.noLevel"]                = "Please open a level first",
+            ["eam.chain.skippedEvents"]          = "{0} events skipped due to missing type",
         };
 
         [HarmonyPrefix]

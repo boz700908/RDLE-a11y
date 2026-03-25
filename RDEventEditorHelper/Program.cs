@@ -64,7 +64,9 @@ namespace RDEventEditorHelper
                     ? "编辑轨道 (Edit Row)"
                     : editType == "jump"
                         ? "跳转到位置 (Jump to Position)"
-                        : $"编辑事件 (Edit Event): {sourceData?.eventType}";
+                        : editType == "chainName"
+                            ? "保存事件链 (Save Event Chain)"
+                            : $"编辑事件 (Edit Event): {sourceData?.eventType}";
             editorForm.SetData(sourceData?.eventType, sourceData?.properties, title, sourceData?.levelAudioFiles, sourceData?.levelDirectory, sourceData?.localizedLevelAudioFiles, sessionToken, sourceData?.internalSongs);
 
             editorForm.OnOK += (updates) =>

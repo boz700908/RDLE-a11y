@@ -309,6 +309,10 @@ namespace RDLevelEditorAccess.IPC
                     {
                         ApplyJumpToCursorUpdates(resultData.updates);
                     }
+                    else if (_currentEditType == "chainName")
+                    {
+                        ApplyChainNameResult(resultData.updates);
+                    }
                     else if (_currentEvent != null)
                     {
                         ApplyUpdates(_currentEvent, resultData.updates);
@@ -1797,6 +1801,106 @@ namespace RDLevelEditorAccess.IPC
             LaunchHelper();
             LockKeyboard();
             _isPolling = true;
+        }
+
+        public void StartChainNameEdit()
+        {
+            if (_isPolling)
+            {
+                Debug.LogWarning("[FileIPC] 已有编辑会话进行中");
+                return;
+            }
+
+            _currentEvent = null;
+            _currentRow = null;
+            _currentEditType = "chainName";
+            _sessionToken = System.Guid.NewGuid().ToString();
+
+            var properties = new List<PropertyData>
+            {
+                new PropertyData
+                {
+                    name = "chainName",
+                    displayName = RDString.Get("eam.chain.nameLabel"),
+                    value = "",
+                    type = "String"
+                }
+            };
+
+            var sourceData = new SourceData
+            {
+                editType = "chainName",
+                eventType = "EventChain",
+                token = _sessionToken,
+                properties = properties,
+                levelDirectory = GetLevelDirectory()
+            };
+
+            try
+            {
+                var opts = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+                File.WriteAllText(_sourcePath, JsonSerializer.Serialize(sourceData, opts));
+                Debug.Log("[FileIPC] 已写入 source.json (事件链命名)");
+            }
+            catch (Exception ex) { Debug.LogError($"[FileIPC] 写入 source.json 失败: {ex.Message}"); return; }
+
+            LaunchHelper();
+            LockKeyboard();
+            _isPolling = true;
+        }
+
+        private void ApplyChainNameResult(Dictionary<string, string> updates)
+        {
+            if (updates == null || !updates.ContainsKey("chainName")) return;
+            if (AccessLogic.Instance == null) return;
+
+            string chainName = updates["chainName"]?.Trim();
+            if (string.IsNullOrEmpty(chainName))
+            {
+                Narration.Say(RDString.Get("eam.chain.invalidName"), NarrationCategory.Navigation);
+                return;
+            }
+
+            // 检查非法文件名字符
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            if (chainName.IndexOfAny(invalidChars) >= 0)
+            {
+                Narration.Say(RDString.Get("eam.chain.invalidName"), NarrationCategory.Navigation);
+                return;
+            }
+
+            string pendingData = AccessLogic.Instance._pendingChainData;
+            if (string.IsNullOrEmpty(pendingData))
+            {
+                Narration.Say(string.Format(RDString.Get("eam.chain.saveFailed"), "no data"), NarrationCategory.Navigation);
+                return;
+            }
+
+            try
+            {
+                string levelDir = GetLevelDirectory();
+                if (string.IsNullOrEmpty(levelDir))
+                {
+                    Narration.Say(RDString.Get("eam.chain.noLevel"), NarrationCategory.Navigation);
+                    return;
+                }
+
+                string chainDir = Path.Combine(levelDir, ".RDLEAccess", "EventChains");
+                Directory.CreateDirectory(chainDir);
+
+                string filePath = Path.Combine(chainDir, chainName + ".json");
+                File.WriteAllText(filePath, pendingData);
+
+                AccessLogic.Instance._pendingChainData = null;
+
+                Narration.Say(string.Format(RDString.Get("eam.chain.saved"), chainName), NarrationCategory.Navigation);
+                Debug.Log($"[FileIPC] 事件链已保存: {filePath}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FileIPC] 保存事件链失败: {ex.Message}");
+                Narration.Say(string.Format(RDString.Get("eam.chain.saveFailed"), ex.Message), NarrationCategory.Navigation);
+            }
         }
 
         private void ApplySettingsUpdates(Dictionary<string, string> updates)
