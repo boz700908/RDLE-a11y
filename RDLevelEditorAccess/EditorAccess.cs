@@ -2843,6 +2843,30 @@ namespace RDLevelEditorAccess
     }
 
     // ===================================================================================
+    // 剪切时支持虚拟选区替换
+    // ===================================================================================
+    // Ctrl+Shift+X 时，先用虚拟选区替换游戏内选区，再让游戏执行剪切
+
+    [HarmonyPatch(typeof(scnEditor), "Cut")]
+    public static class CutVirtualSelectionPatch
+    {
+        [HarmonyPrefix]
+        public static void CutPrefix(scnEditor __instance)
+        {
+            if (AccessLogic.Instance == null || __instance == null) return;
+
+            bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (!shiftHeld) return;
+
+            var sorted = AccessLogic.Instance.GetSortedVirtualSelection();
+            if (sorted.Count == 0) return;
+
+            // 用虚拟选区替换当前游戏内选区
+            __instance.SelectEventControls(sorted);
+        }
+    }
+
+    // ===================================================================================
     // 粘贴后对齐到编辑光标
     // ===================================================================================
     // 让游戏自己处理粘贴（恢复视口中心粘贴），然后在 Postfix 中将粘贴的事件平移到编辑光标位置。
