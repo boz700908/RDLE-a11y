@@ -924,7 +924,7 @@ namespace RDLevelEditorAccess
             {
                 virtualSelection.Clear();
                 virtualSelectionBrowseIndex = -1;
-                Narration.Say(RDString.Get("eam.vsel.cleared"), NarrationCategory.Notification);
+                Narration.Say(RDString.Get("eam.vsel.cleared"), NarrationCategory.Navigation);
             }
             // Shift+Space（不含 Ctrl）：切换当前选中事件的虚拟选区状态
             else if (Input.GetKeyDown(KeyCode.Space) && shiftPressed && !ctrlPressed)
@@ -936,13 +936,13 @@ namespace RDLevelEditorAccess
                     {
                         virtualSelection.Remove(control);
                         Narration.Say(string.Format(RDString.Get("eam.vsel.removed"),
-                            ModUtils.eventNameI18n(control.levelEvent)), NarrationCategory.Notification);
+                            ModUtils.eventNameI18n(control.levelEvent)), NarrationCategory.Navigation);
                     }
                     else
                     {
                         virtualSelection.Add(control);
                         Narration.Say(string.Format(RDString.Get("eam.vsel.added"),
-                            ModUtils.eventNameI18n(control.levelEvent)), NarrationCategory.Notification);
+                            ModUtils.eventNameI18n(control.levelEvent)), NarrationCategory.Navigation);
                     }
                     virtualSelectionBrowseIndex = -1;
                 }

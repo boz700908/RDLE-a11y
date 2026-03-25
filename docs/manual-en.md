@@ -27,15 +27,15 @@
     - [4.2 Timeline Navigation](#42-timeline-navigation)
     - [4.3 Creating Rows and Events](#43-creating-rows-and-events)
     - [4.4 Edit Cursor](#44-edit-cursor)
-    - [4.5 Editing Events](#45-editing-events)
-      - [4.5.1 Moving Events](#451-moving-events)
-      - [4.5.2 Editing Event Properties](#452-editing-event-properties)
-      - [4.5.3 Advanced Editing](#453-advanced-editing)
-    - [4.6 Editing Level Metadata](#46-editing-level-metadata)
+    - [4.5 Virtual Selection](#45-virtual-selection)
+    - [4.6 Editing Events](#46-editing-events)
+      - [4.6.1 Moving Events](#461-moving-events)
+      - [4.6.2 Editing Event Properties](#462-editing-event-properties)
+      - [4.6.3 Advanced Editing](#463-advanced-editing)
+    - [4.7 Editing Level Metadata](#47-editing-level-metadata)
   - [5. External Editor (RDEventEditorHelper)](#5-external-editor-rdeventeditorhelper)
     - [5.1 What is this?](#51-what-is-this)
     - [5.2 How to use?](#52-how-to-use)
-      - [5.2.1 Sound Preview](#521-sound-preview)
   - [6. Known Issues and Limitations](#6-known-issues-and-limitations)
   - [7. FAQ](#7-faq)
     - [Why isn't the mod loading?](#why-isnt-the-mod-loading)
@@ -176,9 +176,20 @@ In addition to quick jumping, the edit cursor's applicable scope also includes:
 - The target position when pasting events
 - More scenarios to be expanded in the future
 
-### 4.5 Editing Events
+### 4.5 Virtual Selection
 
-#### 4.5.1 Moving Events
+Virtual selection is a more flexible selection system than the native editor's, independent of the native editor's selection. Using both selections together can improve efficiency when performing complex event selections. Hopefully this can somewhat compensate for the inability of visually impaired players to use mouse drag selection.
+
+Below are its shortcut key instructions.
+
+- shift+space, add/remove the currently selected event to/from the virtual selection
+- ctrl+shift+space, clear the virtual selection
+- - (minus)/= (equals), browse events in the virtual selection (add shift to quickly jump to the first/last item)
+- ctrl+shift+c, copy all events in the virtual selection to the clipboard
+
+### 4.6 Editing Events
+
+#### 4.6.1 Moving Events
 
 The mod provides a simple set of shortcuts to adjust the beat position of events. This set of shortcuts, aside from different keys and different adjustment targets, has a lot in common with the edit cursor. As follows:
 
@@ -192,14 +203,14 @@ Note 2: The above shortcuts are effective for all selected events.
 
 Note 3: If the selected events include both events with beat properties and events without beat properties, they cannot be moved.
 
-#### 4.5.2 Editing Event Properties
+#### 4.6.2 Editing Event Properties
 
 There is also a set of shortcuts to quickly adjust some basic properties of events. As follows:
 
 - e/shift+e, switch the target property to adjust
 - r/t, adjust the property value (if the property has multiple options, it switches between options; if it's a toggle, it switches between enabled/disabled; if it's an integer, the adjustment step is 1 and modifier keys are not supported; if it's a float, the default step is 0.1, add shift for 0.01, add alt for 0.001, add shift and alt for 0.0001)
 
-#### 4.5.3 Advanced Editing
+#### 4.6.3 Advanced Editing
 
 Although the above two sets of shortcuts are convenient, they also have some shortcomings:
 
@@ -208,7 +219,7 @@ Although the above two sets of shortcuts are convenient, they also have some sho
 
 Therefore, if you need more precise adjustment, you can press ctrl+enter to open the external editor for editing. For more information about the external editor, please refer to the next chapter.
 
-### 4.6 Editing Level Metadata
+### 4.7 Editing Level Metadata
 
 On the main page, you can press number key 0 on the main keyboard at any time to open the metadata editing page. Here you can edit some basic information about the level.
 
@@ -222,26 +233,23 @@ Because the official inspector panel is quite complex and troublesome to adapt, 
 
 When you select an event or row in the level editor, or press number key 0 on the main keyboard, the helper will launch. It will generate UI based on the object currently being edited, and you can directly use the screen reader to navigate between properties. After editing is complete, just click the OK button to apply it to the game. If you want to abandon the edit, just press esc or click the Cancel button.
 
-#### 5.2.1 Sound Preview
-
-In the helper, if the focus is on a sound list, you can press the space key to play the currently selected sound effect.
-
-PS: Do you think this section feels a bit abrupt here? Well, I think so too. But there's no way around it - this is to help you understand the usage more comprehensively, so I rushed to add it after the 1.1.2 update. I'm such a good person.
+Additionally, if the focus is on a sound list, you can press the space key to play the currently selected sound effect.
 
 ## 6. Known Issues and Limitations
 
-Since this is only the first version, there are still many features waiting to be improved. The following lists currently known issues and limitations. The issues in the list will be attempted to be resolved one by one in future versions.
+This mod still has many features waiting to be improved. The following lists currently known issues and limitations. The issues in the list will be attempted to be resolved one by one in future versions.
 
-But then again, I hope the official version will support accessibility soon, so this mod won't need v1.1+.
+But then again, I hope the official version will support accessibility soon, so this mod won't need to keep updating.
 
 1. Most events under the Rooms tab are generally poorly supported, and many properties cannot be edited.
 2. The Sprites tab is even more out of the question.
 3. Window dance? What's that? Addendum: I took a look, it seems to be editable, but I can't see it anyway, so I don't know if it works or not.
 4. Some custom options are not supported (such as custom characters).
-5. Some metadata cannot be edited yet (such as rating text).
-6. Bookmark functionality is not supported.
-7. Event multi-selection support is not flexible enough.
-8. Since a separate property editor was written, the operation should not be as smooth as the original version (although I don't know exactly how smooth the original version is).
+5. Bookmark functionality is not supported.
+6. Event multi-selection support is not flexible enough.
+7. Since a separate property editor was written, the operation should not be as smooth as the original version (although I don't know exactly how smooth the original version is).
+8. Conditions are not supported.
+9. Some shortcut operations available in the native editor are not supported.
 
 ## 7. FAQ
 
@@ -322,10 +330,14 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | ctrl+shift+/ | Open edit cursor jump dialog | None |
 | alt+/ | Jump to edit cursor's position and start playing | None |
 | , (comma) and . (period) | Move edit cursor forward/backward by 1 beat | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. |
-| z/x | Move selected event forward/backward by 1 beat (or 1 bar) | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. See [4.5.1 Moving Events](#451-moving-events) for details. |
+| z/x | Move selected event forward/backward by 1 beat (or 1 bar) | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. See [4.6.1 Moving Events](#461-moving-events) for details. |
 | c | Snap event to nearest half beat | None |
-| e/shift+e | Switch target property to adjust | See [4.5.2 Editing Event Properties](#452-editing-event-properties) for details. |
-| r/t | Adjust property value | Supports modifier keys, see [4.5.2 Editing Event Properties](#452-editing-event-properties) for details. |
+| e/shift+e | Switch target property to adjust | See [4.6.2 Editing Event Properties](#462-editing-event-properties) for details. |
+| r/t | Adjust property value | Supports modifier keys, see [4.6.2 Editing Event Properties](#462-editing-event-properties) for details. |
+| shift+space | Add/remove currently selected event to/from virtual selection | None |
+| ctrl+shift+space | Clear virtual selection | None |
+| - (minus)/= (equals) | Browse events in virtual selection | Add shift to quickly jump to the first/last item. |
+| ctrl+shift+c | Copy all events in virtual selection to clipboard | None |
 
 ### 8.3 Contact Information
 
