@@ -27,7 +27,9 @@
     - [4.2 Timeline Navigation](#42-timeline-navigation)
     - [4.3 Creating Rows and Events](#43-creating-rows-and-events)
     - [4.4 Edit Cursor](#44-edit-cursor)
-    - [4.5 Virtual Selection](#45-virtual-selection)
+    - [4.5 Virtual Selection and Event Chains](#45-virtual-selection-and-event-chains)
+      - [4.5.1 Virtual Selection](#451-virtual-selection)
+      - [4.5.2 Event Chains](#452-event-chains)
     - [4.6 Editing Events](#46-editing-events)
       - [4.6.1 Moving Events](#461-moving-events)
       - [4.6.2 Editing Event Properties](#462-editing-event-properties)
@@ -174,9 +176,11 @@ In addition to quick jumping, the edit cursor's applicable scope also includes:
 
 - The default position for newly created events
 - The target position when pasting events
-- More scenarios to be expanded in the future
+- More scenarios below
 
-### 4.5 Virtual Selection
+### 4.5 Virtual Selection and Event Chains
+
+#### 4.5.1 Virtual Selection
 
 Virtual selection is a more flexible selection system than the native editor's, independent of the native editor's selection. Using both selections together can improve efficiency when performing complex event selections. Hopefully this can somewhat compensate for the inability of visually impaired players to use mouse drag selection.
 
@@ -187,6 +191,19 @@ Below are its shortcut key instructions.
 - - (minus)/= (equals), browse events in the virtual selection (add shift to quickly jump to the first/last item)
 - ctrl+shift+x, cut all events in the virtual selection
 - ctrl+shift+c, copy all events in the virtual selection
+
+#### 4.5.2 Event Chains
+
+The event chain feature allows you to save fixed combinations of events as presets, so when you need to reuse them, you don't have to insert each event one by one — just insert a pre-created event chain and all events will automatically appear in the level. Event chains for each level are stored independently and cannot be used across levels. If your level has custom game mechanics, this feature might be helpful.
+
+Are you wondering why this feature is discussed together with virtual selection? Don't worry, take a look at the usage instructions and you'll understand.
+
+To use this feature, you only need to remember two shortcuts:
+
+- ctrl+semicolon, save all events in the current virtual selection as an event chain
+- semicolon, insert an event chain at the edit cursor position
+
+Note: Event chains are stored in the **.RDLEAccess/EventChains** folder under the current level directory. If you want to use them in another level, you need to copy them manually. This is for easier organization and management.
 
 ### 4.6 Editing Events
 
@@ -339,7 +356,9 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | ctrl+shift+space | Clear virtual selection | None |
 | - (minus)/= (equals) | Browse events in virtual selection | Add shift to quickly jump to the first/last item. |
 | ctrl+shift+x | Cut all events in virtual selection | None |
-| ctrl+shift+c | Copy all events in virtual selection to clipboard | None |
+| ctrl+shift+c | Copy all events in virtual selection | None |
+| ctrl+; (semicolon) | Save all events in virtual selection as an event chain | None |
+| ; | Insert an event chain at the current edit cursor position | None |
 
 ### 8.3 Contact Information
 

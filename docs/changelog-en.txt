@@ -1,6 +1,6 @@
-1.4.1 (2026-03-25)
-1. Added virtual selection feature, improving efficiency when performing complex event selections. (See section 4.5 of the manual)
-2. Should have fixed the issue where music offset was easily lost.
+1.5 (2026-03-25)
+1. Added virtual selection and event chain features, improving efficiency when performing complex event selections and additions. (See section 4.5 of the manual)
+2. Possibly fixed an issue where music offset had a chance of becoming 0.
 
 1.4.0.2 (2026-03-22)
 Fixed a bug where room selection did not work. Fixed a bug where the helper did not auto-select the current property value when editing Change Players' Rows events.
