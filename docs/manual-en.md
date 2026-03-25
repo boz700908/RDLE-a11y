@@ -185,7 +185,8 @@ Below are its shortcut key instructions.
 - shift+space, add/remove the currently selected event to/from the virtual selection
 - ctrl+shift+space, clear the virtual selection
 - - (minus)/= (equals), browse events in the virtual selection (add shift to quickly jump to the first/last item)
-- ctrl+shift+c, copy all events in the virtual selection to the clipboard
+- ctrl+shift+x, cut all events in the virtual selection
+- ctrl+shift+c, copy all events in the virtual selection
 
 ### 4.6 Editing Events
 
@@ -337,6 +338,7 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | shift+space | Add/remove currently selected event to/from virtual selection | None |
 | ctrl+shift+space | Clear virtual selection | None |
 | - (minus)/= (equals) | Browse events in virtual selection | Add shift to quickly jump to the first/last item. |
+| ctrl+shift+x | Cut all events in virtual selection | None |
 | ctrl+shift+c | Copy all events in virtual selection to clipboard | None |
 
 ### 8.3 Contact Information
