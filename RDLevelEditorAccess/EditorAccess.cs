@@ -68,6 +68,12 @@ namespace RDLevelEditorAccess
 
         private InputFieldReader inputFieldReader;
 
+        // SoundDataStruct.used 字段兼容性检测（稳定版无此字段）
+        private static readonly bool _hasUsedField =
+            typeof(SoundDataStruct).GetField("used") != null;
+        private static readonly System.Reflection.ConstructorInfo _soundDataCtor6 =
+            typeof(SoundDataStruct).GetConstructor(new[] { typeof(string), typeof(int), typeof(int), typeof(int), typeof(int), typeof(bool) });
+
         // ===================================================================================
         // 虚拟菜单状态
         // ===================================================================================
@@ -2300,10 +2306,43 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
+        /// 兼容创建 SoundDataStruct（稳定版无 used 字段时回退到 5 参数构造）
+        /// </summary>
+        private static SoundDataStruct CreateSoundDataStructCompat(
+            string filename, int volume, int pitch, int pan, int offset, bool usedFallback = true)
+        {
+            if (_hasUsedField && _soundDataCtor6 != null)
+            {
+                try
+                {
+                    return (SoundDataStruct)_soundDataCtor6.Invoke(
+                        new object[] { filename, volume, pitch, pan, offset, usedFallback });
+                }
+                catch { }
+            }
+            return new SoundDataStruct(filename, volume, pitch, pan, offset);
+        }
+
+        /// <summary>
+        /// 兼容读取 SoundDataStruct.used（稳定版无此字段时返回 true）
+        /// </summary>
+        private static bool GetSoundDataUsed(SoundDataStruct sd)
+        {
+            if (_hasUsedField)
+            {
+                try { return (bool)typeof(SoundDataStruct).GetField("used").GetValue(sd); }
+                catch { }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// [调试用] 每帧监听当前选中事件的 SoundData offset，变化时立即修正
         /// </summary>
         private void DebugWatchSoundDataOffsets()
         {
+          try
+          {
             var editor = scnEditor.instance;
             var evt = editor?.selectedControl?.levelEvent;
 
@@ -2351,7 +2390,7 @@ namespace RDLevelEditorAccess
                     if (_debugLastOffsets.TryGetValue(key, out int last) && last != sd.offset)
                     {
                         Debug.LogWarning($"[SoundDataWatch] {evt.type}.{key} offset 跑偏: {last} -> {sd.offset}，正在修正");
-                        prop.propertyInfo.SetValue(evt, new SoundDataStruct(sd.filename, sd.volume, sd.pitch, sd.pan, last, sd.used));
+                        prop.propertyInfo.SetValue(evt, CreateSoundDataStructCompat(sd.filename, sd.volume, sd.pitch, sd.pan, last, GetSoundDataUsed(sd)));
                     }
                     // 不更新 _debugLastOffsets，始终以初始值为准
                 }
@@ -2365,7 +2404,7 @@ namespace RDLevelEditorAccess
                         if (_debugLastOffsets.TryGetValue(key, out int last) && last != arr[i].offset)
                         {
                             Debug.LogWarning($"[SoundDataWatch] {evt.type}.{key} offset 跑偏: {last} -> {arr[i].offset}，正在修正");
-                            fixedArr[i] = new SoundDataStruct(arr[i].filename, arr[i].volume, arr[i].pitch, arr[i].pan, last, arr[i].used);
+                            fixedArr[i] = CreateSoundDataStructCompat(arr[i].filename, arr[i].volume, arr[i].pitch, arr[i].pan, last, GetSoundDataUsed(arr[i]));
                             anyFixed = true;
                         }
                     }
@@ -2373,6 +2412,11 @@ namespace RDLevelEditorAccess
                         prop.propertyInfo.SetValue(evt, fixedArr);
                 }
             }
+          }
+          catch (Exception ex)
+          {
+            Debug.LogWarning($"[SoundDataWatch] DebugWatchSoundDataOffsets 异常，已跳过: {ex.Message}");
+          }
         }
 
         /// <summary>
