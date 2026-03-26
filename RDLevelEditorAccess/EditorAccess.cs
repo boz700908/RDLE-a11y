@@ -2759,6 +2759,43 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
+        /// 用户通过 IPC 编辑了 SoundData 属性后，刷新偏移保护的基准值，
+        /// 避免 Guard/Watch 将用户的合法编辑误判为跑偏并回滚。
+        /// </summary>
+        internal void RefreshSoundDataBaseline(LevelEvent_Base evt)
+        {
+            // 1. 取消待执行的 Guard 恢复（如果目标是同一个事件）
+            if (_pendingSoundRestoreEvent == evt)
+            {
+                Debug.Log("[SoundDataGuard] 用户已编辑 SoundData，取消待恢复快照");
+                _pendingSoundRestoreEvent = null;
+                _pendingSoundRestoreSnapshot = null;
+            }
+
+            // 2. 刷新 DebugWatch 的基准偏移值
+            if (_debugWatchedEvent == evt && evt?.info != null)
+            {
+                _debugLastOffsets.Clear();
+                foreach (var prop in evt.info.propertiesInfo)
+                {
+                    bool isSoundData = prop is SoundDataPropertyInfo
+                        || (prop is NullablePropertyInfo np && np.underlyingPropertyInfo is SoundDataPropertyInfo);
+                    bool isSoundDataArray = prop.propertyInfo.PropertyType == typeof(SoundDataStruct[]);
+
+                    if (!isSoundData && !isSoundDataArray) continue;
+
+                    var value = prop.propertyInfo.GetValue(evt);
+                    if (value is SoundDataStruct sd)
+                        _debugLastOffsets[prop.propertyInfo.Name] = sd.offset;
+                    else if (value is SoundDataStruct[] arr)
+                        for (int i = 0; i < arr.Length; i++)
+                            _debugLastOffsets[$"{prop.propertyInfo.Name}[{i}]"] = arr[i].offset;
+                }
+                Debug.Log($"[SoundDataWatch] 用户编辑后已刷新基准偏移 ({_debugLastOffsets.Count} 项)");
+            }
+        }
+
+        /// <summary>
         /// 根据当前 Tab 获取对应的事件列表
         /// </summary>
         private List<LevelEventControl_Base> GetEventListForCurrentTab(scnEditor editor)

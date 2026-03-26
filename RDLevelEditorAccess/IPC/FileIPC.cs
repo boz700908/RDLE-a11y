@@ -1033,6 +1033,9 @@ namespace RDLevelEditorAccess.IPC
                         }
 
                         Debug.Log("[FileIPC] 事件属性修改完成，SaveStateScope即将结束");
+
+                        // 刷新 SoundData 偏移保护的基准值，防止用户编辑被误判为跑偏
+                        AccessLogic.Instance?.RefreshSoundDataBaseline(ev);
                     } // SaveStateScope.Dispose() 减少changingState
                 }
                 catch (Exception ex)
