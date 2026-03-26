@@ -1278,7 +1278,22 @@ namespace RDLevelEditorAccess.IPC
                 else if (prop is IntPropertyInfo) dto.type = "Int";
                 else if (prop is FloatPropertyInfo) dto.type = "Float";
                 else if (prop is BoolPropertyInfo) dto.type = "Bool";
-                else if (prop is StringPropertyInfo) dto.type = "String";
+                else if (prop is StringPropertyInfo)
+                {
+                    dto.type = "String";
+                    // 检查是否需要自动完成
+                    if (prop.controlAttribute is InputFieldAttribute inputAttr && inputAttr.autocomplete)
+                    {
+                        try
+                        {
+                            dto.autocompleteSuggestions = CollectCustomMethods();
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogError($"[FileIPC] 收集自动完成方法失败: {ex.Message}");
+                        }
+                    }
+                }
                 else if (prop is EnumPropertyInfo enumProp)
                 {
                     dto.type = "Enum";
@@ -1472,6 +1487,141 @@ namespace RDLevelEditorAccess.IPC
             return list;
         }
 
+        // ===================================================================================
+        // 自动完成方法收集
+        // ===================================================================================
+
+        private static readonly BindingFlags MethodScopeFlags =
+            BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public | BindingFlags.InvokeMethod;
+
+        private static readonly Dictionary<string, System.Type> MethodScopes = new Dictionary<string, System.Type>
+        {
+            ["level"] = typeof(LevelBase),
+            ["vfx"] = typeof(scrVfxControl),
+            ["room"] = typeof(RDRoom)
+        };
+
+        private static readonly Dictionary<System.Type, string[]> SupportedArgTypes = new Dictionary<System.Type, string[]>
+        {
+            [typeof(int)] = new[] { "int", "0" },
+            [typeof(float)] = new[] { "float", "0" },
+            [typeof(string)] = new[] { "string", "\"\"" },
+            [typeof(bool)] = new[] { "bool", "false" }
+        };
+
+        /// <summary>
+        /// 收集所有可用的自定义方法（镜像 MethodAutocompleteUI 的逻辑）
+        /// </summary>
+        private MethodSuggestionDto[] CollectCustomMethods()
+        {
+            var suggestions = new List<MethodSuggestionDto>();
+
+            // 获取自定义关卡类型
+            System.Type customLevelType = typeof(LevelBase);
+            try
+            {
+                if (scnEditor.instance?.levelSettings != null &&
+                    System.Enum.TryParse<Level>(scnEditor.instance.levelSettings.customClass, out var levelEnum))
+                {
+                    customLevelType = LevelSelector.GetLevelTypeFromEnum(levelEnum);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FileIPC] 获取自定义关卡类型失败: {ex.Message}");
+            }
+
+            foreach (var scope in MethodScopes)
+            {
+                var typesToScan = new List<System.Type> { scope.Value };
+                if (scope.Key == "level" && customLevelType != scope.Value)
+                    typesToScan.Insert(0, customLevelType);
+
+                foreach (var type in typesToScan)
+                {
+                    var methods = type.GetMethods(MethodScopeFlags);
+                    foreach (var method in methods)
+                    {
+                        if (method.ReturnType != typeof(void)) continue;
+                        var listedAttr = method.GetCustomAttribute<ListedMethodAttribute>();
+                        if (listedAttr == null && !RDBase.isDev) continue;
+
+                        if (!TryStringifyMethod(method, out string sig, out string defaultArgs))
+                            continue;
+
+                        bool isClassOnly = scope.Key == "level" &&
+                            scope.Value.GetMethod(method.Name, MethodScopeFlags) == null;
+
+                        // 构建 scope 前缀
+                        string prefix;
+                        if (scope.Key == "level")
+                            prefix = isClassOnly ? "level." : "";
+                        else if (scope.Key == "room")
+                            prefix = "room1.";
+                        else
+                            prefix = scope.Key + ".";
+
+                        // 获取方法描述
+                        string description = null;
+                        if (listedAttr != null && listedAttr.showDescription)
+                        {
+                            string descKey = "customMethod." + scope.Key + "." + method.Name;
+                            string descText = RDString.GetWithCheck(descKey, out bool exists);
+                            if (exists)
+                                description = descText;
+                        }
+
+                        suggestions.Add(new MethodSuggestionDto
+                        {
+                            scope = scope.Key,
+                            name = method.Name,
+                            signature = sig,
+                            description = description,
+                            fullText = prefix + method.Name + "(" + defaultArgs + ")"
+                        });
+                    }
+                }
+            }
+
+            return suggestions
+                .OrderBy(s => s.scope)
+                .ThenBy(s => s.name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        private static bool TryStringifyMethod(MethodInfo method, out string signature, out string defaultArgs)
+        {
+            signature = null;
+            defaultArgs = null;
+            var paramParts = new List<string>();
+            var argParts = new List<string>();
+
+            foreach (var param in method.GetParameters())
+            {
+                if (!SupportedArgTypes.TryGetValue(param.ParameterType, out var typeInfo))
+                    return false;
+                paramParts.Add(typeInfo[0] + " " + param.Name);
+                argParts.Add(GetSmartDefault(param.Name, typeInfo[0], typeInfo[1]));
+            }
+
+            signature = method.Name + "(" + string.Join(", ", paramParts) + ")";
+            defaultArgs = string.Join(", ", argParts);
+            return true;
+        }
+
+        private static string GetSmartDefault(string name, string type, string defaultVal)
+        {
+            if (type == "string")
+            {
+                if (name.StartsWith("ease")) return "\"Linear\"";
+                if (name.StartsWith("color") || name.StartsWith("colHex")) return "\"ffffff\"";
+            }
+            else if (type == "float")
+            {
+                if (name == "scale" || name == "alpha" || name == "opacity") return "1";
+            }
+            return defaultVal;
+        }
         /// <summary>
         /// 提取 SoundAttribute 配置（选项列表、是否允许自定义文件）
         /// </summary>
@@ -2521,6 +2671,17 @@ namespace RDLevelEditorAccess.IPC
             public string roomsUsage;       // Rooms 类型专用：使用模式
             public string[] rowNames;       // EnumArray 专用：轨道显示名称列表
             public int rowCount;            // EnumArray 专用：实际显示的行数
+            public MethodSuggestionDto[] autocompleteSuggestions;  // 自动完成建议列表
+        }
+
+        [Serializable]
+        private class MethodSuggestionDto
+        {
+            public string scope;       // "level" / "vfx" / "room"
+            public string name;        // 方法名
+            public string signature;   // 完整签名（如 "SetBorderColor(string colHex, float opacity)"）
+            public string description; // 方法描述（本地化文本，可为 null）
+            public string fullText;    // 选中后填充的完整文本
         }
 
         // NEW: Helper → Mod 请求数据类

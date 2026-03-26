@@ -32,6 +32,33 @@ namespace RDEventEditorHelper
         public string roomsUsage;       // Rooms 类型专用：使用模式
         public string[] rowNames;       // EnumArray 专用：轨道显示名称列表
         public int rowCount;            // EnumArray 专用：实际显示的行数
+        public MethodSuggestion[] autocompleteSuggestions;  // 自动完成建议列表
+    }
+
+    public class MethodSuggestion
+    {
+        public string scope;       // "level" / "vfx" / "room"
+        public string name;        // 方法名
+        public string signature;   // 完整签名
+        public string description; // 方法描述（可为 null）
+        public string fullText;    // 选中后填充的完整文本
+    }
+
+    // 自动完成列表项包装类
+    internal class AutocompleteItem
+    {
+        public string Display;
+        public MethodSuggestion Suggestion;
+        public override string ToString() => Display;
+    }
+
+    // 自定义 ListBox：暴露辅助功能通知方法
+    internal class AccessibleListBox : ListBox
+    {
+        public void NotifyFocus(int index)
+        {
+            AccessibilityNotifyClients(AccessibleEvents.Focus, index);
+        }
     }
 
     // NEW: Helper → Mod 请求数据类
@@ -360,22 +387,279 @@ namespace RDEventEditorHelper
                 {
                     case "Int":
                     case "Float":
+                        {
+                            var txt = new TextBox
+                            {
+                                Text = prop.value ?? "",
+                                Width = 400,
+                                Top = 20,
+                                Left = 10,
+                                AccessibleName = displayName
+                            };
+                            txt.TextChanged += (s, e) =>
+                            {
+                                prop.value = txt.Text;
+                                RequestVisibilityUpdate(prop.name, txt.Text);
+                            };
+                            inputCtrl = txt;
+                        }
+                        break;
+
                     case "String":
-                        var txt = new TextBox
+                        if (prop.autocompleteSuggestions != null && prop.autocompleteSuggestions.Length > 0)
                         {
-                            Text = prop.value ?? "",
-                            Width = 400,
-                            Top = 20,
-                            Left = 10,
-                            AccessibleName = displayName
-                        };
-                        // NEW: 附加值改变事件处理
-                        txt.TextChanged += (s, e) =>
+                            // 自动完成模式：TextBox + 无边框悬浮窗口
+                            var acTextBox = new TextBox
+                            {
+                                Name = "AutocompleteTextBox",
+                                Text = prop.value ?? "",
+                                Width = 400,
+                                Top = 20,
+                                Left = 10
+                            };
+
+                            var allSuggestions = prop.autocompleteSuggestions;
+
+                            // 悬浮建议列表（无边框 Form，避免读屏朗读容器角色）
+                            var popupListBox = new AccessibleListBox
+                            {
+                                Dock = DockStyle.Fill,
+                                BorderStyle = BorderStyle.FixedSingle,
+                                IntegralHeight = false,
+                                SelectionMode = SelectionMode.One
+                            };
+
+                            var popupForm = new Form
+                            {
+                                FormBorderStyle = FormBorderStyle.None,
+                                ShowInTaskbar = false,
+                                StartPosition = FormStartPosition.Manual,
+                                TopMost = true,
+                                ControlBox = false,
+                                MaximizeBox = false,
+                                MinimizeBox = false
+                            };
+                            popupForm.Controls.Add(popupListBox);
+
+                            bool popupVisible = false;
+                            int selectedIndex = -1;
+
+                            // 通知读屏朗读当前选中项
+                            Action announceSelection = () =>
+                            {
+                                if (selectedIndex >= 0 && selectedIndex < popupListBox.Items.Count)
+                                {
+                                    popupListBox.NotifyFocus(selectedIndex);
+                                }
+                            };
+
+                            Action showPopup = () =>
+                            {
+                                if (popupListBox.Items.Count == 0)
+                                {
+                                    if (popupVisible) { popupForm.Hide(); popupVisible = false; this.CancelButton = _btnCancel; }
+                                    return;
+                                }
+                                int itemCount = Math.Min(popupListBox.Items.Count, 8);
+                                int h = itemCount * popupListBox.ItemHeight + 4;
+                                popupForm.Size = new Size(400, h);
+                                if (!popupVisible)
+                                {
+                                    var pt = acTextBox.PointToScreen(new Point(0, acTextBox.Height));
+                                    popupForm.Location = pt;
+                                    popupForm.Show(this);
+                                    popupVisible = true;
+                                    this.CancelButton = null;
+                                    acTextBox.Focus();
+                                }
+                                announceSelection();
+                            };
+
+                            Action hidePopup = () =>
+                            {
+                                if (popupVisible)
+                                {
+                                    popupForm.Hide();
+                                    popupVisible = false;
+                                    this.CancelButton = _btnCancel;
+                                }
+                            };
+
+                            // 过滤建议列表
+                            Action<string> filterSuggestions = (input) =>
+                            {
+                                popupListBox.BeginUpdate();
+                                popupListBox.Items.Clear();
+
+                                string searchScope = null;
+                                string searchName = input ?? "";
+
+                                int parenIdx = searchName.IndexOf('(');
+                                if (parenIdx >= 0) searchName = searchName.Substring(0, parenIdx);
+
+                                var dotParts = searchName.Split('.');
+                                if (dotParts.Length == 2)
+                                {
+                                    searchScope = dotParts[0];
+                                    searchName = dotParts[1];
+                                }
+
+                                foreach (var sg in allSuggestions)
+                                {
+                                    if (searchScope != null && sg.scope.IndexOf(searchScope, StringComparison.OrdinalIgnoreCase) < 0)
+                                        continue;
+
+                                    bool scopeMatch = searchScope == null && searchName.Length > 0 &&
+                                        sg.scope.IndexOf(searchName, StringComparison.OrdinalIgnoreCase) >= 0;
+                                    bool nameMatch = searchName.Length == 0 ||
+                                        sg.name.IndexOf(searchName, StringComparison.OrdinalIgnoreCase) >= 0;
+
+                                    if (scopeMatch || nameMatch)
+                                    {
+                                        string display = sg.name;
+                                        if (!string.IsNullOrEmpty(sg.signature) && sg.signature != sg.name + "()")
+                                            display += " - " + sg.signature;
+                                        if (!string.IsNullOrEmpty(sg.description))
+                                            display += " - " + sg.description;
+
+                                        popupListBox.Items.Add(new AutocompleteItem { Display = display, Suggestion = sg });
+                                    }
+                                }
+
+                                popupListBox.EndUpdate();
+
+                                bool isExactMatch = popupListBox.Items.Count == 1 &&
+                                    popupListBox.Items[0] is AutocompleteItem single &&
+                                    single.Suggestion.fullText == (input ?? "");
+
+                                if (popupListBox.Items.Count > 0 && !isExactMatch)
+                                {
+                                    selectedIndex = 0;
+                                    popupListBox.SelectedIndex = 0;
+                                    showPopup();
+                                }
+                                else
+                                {
+                                    selectedIndex = -1;
+                                    hidePopup();
+                                }
+                            };
+
+                            bool suppressFilter = false;
+
+                            acTextBox.TextChanged += (s, e) =>
+                            {
+                                prop.value = acTextBox.Text;
+                                if (!suppressFilter)
+                                    filterSuggestions(acTextBox.Text);
+                                RequestVisibilityUpdate(prop.name, acTextBox.Text);
+                            };
+
+                            Action acceptSuggestion = () =>
+                            {
+                                if (selectedIndex >= 0 && selectedIndex < popupListBox.Items.Count &&
+                                    popupListBox.Items[selectedIndex] is AutocompleteItem item)
+                                {
+                                    suppressFilter = true;
+                                    acTextBox.Text = item.Suggestion.fullText;
+                                    acTextBox.SelectionStart = acTextBox.Text.Length;
+                                    suppressFilter = false;
+                                    hidePopup();
+                                }
+                            };
+
+                            acTextBox.PreviewKeyDown += (s, e) =>
+                            {
+                                if (e.KeyCode == Keys.Up || e.KeyCode == Keys.Down)
+                                    e.IsInputKey = true;
+                                if (e.KeyCode == Keys.Tab && popupVisible && popupListBox.Items.Count > 0)
+                                    e.IsInputKey = true;
+                            };
+
+                            acTextBox.KeyDown += (s, e) =>
+                            {
+                                if (!popupVisible || popupListBox.Items.Count == 0)
+                                    return;
+
+                                if (e.KeyCode == Keys.Down)
+                                {
+                                    selectedIndex = Math.Min(selectedIndex + 1, popupListBox.Items.Count - 1);
+                                    popupListBox.SelectedIndex = selectedIndex;
+                                    announceSelection();
+                                    e.Handled = true;
+                                    e.SuppressKeyPress = true;
+                                }
+                                else if (e.KeyCode == Keys.Up)
+                                {
+                                    selectedIndex = Math.Max(selectedIndex - 1, 0);
+                                    popupListBox.SelectedIndex = selectedIndex;
+                                    announceSelection();
+                                    e.Handled = true;
+                                    e.SuppressKeyPress = true;
+                                }
+                                else if (e.KeyCode == Keys.Tab)
+                                {
+                                    acceptSuggestion();
+                                    e.Handled = true;
+                                    e.SuppressKeyPress = true;
+                                }
+                                else if (e.KeyCode == Keys.Escape)
+                                {
+                                    hidePopup();
+                                    e.Handled = true;
+                                    e.SuppressKeyPress = true;
+                                }
+                            };
+
+                            popupListBox.Click += (s, e) =>
+                            {
+                                if (popupListBox.SelectedItem is AutocompleteItem item)
+                                {
+                                    selectedIndex = popupListBox.SelectedIndex;
+                                    suppressFilter = true;
+                                    acTextBox.Text = item.Suggestion.fullText;
+                                    acTextBox.SelectionStart = acTextBox.Text.Length;
+                                    suppressFilter = false;
+                                    hidePopup();
+                                    acTextBox.Focus();
+                                }
+                            };
+
+                            acTextBox.LostFocus += (s, e) =>
+                            {
+                                var timer = new System.Windows.Forms.Timer { Interval = 200 };
+                                timer.Tick += (s2, e2) =>
+                                {
+                                    timer.Stop();
+                                    timer.Dispose();
+                                    if (!acTextBox.Focused)
+                                        hidePopup();
+                                };
+                                timer.Start();
+                            };
+
+                            this.FormClosing += (s, e) => { hidePopup(); popupForm.Dispose(); };
+
+                            inputCtrl = acTextBox;
+                        }
+                        else
                         {
-                            prop.value = txt.Text;
-                            RequestVisibilityUpdate(prop.name, txt.Text);
-                        };
-                        inputCtrl = txt;
+                            // 普通文本框
+                            var txt = new TextBox
+                            {
+                                Text = prop.value ?? "",
+                                Width = 400,
+                                Top = 20,
+                                Left = 10,
+                                AccessibleName = displayName
+                            };
+                            txt.TextChanged += (s, e) =>
+                            {
+                                prop.value = txt.Text;
+                                RequestVisibilityUpdate(prop.name, txt.Text);
+                            };
+                            inputCtrl = txt;
+                        }
                         break;
 
                     case "Bool":
@@ -1092,17 +1376,16 @@ namespace RDEventEditorHelper
                         }
                     }
                 }
-                else if (ctrl is Panel soundPanel)
+                else if (ctrl is Panel ctrlPanel)
                 {
                     // 检查是否是 Character 类型的 Panel
-                    var charValue = soundPanel.Controls.Find("CharacterValue", false).FirstOrDefault() as TextBox;
-                    if (charValue != null)
+                    if (ctrlPanel.Controls.Find("CharacterValue", false).FirstOrDefault() is TextBox charValue)
                     {
                         // Character 类型
                         value = charValue.Text;
                         
                         // 同时获取自定义角色名称
-                        var customNameCtrl = soundPanel.Controls.Find("CustomCharacterName", false).FirstOrDefault() as TextBox;
+                        var customNameCtrl = ctrlPanel.Controls.Find("CustomCharacterName", false).FirstOrDefault() as TextBox;
                         if (customNameCtrl != null && !string.IsNullOrEmpty(customNameCtrl.Text))
                         {
                             // 如果有自定义名称，需要额外存储
@@ -1113,7 +1396,7 @@ namespace RDEventEditorHelper
                     else
                     {
                         // SoundData 类型
-                        value = GetSoundDataPanelValue(soundPanel);
+                        value = GetSoundDataPanelValue(ctrlPanel);
                     }
                 }
                 else if (ctrl is TabControl tabCtrl2)
