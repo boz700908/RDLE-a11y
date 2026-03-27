@@ -1044,11 +1044,12 @@ namespace RDLevelEditorAccess.IPC
                                         int pitch = parts.Length > 2 && int.TryParse(parts[2], out int p) ? p : 100;
                                         int pan = parts.Length > 3 && int.TryParse(parts[3], out int pn) ? pn : 0;
                                         int offset = parts.Length > 4 && int.TryParse(parts[4], out int o) ? o : 0;
+                                        bool used = parts.Length > 5 && bool.TryParse(parts[5], out bool u) ? u : true;
 
-                                        Debug.Log($"[FileIPC] ★ 创建 SoundDataStruct: filename={filename}, volume={volume}, pitch={pitch}, pan={pan}, offset={offset}");
+                                        Debug.Log($"[FileIPC] ★ 创建 SoundDataStruct: filename={filename}, volume={volume}, pitch={pitch}, pan={pan}, offset={offset}, used={used}");
 
                                         // 使用 typeof 直接获取类型，避免 Type.GetType 失败
-                                        valToSet = new SoundDataStruct(filename, volume, pitch, pan, offset);
+                                        valToSet = new SoundDataStruct(filename, volume, pitch, pan, offset, used);
                                     }
                                 }
                                 else if (propInfo is NullablePropertyInfo nullableProp2)
@@ -1103,7 +1104,8 @@ namespace RDLevelEditorAccess.IPC
                                             int pit = p.Length > 2 && int.TryParse(p[2], out int pi) ? pi : 100;
                                             int pan = p.Length > 3 && int.TryParse(p[3], out int pn) ? pn : 0;
                                             int off = p.Length > 4 && int.TryParse(p[4], out int o)  ? o  : 0;
-                                            return new SoundDataStruct(fn, vol, pit, pan, off);
+                                            bool used = p.Length > 5 && bool.TryParse(p[5], out bool u) ? u : true;
+                                            return new SoundDataStruct(fn, vol, pit, pan, off, used);
                                         }).ToArray();
                                     }
                                     else
@@ -2529,7 +2531,8 @@ namespace RDLevelEditorAccess.IPC
                         var pit = t.GetField("pitch")?.GetValue(item);
                         var pan = t.GetField("pan")?.GetValue(item);
                         var off = t.GetField("offset")?.GetValue(item);
-                        parts.Add($"{fn}|{vol}|{pit}|{pan}|{off}");
+                        var used = t.GetField("used")?.GetValue(item);
+                        parts.Add($"{fn}|{vol}|{pit}|{pan}|{off}|{used}");
                     }
                     return string.Join(";", parts);
                 }
@@ -2589,7 +2592,8 @@ namespace RDLevelEditorAccess.IPC
                     var pitch = valueType.GetField("pitch")?.GetValue(value);
                     var pan = valueType.GetField("pan")?.GetValue(value);
                     var offset = valueType.GetField("offset")?.GetValue(value);
-                    var result = $"{filename}|{volume}|{pitch}|{pan}|{offset}";
+                    var used = valueType.GetField("used")?.GetValue(value);
+                    var result = $"{filename}|{volume}|{pitch}|{pan}|{offset}|{used}";
                     Debug.Log($"[FileIPC] ConvertPropertyValue SoundDataStruct: property=?, result={result}");
                     return result;
                 }

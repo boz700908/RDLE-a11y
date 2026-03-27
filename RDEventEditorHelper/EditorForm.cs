@@ -1640,18 +1640,21 @@ namespace RDEventEditorHelper
                 parts.Length > 1 ? parts[1] : "100",
                 parts.Length > 2 ? parts[2] : "100",
                 parts.Length > 3 ? parts[3] : "0",
-                parts.Length > 4 ? parts[4] : "0");
+                parts.Length > 4 ? parts[4] : "0",
+                parts.Length > 5 ? parts[5] : "True");
         }
 
-        private Panel CreateSoundDataPanel(PropertyData prop, string filename, string volume, string pitch, string pan, string offset)
+        private Panel CreateSoundDataPanel(PropertyData prop, string filename, string volume, string pitch, string pan, string offset, string used = "True")
         {
             bool hasSoundOptions = prop.soundOptions != null && prop.soundOptions.Length > 0;
             bool canBrowseFile = prop.allowCustomFile;
             var soundPanel = new Panel { Width = 420, Height = 210, Top = 20, Left = 10 };
             var txtHiddenFilename = new TextBox { Text = filename, Width = 1, Top = 0, Left = 0, Name = "Filename", Visible = false };
             var txtOriginalFilename = new TextBox { Text = filename, Width = 1, Top = 0, Left = 0, Name = "OriginalFilename", Visible = false };
+            var txtUsedValue = new TextBox { Text = used, Width = 1, Top = 0, Left = 0, Name = "UsedValue", Visible = false };
             soundPanel.Controls.Add(txtHiddenFilename);
             soundPanel.Controls.Add(txtOriginalFilename);
+            soundPanel.Controls.Add(txtUsedValue);
             var lblSearch = new Label { Text = "搜索 (Search):", Width = 65, Top = 5, Left = 0 };
             var txtSearch = new TextBox { Width = hasSoundOptions ? 200 : 320, Top = 3, Left = 70, Name = "SearchBox", AccessibleName = "搜索 (Search)" };
             if (canBrowseFile)
@@ -1818,6 +1821,8 @@ namespace RDEventEditorHelper
             var txtPitch = panel.Controls.Find("Pitch", false).FirstOrDefault() as TextBox;
             var txtPan = panel.Controls.Find("Pan", false).FirstOrDefault() as TextBox;
             var txtOffset = panel.Controls.Find("Offset", false).FirstOrDefault() as TextBox;
+            var txtUsed = panel.Controls.Find("UsedValue", false).FirstOrDefault() as TextBox;
+            string usedStr = txtUsed?.Text ?? "True";
             string fn = txtFilename?.Text ?? "";
             var lv = panel.Controls.Find("SoundListView", false).FirstOrDefault() as ListView;
             if (lv != null && lv.SelectedItems.Count > 0)
@@ -1825,10 +1830,10 @@ namespace RDEventEditorHelper
                 string tag = lv.SelectedItems[0].Tag as string;
                 if (tag == "__track_default__") return "";
                 if (!string.IsNullOrEmpty(fn))
-                    return $"{fn}|{txtVolume?.Text ?? "100"}|{txtPitch?.Text ?? "100"}|{txtPan?.Text ?? "0"}|{txtOffset?.Text ?? "0"}";
+                    return $"{fn}|{txtVolume?.Text ?? "100"}|{txtPitch?.Text ?? "100"}|{txtPan?.Text ?? "0"}|{txtOffset?.Text ?? "0"}|{usedStr}";
                 var txtOrig = panel.Controls.Find("OriginalFilename", false).FirstOrDefault() as TextBox;
                 if (txtOrig != null && !string.IsNullOrEmpty(txtOrig.Text))
-                    return $"{txtOrig.Text}|{txtVolume?.Text ?? "100"}|{txtPitch?.Text ?? "100"}|{txtPan?.Text ?? "0"}|{txtOffset?.Text ?? "0"}";
+                    return $"{txtOrig.Text}|{txtVolume?.Text ?? "100"}|{txtPitch?.Text ?? "100"}|{txtPan?.Text ?? "0"}|{txtOffset?.Text ?? "0"}|{usedStr}";
             }
             return "";
         }
