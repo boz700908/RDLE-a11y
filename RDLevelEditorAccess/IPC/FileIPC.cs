@@ -859,6 +859,7 @@ namespace RDLevelEditorAccess.IPC
 
                         bpmCtl.bpmCalculator.Initialize();
                         Debug.Log("[FileIPC] 已触发原生BPM计算器");
+                        _owner.StartCoroutine(DelayedBPMCalculatorHint());
                         return;
                     }
                 }
@@ -869,6 +870,12 @@ namespace RDLevelEditorAccess.IPC
             {
                 Debug.LogError($"[FileIPC] 触发BPM计算器失败: {ex.Message}");
             }
+        }
+
+        private System.Collections.IEnumerator DelayedBPMCalculatorHint()
+        {
+            yield return new WaitForSeconds(0.5f);
+            Narration.Say(RDString.Get("eam.bpmCalculator.hint"), NarrationCategory.Notification);
         }
 
         private void ApplyUpdates(LevelEvent_Base ev, Dictionary<string, string> updates)
