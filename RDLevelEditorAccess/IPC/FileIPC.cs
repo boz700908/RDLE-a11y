@@ -1362,7 +1362,16 @@ namespace RDLevelEditorAccess.IPC
                 else if (prop is EnumPropertyInfo enumProp)
                 {
                     dto.type = "Enum";
-                    dto.options = Enum.GetNames(enumProp.enumType);
+                    // 如果属性有 DropdownAttribute 且指定了 options，只提取允许的值
+                    var dropdownAttr = prop.controlAttribute as DropdownAttribute;
+                    if (dropdownAttr?.options != null && dropdownAttr.options.Length > 0)
+                    {
+                        dto.options = dropdownAttr.options;
+                    }
+                    else
+                    {
+                        dto.options = Enum.GetNames(enumProp.enumType);
+                    }
                     // 尝试从游戏本地化获取枚举选项显示名，找不到则保留原名
                     dto.localizedOptions = dto.options.Select(name =>
                     {
