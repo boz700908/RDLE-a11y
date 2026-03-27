@@ -460,6 +460,12 @@ namespace RDEventEditorHelper
                                     if (popupVisible) { popupForm.Hide(); popupVisible = false; this.CancelButton = _btnCancel; }
                                     return;
                                 }
+                                // 确保默认选中第一项
+                                if (selectedIndex < 0 || selectedIndex >= popupListBox.Items.Count)
+                                {
+                                    selectedIndex = 0;
+                                    popupListBox.SelectedIndex = 0;
+                                }
                                 int itemCount = Math.Min(popupListBox.Items.Count, 8);
                                 int h = itemCount * popupListBox.ItemHeight + 4;
                                 popupForm.Size = new Size(400, h);
@@ -472,7 +478,15 @@ namespace RDEventEditorHelper
                                     this.CancelButton = null;
                                     acTextBox.Focus();
                                 }
-                                announceSelection();
+                                // 延迟通知读屏，确保弹窗渲染完成
+                                var announceTimer = new System.Windows.Forms.Timer { Interval = 50 };
+                                announceTimer.Tick += (s2, e2) =>
+                                {
+                                    announceTimer.Stop();
+                                    announceTimer.Dispose();
+                                    announceSelection();
+                                };
+                                announceTimer.Start();
                             };
 
                             Action hidePopup = () =>
