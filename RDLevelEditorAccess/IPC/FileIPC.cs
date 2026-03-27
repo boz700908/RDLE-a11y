@@ -1095,16 +1095,30 @@ namespace RDLevelEditorAccess.IPC
                                     }
                                     else if (et == typeof(SoundDataStruct))
                                     {
-                                        var items = (strVal ?? "").Split(';');
-                                        valToSet = items.Select(s => {
-                                            var p = s.Split('|');
-                                            string fn  = p.Length > 0 ? p[0] : "";
-                                            int vol = p.Length > 1 && int.TryParse(p[1], out int v)  ? v  : 100;
-                                            int pit = p.Length > 2 && int.TryParse(p[2], out int pi) ? pi : 100;
-                                            int pan = p.Length > 3 && int.TryParse(p[3], out int pn) ? pn : 0;
-                                            int off = p.Length > 4 && int.TryParse(p[4], out int o)  ? o  : 0;
-                                            return new SoundDataStruct(fn, vol, pit, pan, off);
-                                        }).ToArray();
+                                        var soundTypePropInfo = ev.GetType().GetProperty("soundType");
+                                        var soundType = soundTypePropInfo != null ? (GameSoundType)soundTypePropInfo.GetValue(ev) : GameSoundType.SmallMistake;
+                                        var groups = RDEditorConstants.gameSoundGroups;
+                                        bool isGroup = groups.ContainsKey(soundType);
+
+                                        var itemList = (strVal ?? "").Split(';');
+                                        var resultArr = new SoundDataStruct[itemList.Length];
+                                        for (int idx = 0; idx < itemList.Length; idx++)
+                                        {
+                                            var parts2 = itemList[idx].Split('|');
+                                            string fn2  = parts2.Length > 0 ? parts2[0] : "";
+                                            int vol2 = parts2.Length > 1 && int.TryParse(parts2[1], out int sv)  ? sv  : 100;
+                                            int pit2 = parts2.Length > 2 && int.TryParse(parts2[2], out int sp) ? sp : 100;
+                                            int pan2 = parts2.Length > 3 && int.TryParse(parts2[3], out int spn) ? spn : 0;
+                                            int off2 = parts2.Length > 4 && int.TryParse(parts2[4], out int so)  ? so  : 0;
+                                            if (string.IsNullOrEmpty(fn2) && isGroup && idx < groups[soundType].Length)
+                                            {
+                                                GameSoundType subType = groups[soundType][idx];
+                                                if (RDGameSounds.defaultSounds.ContainsKey(subType))
+                                                    fn2 = RDGameSounds.defaultSounds[subType].filename;
+                                            }
+                                            resultArr[idx] = new SoundDataStruct(fn2, vol2, pit2, pan2, off2);
+                                        }
+                                        valToSet = resultArr;
                                     }
                                     else
                                         valToSet = strVal;
