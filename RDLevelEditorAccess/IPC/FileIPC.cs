@@ -777,17 +777,6 @@ namespace RDLevelEditorAccess.IPC
                 }
             }
 
-            // SetGameSound 专用：根据 soundType 控制 sounds 属性的可见性
-            if (currentEvent is LevelEvent_SetGameSound sgEvent)
-            {
-                bool shouldShowSounds = RDEditorUtils.SoundTypeIsGroup(sgEvent.soundType);
-                var soundsProp = request.currentProperties?.FirstOrDefault(p => p.name == "sounds");
-                if (soundsProp != null && soundsProp.isVisible != shouldShowSounds)
-                {
-                    visibilityChanges["sounds"] = shouldShowSounds;
-                }
-            }
-
             return new PropertyUpdateResponse
             {
                 token = request.token,
@@ -1447,7 +1436,7 @@ namespace RDLevelEditorAccess.IPC
                         dto.type = "SoundDataArray";
                         ExtractSoundAttributeConfig(prop, ev, dto);
 
-                        // SetGameSound 专用：填充子类型标签页名称和初始可见性
+                        // SetGameSound 专用：填充子类型标签页名称
                         if (ev is LevelEvent_SetGameSound sgEvent)
                         {
                             var soundType = sgEvent.soundType;
@@ -1472,11 +1461,7 @@ namespace RDLevelEditorAccess.IPC
                                     }).ToArray();
                                 }
                             }
-                            else
-                            {
-                                // 非组类型：隐藏选项卡控件
-                                dto.isVisible = false;
-                            }
+                            // 非组类型：tabLabels 为 null，Helper 端不显示选项卡头
                         }
                     }
                     else                                dto.type = "String";

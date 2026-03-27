@@ -983,22 +983,30 @@ namespace RDEventEditorHelper
                     case "SoundDataArray":
                     {
                         var elements = (prop.value ?? "").Split(new[]{';'}, StringSplitOptions.RemoveEmptyEntries);
-                        var tabCtrl = new TabControl { Width = 440, Height = 260, Name = "SoundDataArrayTabs" };
-                        for (int i = 0; i < elements.Length; i++)
+                        bool hasTabLabels = prop.tabLabels != null && prop.tabLabels.Length > 0;
+
+                        if (hasTabLabels)
                         {
-                            // 优先使用 tabLabels 作为标签页名称（本地化子类型名）
-                            string tabText = (prop.tabLabels != null && i < prop.tabLabels.Length)
-                                ? prop.tabLabels[i]
-                                : (i + 1).ToString();
-                            string accessName = (prop.tabLabels != null && i < prop.tabLabels.Length)
-                                ? prop.tabLabels[i]
-                                : $"{displayName} [{i + 1}]";
-                            var page = new TabPage(tabText) { AccessibleName = accessName };
-                            page.Controls.Add(CreateSoundDataPanelFromValue(prop, elements[i]));
-                            tabCtrl.TabPages.Add(page);
+                            // 组类型：按 tabLabels 数量创建选项卡，显示本地化子类型名
+                            int tabCount = prop.tabLabels.Length;
+                            var tabCtrl = new TabControl { Width = 440, Height = 260, Name = "SoundDataArrayTabs" };
+                            for (int i = 0; i < tabCount; i++)
+                            {
+                                string tabText = prop.tabLabels[i];
+                                string soundValue = (i < elements.Length) ? elements[i] : "";
+                                var page = new TabPage(tabText) { AccessibleName = tabText };
+                                page.Controls.Add(CreateSoundDataPanelFromValue(prop, soundValue));
+                                tabCtrl.TabPages.Add(page);
+                            }
+                            group.Height = 290;
+                            inputCtrl = tabCtrl;
                         }
-                        group.Height = 290;
-                        inputCtrl = tabCtrl;
+                        else
+                        {
+                            // 非组类型：不显示选项卡头，直接显示声音面板
+                            group.Height = 240;
+                            inputCtrl = CreateSoundDataPanelFromValue(prop, elements.Length > 0 ? elements[0] : "");
+                        }
                         break;
                     }
 
