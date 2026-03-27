@@ -1,3 +1,8 @@
+1.5.1 (2026-03-28)
+1. Fixed a bug where offset could not be set.
+2. Added auto-complete for Call Custom Method events. (Available in game version 1.0.4 and above)
+3. Improved support for Set Game Sound events - now allows changing all in-game sound effects, but currently only supports using external files. (Available in game version 1.0.5 and above)
+
 1.5 (2026-03-25)
 1. Added virtual selection and event chain features, improving efficiency when performing complex event selections and additions. (See section 4.5 of the manual)
 2. Possibly fixed an issue where music offset had a chance of becoming 0.
