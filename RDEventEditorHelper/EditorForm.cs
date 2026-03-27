@@ -34,6 +34,7 @@ namespace RDEventEditorHelper
         public int rowCount;            // EnumArray 专用：实际显示的行数
         public MethodSuggestion[] autocompleteSuggestions;  // 自动完成建议列表
         public bool hasBPMCalculator;  // 是否带有 BPMCalculator 属性
+        public string[] tabLabels;     // SoundDataArray 专用：各标签页的本地化名称
     }
 
     public class MethodSuggestion
@@ -985,7 +986,14 @@ namespace RDEventEditorHelper
                         var tabCtrl = new TabControl { Width = 440, Height = 260, Name = "SoundDataArrayTabs" };
                         for (int i = 0; i < elements.Length; i++)
                         {
-                            var page = new TabPage((i + 1).ToString()) { AccessibleName = $"{displayName} [{i + 1}]" };
+                            // 优先使用 tabLabels 作为标签页名称（本地化子类型名）
+                            string tabText = (prop.tabLabels != null && i < prop.tabLabels.Length)
+                                ? prop.tabLabels[i]
+                                : (i + 1).ToString();
+                            string accessName = (prop.tabLabels != null && i < prop.tabLabels.Length)
+                                ? prop.tabLabels[i]
+                                : $"{displayName} [{i + 1}]";
+                            var page = new TabPage(tabText) { AccessibleName = accessName };
                             page.Controls.Add(CreateSoundDataPanelFromValue(prop, elements[i]));
                             tabCtrl.TabPages.Add(page);
                         }

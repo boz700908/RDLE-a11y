@@ -777,6 +777,17 @@ namespace RDLevelEditorAccess.IPC
                 }
             }
 
+            // SetGameSound 专用：根据 soundType 控制 sounds 属性的可见性
+            if (currentEvent is LevelEvent_SetGameSound sgEvent)
+            {
+                bool shouldShowSounds = RDEditorUtils.SoundTypeIsGroup(sgEvent.soundType);
+                var soundsProp = request.currentProperties?.FirstOrDefault(p => p.name == "sounds");
+                if (soundsProp != null && soundsProp.isVisible != shouldShowSounds)
+                {
+                    visibilityChanges["sounds"] = shouldShowSounds;
+                }
+            }
+
             return new PropertyUpdateResponse
             {
                 token = request.token,
@@ -1435,6 +1446,38 @@ namespace RDLevelEditorAccess.IPC
                     {
                         dto.type = "SoundDataArray";
                         ExtractSoundAttributeConfig(prop, ev, dto);
+
+                        // SetGameSound 专用：填充子类型标签页名称和初始可见性
+                        if (ev is LevelEvent_SetGameSound sgEvent)
+                        {
+                            var soundType = sgEvent.soundType;
+                            if (RDEditorUtils.SoundTypeIsGroup(soundType))
+                            {
+                                // 组类型：获取子类型数组并生成本地化标签
+                                var groups = RDEditorConstants.gameSoundGroups;
+                                // 处理 P2 变体映射到基础组
+                                var groupKey = soundType switch
+                                {
+                                    GameSoundType.PulseSoundHoldP2 => GameSoundType.PulseSoundHold,
+                                    GameSoundType.ClapSoundHoldP2 => GameSoundType.ClapSoundHold,
+                                    _ => soundType,
+                                };
+                                if (groups.ContainsKey(groupKey))
+                                {
+                                    var subTypes = groups[groupKey];
+                                    dto.tabLabels = subTypes.Select(st =>
+                                    {
+                                        string localized = RDString.GetEnumValue(st);
+                                        return !string.IsNullOrEmpty(localized) ? StripRichTextTags(localized) : st.ToString();
+                                    }).ToArray();
+                                }
+                            }
+                            else
+                            {
+                                // 非组类型：隐藏选项卡控件
+                                dto.isVisible = false;
+                            }
+                        }
                     }
                     else                                dto.type = "String";
 
@@ -2748,6 +2791,7 @@ namespace RDLevelEditorAccess.IPC
             public int rowCount;            // EnumArray 专用：实际显示的行数
             public MethodSuggestionDto[] autocompleteSuggestions;  // 自动完成建议列表
             public bool hasBPMCalculator;  // 是否带有 BPMCalculator 属性
+            public string[] tabLabels;     // SoundDataArray 专用：各标签页的本地化名称
         }
 
         [Serializable]
