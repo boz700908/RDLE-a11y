@@ -3457,8 +3457,7 @@ namespace RDLevelEditorAccess
             ["eam.chain.nameLabel"]              = "事件链名称",
             ["eam.chain.noLevel"]                = "请先打开一个关卡",
             ["eam.chain.skippedEvents"]          = "{0} 个事件因类型不存在被跳过",
-            // BPM 计算器
-            ["eam.bpmCalculator.hint"]           = "请跟着音乐的节拍敲击空格键16次",
+            ["eam.bpmcalc.hint"]                 = "请跟着音乐的节拍敲击空格键16次",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -3577,9 +3576,10 @@ namespace RDLevelEditorAccess
             ["eam.chain.nameLabel"]              = "Event Chain Name",
             ["eam.chain.noLevel"]                = "Please open a level first",
             ["eam.chain.skippedEvents"]          = "{0} events skipped due to missing type",
-            // BPM Calculator
-            ["eam.bpmCalculator.hint"]           = "Press the spacebar 16 times to the beat of the music",
+            ["eam.bpmcalc.hint"]                 = "Tap the spacebar 16 times to the beat of the music",
         };
+
+        [HarmonyPrefix]
         public static bool GetPrefix(string key, ref string __result)
         {
             // 性能：非 eam./sound. key 仅多一次 StartsWith 检查（< 10ns）

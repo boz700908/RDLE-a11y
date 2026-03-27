@@ -859,7 +859,7 @@ namespace RDLevelEditorAccess.IPC
 
                         bpmCtl.bpmCalculator.Initialize();
                         Debug.Log("[FileIPC] 已触发原生BPM计算器");
-                        _owner.StartCoroutine(DelayedBPMCalculatorHint());
+                        _owner.StartCoroutine(DelayedBPMCalcHint());
                         return;
                     }
                 }
@@ -872,10 +872,10 @@ namespace RDLevelEditorAccess.IPC
             }
         }
 
-        private System.Collections.IEnumerator DelayedBPMCalculatorHint()
+        private System.Collections.IEnumerator DelayedBPMCalcHint()
         {
-            yield return new WaitForSeconds(0.5f);
-            Narration.Say(RDString.Get("eam.bpmCalculator.hint"), NarrationCategory.Notification);
+            yield return new UnityEngine.WaitForSeconds(0.5f);
+            Narration.Say(RDString.Get("eam.bpmcalc.hint"), NarrationCategory.Navigation);
         }
 
         private void ApplyUpdates(LevelEvent_Base ev, Dictionary<string, string> updates)
