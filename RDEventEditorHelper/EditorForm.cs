@@ -33,6 +33,7 @@ namespace RDEventEditorHelper
         public string[] rowNames;       // EnumArray 专用：轨道显示名称列表
         public int rowCount;            // EnumArray 专用：实际显示的行数
         public MethodSuggestion[] autocompleteSuggestions;  // 自动完成建议列表
+        public bool hasBPMCalculator;  // 是否带有 BPMCalculator 属性
     }
 
     public class MethodSuggestion
@@ -250,6 +251,7 @@ namespace RDEventEditorHelper
         public event Action<Dictionary<string, string>> OnOK;
         public event Action OnCancel;
         public event Action<string> OnExecute;  // 新增：执行操作按钮事件
+        public event Action<Dictionary<string, string>> OnBPMCalculator;  // BPM计算器：带更新的动作
 
         public EditorForm()
         {
@@ -402,6 +404,28 @@ namespace RDEventEditorHelper
                                 RequestVisibilityUpdate(prop.name, txt.Text);
                             };
                             inputCtrl = txt;
+
+                            // 为带有 BPMCalculator 属性的 Float 添加计算器按钮
+                            if (prop.type == "Float" && prop.hasBPMCalculator)
+                            {
+                                var bpmBtn = new Button
+                                {
+                                    Text = "BPM 计算器(BPM Calculator)",
+                                    Width = 400,
+                                    Height = 30,
+                                    Top = txt.Top + txt.Height + 5,
+                                    Left = 10,
+                                    AccessibleName = "BPM 计算器(BPM Calculator)"
+                                };
+                                bpmBtn.Click += (s, e) =>
+                                {
+                                    _isClosingByButton = true;
+                                    OnBPMCalculator?.Invoke(GetCurrentUpdates());
+                                    this.Close();
+                                };
+                                group.Controls.Add(bpmBtn);
+                                group.Height += bpmBtn.Height + 5;
+                            }
                         }
                         break;
 

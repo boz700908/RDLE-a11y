@@ -293,6 +293,18 @@ namespace RDLevelEditorAccess.IPC
                     return;
                 }
 
+                // 处理 BPM 计算器请求：先应用更改，再触发原生 BPM 计算器
+                if (resultData?.action == "bpmCalculator")
+                {
+                    if (resultData.updates != null && _currentEvent != null)
+                    {
+                        ApplyUpdates(_currentEvent, resultData.updates);
+                        Debug.Log("[FileIPC] 已应用事件更改（BPM计算器前）");
+                    }
+                    TriggerBPMCalculator();
+                    return;
+                }
+
                 if (resultData.updates != null)
                 {
                     // 根据编辑类型选择处理方式
@@ -818,6 +830,47 @@ namespace RDLevelEditorAccess.IPC
             }
         }
 
+        /// <summary>
+        /// 触发原生 BPM 计算器
+        /// </summary>
+        private void TriggerBPMCalculator()
+        {
+            try
+            {
+                if (scnEditor.instance == null)
+                {
+                    Debug.LogError("[FileIPC] 无法触发BPM计算器：编辑器实例为空");
+                    return;
+                }
+
+                var currentPanel = scnEditor.instance.inspectorPanelManager.GetCurrent();
+                if (currentPanel?.properties == null)
+                {
+                    Debug.LogError("[FileIPC] 无法触发BPM计算器：当前面板或属性列表为空");
+                    return;
+                }
+
+                foreach (var property in currentPanel.properties)
+                {
+                    if (property.control is PropertyControl_BPMCalculator bpmCtl)
+                    {
+                        if (bpmCtl.bpmCalculator.currentInspectorPanel == null)
+                            bpmCtl.bpmCalculator.currentInspectorPanel = currentPanel;
+
+                        bpmCtl.bpmCalculator.Initialize();
+                        Debug.Log("[FileIPC] 已触发原生BPM计算器");
+                        return;
+                    }
+                }
+
+                Debug.LogWarning("[FileIPC] 未找到BPM计算器控件");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FileIPC] 触发BPM计算器失败: {ex.Message}");
+            }
+        }
+
         private void ApplyUpdates(LevelEvent_Base ev, Dictionary<string, string> updates)
         {
             if (ev == null || updates == null) return;
@@ -1276,7 +1329,12 @@ namespace RDLevelEditorAccess.IPC
                     dto.localizedOptions = rLocalOpts;
                 }
                 else if (prop is IntPropertyInfo) dto.type = "Int";
-                else if (prop is FloatPropertyInfo) dto.type = "Float";
+                else if (prop is FloatPropertyInfo)
+                {
+                    dto.type = "Float";
+                    if (prop.controlAttribute is BPMCalculatorAttribute)
+                        dto.hasBPMCalculator = true;
+                }
                 else if (prop is BoolPropertyInfo) dto.type = "Bool";
                 else if (prop is StringPropertyInfo)
                 {
@@ -2624,6 +2682,7 @@ namespace RDLevelEditorAccess.IPC
             public string action;
             public Dictionary<string, string> updates;
             public string methodName;  // 当 action 为 "execute" 时使用
+            public string bpmPropertyName;  // 当 action 为 "bpmCalculator" 时：目标属性名
         }
 
         /// <summary>
@@ -2672,6 +2731,7 @@ namespace RDLevelEditorAccess.IPC
             public string[] rowNames;       // EnumArray 专用：轨道显示名称列表
             public int rowCount;            // EnumArray 专用：实际显示的行数
             public MethodSuggestionDto[] autocompleteSuggestions;  // 自动完成建议列表
+            public bool hasBPMCalculator;  // 是否带有 BPMCalculator 属性
         }
 
         [Serializable]

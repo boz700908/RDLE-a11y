@@ -99,6 +99,16 @@ namespace RDEventEditorHelper
 #endif
             };
 
+            editorForm.OnBPMCalculator += (updates) =>
+            {
+                var result = new ResultData { token = sessionToken, action = "bpmCalculator", updates = updates };
+                string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
+                File.WriteAllText(ResultPath, resultJson);
+#if DEBUG
+                Log($"已写入 result.json (bpmCalculator), token: {sessionToken}，退出");
+#endif
+            };
+
 #if DEBUG
             Log("显示编辑器窗口");
 #endif
