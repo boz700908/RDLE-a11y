@@ -777,10 +777,38 @@ namespace RDLevelEditorAccess.IPC
                 }
             }
 
+            // SetGameSound 专用：soundType 变化时返回 sounds 属性的新标签页名称
+            var tabLabelsChanges = new Dictionary<string, string[]>();
+            if (request.updates.ContainsKey("soundType") && currentEvent is LevelEvent_SetGameSound sgEvent2)
+            {
+                var soundType2 = sgEvent2.soundType;
+                string[] newTabLabels = null;
+                if (RDEditorUtils.SoundTypeIsGroup(soundType2))
+                {
+                    var groupKey2 = soundType2 switch
+                    {
+                        GameSoundType.PulseSoundHoldP2 => GameSoundType.PulseSoundHold,
+                        GameSoundType.ClapSoundHoldP2 => GameSoundType.ClapSoundHold,
+                        _ => soundType2,
+                    };
+                    var groups2 = RDEditorConstants.gameSoundGroups;
+                    if (groups2.ContainsKey(groupKey2))
+                    {
+                        newTabLabels = groups2[groupKey2].Select(st =>
+                        {
+                            string localized = RDString.GetEnumValue(st);
+                            return !string.IsNullOrEmpty(localized) ? StripRichTextTags(localized) : st.ToString();
+                        }).ToArray();
+                    }
+                }
+                tabLabelsChanges["sounds"] = newTabLabels;
+            }
+
             return new PropertyUpdateResponse
             {
                 token = request.token,
-                visibilityChanges = visibilityChanges
+                visibilityChanges = visibilityChanges,
+                tabLabelsChanges = tabLabelsChanges.Count > 0 ? tabLabelsChanges : null
             };
         }
 
@@ -2805,6 +2833,7 @@ namespace RDLevelEditorAccess.IPC
         {
             public string token;
             public Dictionary<string, bool> visibilityChanges;  // 属性名 → 是否应该显示
+            public Dictionary<string, string[]> tabLabelsChanges;  // 属性名 → 新的标签页名称列表（null表示改为单面板）
         }
     }
 }

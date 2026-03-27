@@ -77,6 +77,7 @@ namespace RDEventEditorHelper
     {
         public string token;
         public Dictionary<string, bool> visibilityChanges;  // 属性名 → 是否应该显示
+        public Dictionary<string, string[]> tabLabelsChanges;  // 属性名 → 新的标签页名称列表（null表示改为单面板）
     }
 
     // NEW: Helper IPC通信助手
@@ -1526,22 +1527,67 @@ namespace RDEventEditorHelper
 
         private void OnPropertyVisibilityUpdated(PropertyUpdateResponse response)
         {
-            if (response?.visibilityChanges == null) return;
+            if (response == null) return;
 
             // 在UI线程上执行
             this.Invoke(() =>
             {
-                foreach (var kvp in response.visibilityChanges)
+                if (response.visibilityChanges != null)
                 {
-                    string propName = kvp.Key;
-                    bool shouldShow = kvp.Value;
+                    foreach (var kvp in response.visibilityChanges)
+                    {
+                        UpdatePropertyVisibility(kvp.Key, kvp.Value);
+                        AnnounceVisibilityChange(kvp.Key, kvp.Value);
+                    }
+                }
 
-                    UpdatePropertyVisibility(propName, shouldShow);
-
-                    // 屏幕阅读器通知
-                    AnnounceVisibilityChange(propName, shouldShow);
+                if (response.tabLabelsChanges != null)
+                {
+                    foreach (var kvp in response.tabLabelsChanges)
+                    {
+                        RebuildSoundDataArrayControl(kvp.Key, kvp.Value);
+                    }
                 }
             });
+        }
+
+        private void RebuildSoundDataArrayControl(string propertyName, string[] newTabLabels)
+        {
+            var prop = _properties.FirstOrDefault(p => p.name == propertyName);
+            if (prop == null) return;
+            if (!_controls.TryGetValue(propertyName, out var oldCtrl)) return;
+
+            var groupBox = oldCtrl.Parent as GroupBox;
+            if (groupBox == null) return;
+
+            // 更新属性中的 tabLabels
+            prop.tabLabels = newTabLabels;
+
+            Control newCtrl;
+            bool hasLabels = newTabLabels != null && newTabLabels.Length > 0;
+            if (hasLabels)
+            {
+                var tabCtrl = new TabControl { Width = 440, Height = 260, Name = "SoundDataArrayTabs" };
+                for (int i = 0; i < newTabLabels.Length; i++)
+                {
+                    var page = new TabPage(newTabLabels[i]) { AccessibleName = newTabLabels[i] };
+                    page.Controls.Add(CreateSoundDataPanelFromValue(prop, ""));
+                    tabCtrl.TabPages.Add(page);
+                }
+                groupBox.Height = 290;
+                newCtrl = tabCtrl;
+            }
+            else
+            {
+                groupBox.Height = 240;
+                newCtrl = CreateSoundDataPanelFromValue(prop, "");
+            }
+
+            groupBox.Controls.Remove(oldCtrl);
+            oldCtrl.Dispose();
+            groupBox.Controls.Add(newCtrl);
+            _controls[propertyName] = newCtrl;
+            groupBox.Visible = true;
         }
 
         private void UpdatePropertyVisibility(string propertyName, bool shouldBeVisible)
