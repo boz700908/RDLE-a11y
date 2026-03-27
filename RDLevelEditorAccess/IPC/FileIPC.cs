@@ -1436,7 +1436,7 @@ namespace RDLevelEditorAccess.IPC
                         dto.type = "SoundDataArray";
                         ExtractSoundAttributeConfig(prop, ev, dto);
 
-                        // SetGameSound 专用：填充子类型标签页名称
+                        // SetGameSound 专用：填充子类型标签页名称和初始可见性
                         if (ev is LevelEvent_SetGameSound sgEvent)
                         {
                             var soundType = sgEvent.soundType;
