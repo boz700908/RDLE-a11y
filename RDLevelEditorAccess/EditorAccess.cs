@@ -84,13 +84,24 @@ namespace RDLevelEditorAccess
             CharacterSelect,      // 角色选择（添加轨道/精灵）
             EventTypeSelect,      // 事件类型选择
             LinkSelect,           // 链接选择
-            EventChainSelect      // 事件链选择
+            EventChainSelect,     // 事件链选择
+            ConditionalSelect     // 条件选择
         }
 
         private VirtualMenuState virtualMenuState = VirtualMenuState.None;
         private int virtualMenuIndex = 0;
         private string virtualMenuPurpose = "";  // "row", "sprite", "event"
         private LevelEventType selectedEventType;
+
+        // 条件选择菜单相关字段
+        private struct ConditionalEntry
+        {
+            public int     localId;   // 本地条件 ID（全局条件为 -1）
+            public string? globalId;  // 全局条件 GID（本地条件为 null）
+            public string  description; // 条件描述文本
+        }
+        private List<ConditionalEntry> _conditionalEntries = new List<ConditionalEntry>();
+        private LevelEvent_Base? _conditionalTargetEvent = null;
 
         // 链接相关字段
         private List<ModUtils.LinkInfo> currentElementLinks = new List<ModUtils.LinkInfo>();  // 当前元素的链接列表
@@ -928,8 +939,9 @@ namespace RDLevelEditorAccess
                 }
             }
 
-            // C键：选中事件吸附到最近的正拍或半拍
-            if (Input.GetKeyDown(KeyCode.C) && !ctrlPressed)
+            // C键：选中事件吸附到最近的正拍或半拍（Alt+C 保留给条件菜单）
+            if (Input.GetKeyDown(KeyCode.C) && !ctrlPressed &&
+                !Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.RightAlt))
             {
                 var moveMode = GetSelectedEventsMoveMode();
                 if (moveMode == EventMoveMode.Mixed)
@@ -938,7 +950,25 @@ namespace RDLevelEditorAccess
                     SnapSelectedEventsToHalfBeat();
             }
 
-            // ===================================================================================
+            // Alt+C：打开当前选中事件的条件选择菜单
+            if (Input.GetKeyDown(KeyCode.C) && !ctrlPressed &&
+                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)))
+            {
+                var evt = editor.selectedControl?.levelEvent;
+                if (evt == null)
+                {
+                    Narration.Say(RDString.Get("eam.event.noSelection"), NarrationCategory.Navigation);
+                }
+                else
+                {
+                    BuildConditionalList(evt);
+                    virtualMenuIndex = 0;
+                    virtualMenuState = VirtualMenuState.ConditionalSelect;
+                    Narration.Say(string.Format(RDString.Get("eam.conditional.menuHeader"),
+                        ModUtils.eventNameI18n(evt)), NarrationCategory.Navigation);
+                    Narration.Say(RDString.Get("editor.Conditionals"), NarrationCategory.Instruction);
+                }
+            }
             // 虚拟选区快捷键
             // ===================================================================================
 
@@ -1265,6 +1295,9 @@ namespace RDLevelEditorAccess
                 case VirtualMenuState.EventChainSelect:
                     HandleEventChainSelectMenu();
                     break;
+                case VirtualMenuState.ConditionalSelect:
+                    HandleConditionalSelect();
+                    break;
             }
         }
 
@@ -1491,6 +1524,126 @@ namespace RDLevelEditorAccess
             else if (Input.GetKeyDown(KeyCode.Escape))
             {
                 Narration.Say(RDString.Get("eam.link.cancelled"), NarrationCategory.Notification);
+                CloseVirtualMenu();
+            }
+        }
+
+        // ===================================================================================
+        // 条件选择菜单
+        // ===================================================================================
+
+        /// <summary>
+        /// 构建条件列表（全局条件优先，再加本地条件）
+        /// </summary>
+        private void BuildConditionalList(LevelEvent_Base levelEvent)
+        {
+            _conditionalEntries = new List<ConditionalEntry>();
+            _conditionalTargetEvent = levelEvent;
+
+            foreach (var c in Conditionals.GetGlobalConditionals())
+            {
+                _conditionalEntries.Add(new ConditionalEntry
+                {
+                    localId = -1,
+                    globalId = c.gid,
+                    description = c.description
+                });
+            }
+
+            var editor = scnEditor.instance;
+            if (editor?.conditionals != null)
+            {
+                foreach (var c in editor.conditionals)
+                {
+                    _conditionalEntries.Add(new ConditionalEntry
+                    {
+                        localId = c.id,
+                        globalId = null,
+                        description = string.IsNullOrEmpty(c.description) ? c.tag : c.description
+                    });
+                }
+            }
+        }
+
+        /// <summary>
+        /// 获取条件在目标事件上的附加状态（null=未附加，false=激活，true=取反）
+        /// </summary>
+        private bool? GetConditionalState(ConditionalEntry entry)
+        {
+            if (_conditionalTargetEvent == null) return null;
+            if (entry.globalId != null)
+                return _conditionalTargetEvent.HasGlobalConditional(entry.globalId);
+            return _conditionalTargetEvent.HasConditional(entry.localId);
+        }
+
+        /// <summary>
+        /// 循环切换状态：无→激活→取反→无
+        /// </summary>
+        private static bool? CycleConditionalState(bool? current)
+        {
+            if (!current.HasValue) return false; // 无 → 激活
+            if (!current.Value) return true;      // 激活 → 取反
+            return null;                           // 取反 → 无
+        }
+
+        /// <summary>
+        /// 宣读当前条目的状态和名称
+        /// </summary>
+        private void AnnounceCurrentConditional()
+        {
+            var entry = _conditionalEntries[virtualMenuIndex];
+            bool? state = GetConditionalState(entry);
+            string stateKey = state == null ? "eam.conditional.stateNone"
+                            : state.Value   ? "eam.conditional.stateNegated"
+                                            : "eam.conditional.stateActive";
+            Narration.Say(RDString.Get(stateKey) + "，" + entry.description, NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 条件选择菜单的导航处理
+        /// </summary>
+        private void HandleConditionalSelect()
+        {
+            if (_conditionalTargetEvent == null || _conditionalEntries.Count == 0)
+            {
+                Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
+                CloseVirtualMenu();
+                return;
+            }
+
+            int count = _conditionalEntries.Count;
+
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex - 1 + count) % count;
+                AnnounceCurrentConditional();
+            }
+            else if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex + 1) % count;
+                AnnounceCurrentConditional();
+            }
+            else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                var entry = _conditionalEntries[virtualMenuIndex];
+                bool? newState = CycleConditionalState(GetConditionalState(entry));
+
+                using (new SaveStateScope())
+                {
+                    if (entry.globalId != null)
+                        _conditionalTargetEvent.SetConditional(0, entry.globalId, newState);
+                    else
+                        _conditionalTargetEvent.SetConditional(entry.localId, null, newState);
+                }
+
+                string stateKey = newState == null ? "eam.conditional.removed"
+                                : newState.Value   ? "eam.conditional.negated"
+                                                   : "eam.conditional.activated";
+                Narration.Say(string.Format(RDString.Get(stateKey), entry.description), NarrationCategory.Navigation);
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
                 CloseVirtualMenu();
             }
         }
@@ -3458,6 +3611,15 @@ namespace RDLevelEditorAccess
             ["eam.chain.noLevel"]                = "请先打开一个关卡",
             ["eam.chain.skippedEvents"]          = "{0} 个事件因类型不存在被跳过",
             ["eam.bpmcalc.hint"]                 = "请跟着音乐的节拍敲击空格键16次",
+            // 条件系统
+            ["eam.conditional.menuHeader"]       = "{0} 的条件",
+            ["eam.conditional.noConditionals"]   = "暂无条件",
+            ["eam.conditional.stateNone"]        = "未设置",
+            ["eam.conditional.stateActive"]      = "已激活",
+            ["eam.conditional.stateNegated"]     = "已取反",
+            ["eam.conditional.activated"]        = "已激活 {0}",
+            ["eam.conditional.negated"]          = "已取反 {0}",
+            ["eam.conditional.removed"]          = "已移除 {0}",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -3577,6 +3739,15 @@ namespace RDLevelEditorAccess
             ["eam.chain.noLevel"]                = "Please open a level first",
             ["eam.chain.skippedEvents"]          = "{0} events skipped due to missing type",
             ["eam.bpmcalc.hint"]                 = "Tap the spacebar 16 times to the beat of the music",
+            // Conditional system
+            ["eam.conditional.menuHeader"]       = "{0}'s conditions",
+            ["eam.conditional.noConditionals"]   = "No conditionals",
+            ["eam.conditional.stateNone"]        = "not set",
+            ["eam.conditional.stateActive"]      = "active",
+            ["eam.conditional.stateNegated"]     = "negated",
+            ["eam.conditional.activated"]        = "Activated {0}",
+            ["eam.conditional.negated"]          = "Negated {0}",
+            ["eam.conditional.removed"]          = "Removed {0}",
         };
 
         [HarmonyPrefix]
