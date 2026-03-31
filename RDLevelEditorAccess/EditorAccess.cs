@@ -1551,6 +1551,7 @@ namespace RDLevelEditorAccess
         {
             _conditionalEntries = new List<ConditionalEntry>();
             _conditionalTargetEvent = levelEvent;
+            _pendingDeleteConditionalId = -1;
 
             foreach (var c in Conditionals.GetGlobalConditionals())
             {
@@ -1723,6 +1724,7 @@ namespace RDLevelEditorAccess
                     if (editor != null)
                     {
                         int delId = entry.localId;
+                        var affected = new List<LevelEventControl_Base>();
                         using (new SaveStateScope())
                         {
                             editor.conditionals.RemoveAll(c => c.id == delId);
@@ -1733,11 +1735,13 @@ namespace RDLevelEditorAccess
                                     if (ctrl?.levelEvent?.HasConditional(delId).HasValue == true)
                                     {
                                         ctrl.levelEvent.SetConditional(delId, null, null);
-                                        ctrl.UpdateUIInternal();
+                                        affected.Add(ctrl);
                                     }
                                 }
                             }
                         }
+                        foreach (var ctrl in affected)
+                            ctrl.UpdateUIInternal();
                         Narration.Say(string.Format(RDString.Get("eam.conditional.deleted"), entry.description), NarrationCategory.Navigation);
                     }
                     CloseVirtualMenu();
@@ -1775,6 +1779,7 @@ namespace RDLevelEditorAccess
         {
             virtualMenuState = VirtualMenuState.None;
             virtualMenuPurpose = "";
+            _pendingDeleteConditionalId = -1;
         }
 
         // ===================================================================================

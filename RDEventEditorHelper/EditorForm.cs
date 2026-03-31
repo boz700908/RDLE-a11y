@@ -309,10 +309,15 @@ namespace RDEventEditorHelper
 
             _btnOK.Click += (s, e) =>
             {
-                if (_isConditionMode) return; // 条件模式下由 RewireConditionOKButton 接管
+                if (_isClosingByButton) return;
                 _isClosingByButton = true;
-                OnOK?.Invoke(GetCurrentUpdates());
-                this.Close();
+                if (_isConditionMode)
+                    ExecuteConditionOK();
+                else
+                {
+                    OnOK?.Invoke(GetCurrentUpdates());
+                    this.Close();
+                }
             };
             _btnCancel.Click += (s, e) =>
             {
@@ -388,7 +393,9 @@ namespace RDEventEditorHelper
         private ConditionSourceData _conditionSourceData;  // 条件编辑输入数据
         private string _conditionCurrentType;              // 当前选中的条件类型名
         private FlowLayoutPanel _conditionDynPanel;        // 动态属性区域
-        private bool _isConditionMode;                     // 是否处于条件编辑模式（屏蔽默认 OnOK 事件）
+        private bool _isConditionMode;                     // 是否处于条件编辑模式
+        private TextBox _conditionTagBox;                  // 条件标签输入框
+        private TextBox _conditionDescBox;                 // 条件描述输入框
 
         /// <summary>
         /// 以条件编辑模式初始化窗口
@@ -447,6 +454,7 @@ namespace RDEventEditorHelper
             txtTag.AccessibleName = tagAccessibleName;
             _panel.Controls.Add(txtTag);
             _controls["_condTag"] = txtTag;
+            _conditionTagBox = txtTag;
 
             // --- 描述（description）---
             string descLabelText = !string.IsNullOrEmpty(sd.conditionDescriptionLabelLocalized)
@@ -460,6 +468,7 @@ namespace RDEventEditorHelper
             txtDesc.AccessibleName = descAccessibleName;
             _panel.Controls.Add(txtDesc);
             _controls["_condDesc"] = txtDesc;
+            _conditionDescBox = txtDesc;
 
             // --- 动态属性区域 ---
             _conditionDynPanel = new FlowLayoutPanel
@@ -483,10 +492,6 @@ namespace RDEventEditorHelper
                     BuildConditionDynProps(_conditionCurrentType);
                 }
             };
-
-            // 覆盖 OK 按钮行为，输出条件专用结果
-            _btnOK.Click -= null; // 清除旧事件（注意：需改写方式）
-            RewireConditionOKButton(txtTag, txtDesc, availableTypes);
         }
 
         private void BuildConditionDynProps(string typeName)
@@ -561,7 +566,7 @@ namespace RDEventEditorHelper
                     var cmb = new ComboBox { Width = 350, DropDownStyle = ComboBoxStyle.DropDownList };
                     cmb.Tag = rawOptions;
                     for (int i = 0; i < displayOptions.Length; i++)
-                        cmb.Items.Add(i < displayOptions.Length ? displayOptions[i] : rawOptions[i]);
+                        cmb.Items.Add(displayOptions[i]);
 
                     // 根据当前值设置选中项
                     int sel = Array.IndexOf(rawOptions, prop.value ?? "");
@@ -582,49 +587,41 @@ namespace RDEventEditorHelper
             }
         }
 
-        private void RewireConditionOKButton(TextBox txtTag, TextBox txtDesc, string[] availableTypes)
+        private void ExecuteConditionOK()
         {
-            // 移除所有已有的 Click 处理器（通过重新赋值代替）
-            _btnOK.Click += (s, e) =>
+            // 读取动态属性值
+            var updates = new Dictionary<string, string>();
+            foreach (var kvp in _controls)
             {
-                if (_isClosingByButton) return; // 防止重复触发
-                _isClosingByButton = true;
-
-                // 读取动态属性值
-                var updates = new Dictionary<string, string>();
-                foreach (var kvp in _controls)
+                if (kvp.Key == "_condTag" || kvp.Key == "_condDesc") continue;
+                Control ctrl = kvp.Value;
+                if (ctrl is TextBox tb)
+                    updates[kvp.Key] = tb.Text;
+                else if (ctrl is ComboBox cmb2)
                 {
-                    if (kvp.Key == "_condTag" || kvp.Key == "_condDesc") continue;
-                    Control ctrl = kvp.Value;
-                    if (ctrl is TextBox tb)
-                        updates[kvp.Key] = tb.Text;
-                    else if (ctrl is ComboBox cmb2)
-                    {
-                        // 从 Tag 取原始值
-                        var raw = cmb2.Tag as string[];
-                        int selIdx = cmb2.SelectedIndex;
-                        updates[kvp.Key] = (raw != null && selIdx >= 0 && selIdx < raw.Length)
-                            ? raw[selIdx]
-                            : cmb2.SelectedItem?.ToString() ?? "";
-                    }
+                    var raw = cmb2.Tag as string[];
+                    int selIdx = cmb2.SelectedIndex;
+                    updates[kvp.Key] = (raw != null && selIdx >= 0 && selIdx < raw.Length)
+                        ? raw[selIdx]
+                        : cmb2.SelectedItem?.ToString() ?? "";
                 }
+            }
 
-                // 写 result.json（含条件专用字段）
-                var result = new
-                {
-                    token = _token,
-                    action = "ok",
-                    conditionalType = _conditionCurrentType,
-                    conditionalTag = txtTag.Text,
-                    conditionalDescription = txtDesc.Text,
-                    updates
-                };
-                string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
-                string resultPath = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "temp", "result.json");
-                File.WriteAllText(resultPath, resultJson);
-
-                this.Close();
+            // 写 result.json（含条件专用字段）
+            var result = new
+            {
+                token = _token,
+                action = "ok",
+                conditionalType = _conditionCurrentType,
+                conditionalTag = _conditionTagBox?.Text ?? "",
+                conditionalDescription = _conditionDescBox?.Text ?? "",
+                updates
             };
+            string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
+            string resultPath = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "temp", "result.json");
+            File.WriteAllText(resultPath, resultJson);
+
+            this.Close();
         }
 
         private void BuildUI()

@@ -2455,9 +2455,15 @@ namespace RDLevelEditorAccess.IPC
 
         private void ApplyConditionalResult(ResultData resultData)
         {
-            if (resultData?.action == "cancel" || resultData?.conditionalType == null)
+            if (resultData?.action == "cancel")
             {
                 Debug.Log("[FileIPC] 条件编辑已取消");
+                return;
+            }
+
+            if (resultData?.conditionalType == null)
+            {
+                Debug.LogError("[FileIPC] 条件编辑结果缺少 conditionalType 字段");
                 return;
             }
 
