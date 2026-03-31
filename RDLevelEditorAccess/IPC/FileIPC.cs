@@ -2241,7 +2241,7 @@ namespace RDLevelEditorAccess.IPC
             _conditionalTargetEvent = targetEvent;
             _sessionToken = System.Guid.NewGuid().ToString();
 
-            var sourceData = BuildConditionSourceData("create", 0, "Custom", "", "");
+            var sourceData = BuildConditionSourceData("create", 0, "Custom", "", "", targetEvent?.conditionalDuration ?? 0f);
 
             WriteAndLaunch(sourceData, "条件新建");
         }
@@ -2274,7 +2274,20 @@ namespace RDLevelEditorAccess.IPC
             _sessionToken = System.Guid.NewGuid().ToString();
 
             string typeName = cond.type.ToString();
-            var sourceData = BuildConditionSourceData("edit", localId, typeName, cond.tag ?? "", cond.description ?? "");
+            // 取第一个使用该条件的事件的 duration 作为预填值
+            float existingDuration = 0f;
+            if (editor.eventControls != null)
+            {
+                foreach (var ctrl in editor.eventControls)
+                {
+                    if (ctrl?.levelEvent?.HasConditional(localId).HasValue == true)
+                    {
+                        existingDuration = ctrl.levelEvent.conditionalDuration;
+                        break;
+                    }
+                }
+            }
+            var sourceData = BuildConditionSourceData("edit", localId, typeName, cond.tag ?? "", cond.description ?? "", existingDuration);
 
             // 预填当前值
             if (sourceData.allTypeProperties != null && sourceData.allTypeProperties.TryGetValue(typeName, out var props))
@@ -2294,7 +2307,7 @@ namespace RDLevelEditorAccess.IPC
             WriteAndLaunch(sourceData, "条件编辑");
         }
 
-        private SourceData BuildConditionSourceData(string mode, int id, string type, string tag, string description)
+        private SourceData BuildConditionSourceData(string mode, int id, string type, string tag, string description, float duration)
         {
             var allTypeProps = BuildAllTypeProperties();
             var rowNames = BuildConditionRowNames();
@@ -2322,7 +2335,9 @@ namespace RDLevelEditorAccess.IPC
                 levelDirectory = GetLevelDirectory(),
                 conditionTypeLabelLocalized = RDString.Get("editor.Conditionals.type"),
                 conditionTagLabelLocalized = RDString.Get("eam.conditional.tagLabel"),
-                conditionDescriptionLabelLocalized = RDString.Get("eam.conditional.descriptionLabel")
+                conditionDescriptionLabelLocalized = RDString.Get("eam.conditional.descriptionLabel"),
+                conditionalDuration = duration,
+                conditionDurationLabelLocalized = RDString.Get("editor.Conditionals.duration")
             };
         }
 
@@ -2542,16 +2557,27 @@ namespace RDLevelEditorAccess.IPC
                         editor.conditionals[idx] = cond;
                     else
                         editor.conditionals?.Add(cond);
+                    // 将 duration 应用到所有使用该条件的事件
+                    if (resultData.conditionalDuration >= 0f && editor.eventControls != null)
+                    {
+                        foreach (var ctrl in editor.eventControls)
+                        {
+                            if (ctrl?.levelEvent?.HasConditional(id).HasValue == true)
+                                ctrl.levelEvent.conditionalDuration = resultData.conditionalDuration;
+                        }
+                    }
                     Debug.Log($"[FileIPC] 已更新条件 ID={id}");
                 }
                 else
                 {
                     editor.conditionals?.Add(cond);
-                    // 自动附加到目标事件（激活状态）
+                    // 自动附加到目标事件（激活状态），并设置 duration
                     if (_conditionalTargetEvent != null &&
                         editor.eventControls?.Exists(ec => ec.levelEvent == _conditionalTargetEvent) == true)
                     {
                         _conditionalTargetEvent.SetConditional(id, null, false);
+                        if (resultData.conditionalDuration >= 0f)
+                            _conditionalTargetEvent.conditionalDuration = resultData.conditionalDuration;
                         Debug.Log($"[FileIPC] 新条件 ID={id} 已自动附加到目标事件");
                     }
                     Debug.Log($"[FileIPC] 已新建条件 ID={id}");
@@ -3136,6 +3162,8 @@ namespace RDLevelEditorAccess.IPC
             public string conditionTypeLabelLocalized;        // "类型" 标签
             public string conditionTagLabelLocalized;         // "标签" 标签
             public string conditionDescriptionLabelLocalized; // "描述" 标签
+            public float conditionalDuration;                 // 事件当前的持续时间（拍）
+            public string conditionDurationLabelLocalized;    // "持续时间" 标签
         }
 
         [Serializable]
@@ -3150,6 +3178,7 @@ namespace RDLevelEditorAccess.IPC
             public string conditionalType;
             public string conditionalTag;
             public string conditionalDescription;
+            public float conditionalDuration;   // 事件持续时间（拍），-1 表示未修改
         }
 
         /// <summary>

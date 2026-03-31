@@ -64,6 +64,8 @@ namespace RDEventEditorHelper
         public string conditionTypeLabelLocalized;
         public string conditionTagLabelLocalized;
         public string conditionDescriptionLabelLocalized;
+        public float conditionalDuration;
+        public string conditionDurationLabelLocalized;
     }
 
     // 自动完成列表项包装类
@@ -396,6 +398,7 @@ namespace RDEventEditorHelper
         private bool _isConditionMode;                     // 是否处于条件编辑模式
         private TextBox _conditionTagBox;                  // 条件标签输入框
         private TextBox _conditionDescBox;                 // 条件描述输入框
+        private TextBox _conditionDurationBox;             // 持续时间输入框
 
         /// <summary>
         /// 以条件编辑模式初始化窗口
@@ -470,7 +473,27 @@ namespace RDEventEditorHelper
             _controls["_condDesc"] = txtDesc;
             _conditionDescBox = txtDesc;
 
-            // --- 动态属性区域 ---
+            // --- 持续时间（duration）---
+            string durLabelText = !string.IsNullOrEmpty(sd.conditionDurationLabelLocalized)
+                ? sd.conditionDurationLabelLocalized + ":"
+                : "持续时间 (Duration):";
+            var lblDur = new Label { Text = durLabelText, AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
+            _panel.Controls.Add(lblDur);
+            string durAccessibleName = !string.IsNullOrEmpty(sd.conditionDurationLabelLocalized)
+                ? sd.conditionDurationLabelLocalized : "持续时间";
+            var txtDur = new TextBox
+            {
+                Width = 120,
+                Text = sd.conditionalDuration > 0f ? sd.conditionalDuration.ToString("0.##") : "0",
+                AccessibleName = durAccessibleName
+            };
+            txtDur.KeyPress += (s, e) =>
+            {
+                if (!char.IsDigit(e.KeyChar) && e.KeyChar != (char)Keys.Back && e.KeyChar != '.')
+                    e.Handled = true;
+            };
+            _panel.Controls.Add(txtDur);
+            _conditionDurationBox = txtDur;
             _conditionDynPanel = new FlowLayoutPanel
             {
                 Width = 460,
@@ -608,6 +631,10 @@ namespace RDEventEditorHelper
             }
 
             // 写 result.json（含条件专用字段）
+            float duration = -1f;
+            if (_conditionDurationBox != null && float.TryParse(_conditionDurationBox.Text, out float parsedDur))
+                duration = Math.Max(0f, parsedDur);
+
             var result = new
             {
                 token = _token,
@@ -615,6 +642,7 @@ namespace RDEventEditorHelper
                 conditionalType = _conditionCurrentType,
                 conditionalTag = _conditionTagBox?.Text ?? "",
                 conditionalDescription = _conditionDescBox?.Text ?? "",
+                conditionalDuration = duration,
                 updates
             };
             string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);

@@ -77,7 +77,9 @@ namespace RDEventEditorHelper
                     rowNames = sourceData?.rowNames,
                     conditionTypeLabelLocalized = sourceData?.conditionTypeLabelLocalized,
                     conditionTagLabelLocalized = sourceData?.conditionTagLabelLocalized,
-                    conditionDescriptionLabelLocalized = sourceData?.conditionDescriptionLabelLocalized
+                    conditionDescriptionLabelLocalized = sourceData?.conditionDescriptionLabelLocalized,
+                    conditionalDuration = sourceData?.conditionalDuration ?? 0f,
+                    conditionDurationLabelLocalized = sourceData?.conditionDurationLabelLocalized
                 };
                 editorForm.SetConditionData(condData, title, sessionToken);
             }
@@ -183,6 +185,8 @@ namespace RDEventEditorHelper
             public string conditionTypeLabelLocalized;
             public string conditionTagLabelLocalized;
             public string conditionDescriptionLabelLocalized;
+            public float conditionalDuration;
+            public string conditionDurationLabelLocalized;
         }
 
         private class ResultData
@@ -195,6 +199,7 @@ namespace RDEventEditorHelper
             public string conditionalType;
             public string conditionalTag;
             public string conditionalDescription;
+            public float conditionalDuration = -1f;  // -1 表示未修改
         }
     }
 }
