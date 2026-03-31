@@ -2320,7 +2320,10 @@ namespace RDLevelEditorAccess.IPC
                 localizedTypes = localizedTypes,
                 allTypeProperties = allTypeProps,
                 rowNames = rowNames,
-                levelDirectory = GetLevelDirectory()
+                levelDirectory = GetLevelDirectory(),
+                conditionTypeLabelLocalized = RDString.Get("eam.conditional.typeLabel"),
+                conditionTagLabelLocalized = RDString.Get("eam.conditional.tagLabel"),
+                conditionDescriptionLabelLocalized = RDString.Get("eam.conditional.descriptionLabel")
             };
         }
 
@@ -3122,6 +3125,10 @@ namespace RDLevelEditorAccess.IPC
             public string[] localizedTypes;      // 可选条件类型本地化名列表
             public Dictionary<string, List<PropertyData>> allTypeProperties; // 各类型的属性列表
             public string[] rowNames;            // 轨道名（首项为"任意行"，供 LastHit 使用）
+            // 条件编辑器 UI 标签本地化
+            public string conditionTypeLabelLocalized;        // "类型" 标签
+            public string conditionTagLabelLocalized;         // "标签" 标签
+            public string conditionDescriptionLabelLocalized; // "描述" 标签
         }
 
         [Serializable]

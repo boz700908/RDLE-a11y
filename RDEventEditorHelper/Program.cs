@@ -74,7 +74,10 @@ namespace RDEventEditorHelper
                     availableTypes = sourceData?.availableTypes,
                     localizedTypes = sourceData?.localizedTypes,
                     allTypeProperties = sourceData?.allTypeProperties,
-                    rowNames = sourceData?.rowNames
+                    rowNames = sourceData?.rowNames,
+                    conditionTypeLabelLocalized = sourceData?.conditionTypeLabelLocalized,
+                    conditionTagLabelLocalized = sourceData?.conditionTagLabelLocalized,
+                    conditionDescriptionLabelLocalized = sourceData?.conditionDescriptionLabelLocalized
                 };
                 editorForm.SetConditionData(condData, title, sessionToken);
             }
@@ -176,6 +179,10 @@ namespace RDEventEditorHelper
             public string[] localizedTypes;
             public System.Collections.Generic.Dictionary<string, RDEventEditorHelper.PropertyData[]> allTypeProperties;
             public string[] rowNames;
+            // UI 标签本地化
+            public string conditionTypeLabelLocalized;
+            public string conditionTagLabelLocalized;
+            public string conditionDescriptionLabelLocalized;
         }
 
         private class ResultData

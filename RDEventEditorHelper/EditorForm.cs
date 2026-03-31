@@ -60,6 +60,10 @@ namespace RDEventEditorHelper
         public string[] localizedTypes;
         public Dictionary<string, PropertyData[]> allTypeProperties;
         public string[] rowNames;
+        // UI 标签本地化
+        public string conditionTypeLabelLocalized;
+        public string conditionTagLabelLocalized;
+        public string conditionDescriptionLabelLocalized;
     }
 
     // 自动完成列表项包装类
@@ -411,7 +415,10 @@ namespace RDEventEditorHelper
             if (sd == null) return;
 
             // --- 类型下拉 ---
-            var lblType = new Label { Text = "类型 (Type):", AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
+            string typeLabelText = !string.IsNullOrEmpty(sd.conditionTypeLabelLocalized)
+                ? sd.conditionTypeLabelLocalized + ":"
+                : "类型 (Type):";
+            var lblType = new Label { Text = typeLabelText, AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
             _panel.Controls.Add(lblType);
 
             var cmbType = new ComboBox { Width = 350, DropDownStyle = ComboBoxStyle.DropDownList };
@@ -423,22 +430,34 @@ namespace RDEventEditorHelper
             int selectedIdx = Array.IndexOf(availableTypes, _conditionCurrentType);
             cmbType.SelectedIndex = selectedIdx >= 0 ? selectedIdx : 0;
             cmbType.Tag = availableTypes; // 存原始值
-            cmbType.AccessibleName = "条件类型";
+            cmbType.AccessibleName = !string.IsNullOrEmpty(sd.conditionTypeLabelLocalized)
+                ? sd.conditionTypeLabelLocalized
+                : "条件类型";
             _panel.Controls.Add(cmbType);
 
             // --- 标签（tag）---
-            var lblTag = new Label { Text = "标签 (Tag):", AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
+            string tagLabelText = !string.IsNullOrEmpty(sd.conditionTagLabelLocalized)
+                ? sd.conditionTagLabelLocalized + ":"
+                : "标签 (Tag):";
+            var lblTag = new Label { Text = tagLabelText, AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
             _panel.Controls.Add(lblTag);
+            string tagAccessibleName = !string.IsNullOrEmpty(sd.conditionTagLabelLocalized)
+                ? sd.conditionTagLabelLocalized : "标签";
             var txtTag = new TextBox { Width = 350, Text = sd.conditionalTag ?? "" };
-            txtTag.AccessibleName = "标签";
+            txtTag.AccessibleName = tagAccessibleName;
             _panel.Controls.Add(txtTag);
             _controls["_condTag"] = txtTag;
 
             // --- 描述（description）---
-            var lblDesc = new Label { Text = "描述 (Description):", AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
+            string descLabelText = !string.IsNullOrEmpty(sd.conditionDescriptionLabelLocalized)
+                ? sd.conditionDescriptionLabelLocalized + ":"
+                : "描述 (Description):";
+            var lblDesc = new Label { Text = descLabelText, AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
             _panel.Controls.Add(lblDesc);
+            string descAccessibleName = !string.IsNullOrEmpty(sd.conditionDescriptionLabelLocalized)
+                ? sd.conditionDescriptionLabelLocalized : "描述";
             var txtDesc = new TextBox { Width = 350, Text = sd.conditionalDescription ?? "" };
-            txtDesc.AccessibleName = "描述";
+            txtDesc.AccessibleName = descAccessibleName;
             _panel.Controls.Add(txtDesc);
             _controls["_condDesc"] = txtDesc;
 

@@ -102,6 +102,7 @@ namespace RDLevelEditorAccess
         }
         private List<ConditionalEntry> _conditionalEntries = new List<ConditionalEntry>();
         private LevelEvent_Base? _conditionalTargetEvent = null;
+        private int _pendingDeleteConditionalId = -1;  // 待确认删除的条件 ID，-1 表示无待删除
 
         // 链接相关字段
         private List<ModUtils.LinkInfo> currentElementLinks = new List<ModUtils.LinkInfo>();  // 当前元素的链接列表
@@ -1642,16 +1643,19 @@ namespace RDLevelEditorAccess
 
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
+                _pendingDeleteConditionalId = -1;
                 virtualMenuIndex = (virtualMenuIndex - 1 + count) % count;
                 AnnounceCurrentConditional();
             }
             else if (Input.GetKeyDown(KeyCode.DownArrow))
             {
+                _pendingDeleteConditionalId = -1;
                 virtualMenuIndex = (virtualMenuIndex + 1) % count;
                 AnnounceCurrentConditional();
             }
             else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                _pendingDeleteConditionalId = -1;
                 var entry = _conditionalEntries[virtualMenuIndex];
                 bool? newState = CycleConditionalState(GetConditionalState(entry));
 
@@ -1670,16 +1674,28 @@ namespace RDLevelEditorAccess
             }
             else if (Input.GetKeyDown(KeyCode.Escape))
             {
-                Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
-                CloseVirtualMenu();
+                if (_pendingDeleteConditionalId != -1)
+                {
+                    // 取消待删除确认，重新朗读当前条件
+                    _pendingDeleteConditionalId = -1;
+                    Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
+                    AnnounceCurrentConditional();
+                }
+                else
+                {
+                    Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
+                    CloseVirtualMenu();
+                }
             }
             else if (Input.GetKeyDown(KeyCode.N))
             {
+                _pendingDeleteConditionalId = -1;
                 Narration.Say(RDString.Get("eam.conditional.openCreate"), NarrationCategory.Navigation);
                 AccessibilityBridge.CreateCondition(_conditionalTargetEvent);
             }
             else if (Input.GetKeyDown(KeyCode.E))
             {
+                _pendingDeleteConditionalId = -1;
                 var entry = _conditionalEntries[virtualMenuIndex];
                 if (entry.localId == -1)
                 {
@@ -1696,17 +1712,58 @@ namespace RDLevelEditorAccess
                 var entry = _conditionalEntries[virtualMenuIndex];
                 if (entry.localId == -1)
                 {
+                    _pendingDeleteConditionalId = -1;
                     Narration.Say(RDString.Get("eam.conditional.cannotDeleteGlobal"), NarrationCategory.Navigation);
+                }
+                else if (_pendingDeleteConditionalId == entry.localId)
+                {
+                    // 第二次按 D：执行删除（复现 Conditionals.Delete 的核心逻辑）
+                    _pendingDeleteConditionalId = -1;
+                    var editor = scnEditor.instance;
+                    if (editor != null)
+                    {
+                        int delId = entry.localId;
+                        using (new SaveStateScope())
+                        {
+                            editor.conditionals.RemoveAll(c => c.id == delId);
+                            if (editor.eventControls != null)
+                            {
+                                foreach (var ctrl in editor.eventControls)
+                                {
+                                    if (ctrl?.levelEvent?.HasConditional(delId).HasValue == true)
+                                    {
+                                        ctrl.levelEvent.SetConditional(delId, null, null);
+                                        ctrl.UpdateUIInternal();
+                                    }
+                                }
+                            }
+                        }
+                        Narration.Say(string.Format(RDString.Get("eam.conditional.deleted"), entry.description), NarrationCategory.Navigation);
+                    }
+                    CloseVirtualMenu();
                 }
                 else
                 {
-                    var panel = scnEditor.instance?.conditionalsPanel;
-                    if (panel != null)
+                    // 第一次按 D：统计使用该条件的事件数，朗读确认提示
+                    _pendingDeleteConditionalId = entry.localId;
+                    int usageCount = 0;
+                    var editor = scnEditor.instance;
+                    if (editor?.eventControls != null)
                     {
-                        panel.Edit(entry.localId);
-                        panel.EditDelete();
-                        CloseVirtualMenu();
+                        foreach (var ctrl in editor.eventControls)
+                        {
+                            if (ctrl?.levelEvent?.HasConditional(entry.localId).HasValue == true)
+                                usageCount++;
+                        }
                     }
+                    string confirmMsg;
+                    if (usageCount == 0)
+                        confirmMsg = string.Format(RDString.Get("eam.conditional.deleteConfirmNoUsage"), entry.description);
+                    else if (usageCount == 1)
+                        confirmMsg = string.Format(RDString.Get("eam.conditional.deleteConfirmSingle"), entry.description);
+                    else
+                        confirmMsg = string.Format(RDString.Get("eam.conditional.deleteConfirm"), entry.description, usageCount);
+                    Narration.Say(confirmMsg, NarrationCategory.Navigation);
                 }
             }
         }
@@ -3688,8 +3745,12 @@ namespace RDLevelEditorAccess
             ["eam.conditional.openEdit"]         = "正在打开条件编辑器",
             ["eam.conditional.created"]          = "已新建条件 {0}",
             ["eam.conditional.edited"]           = "已修改条件 {0}",
+            ["eam.conditional.deleted"]          = "已删除条件 {0}",
             ["eam.conditional.cannotEditGlobal"] = "全局条件不可编辑",
-            ["eam.conditional.cannotDeleteGlobal"] = "全局条件不可删除",
+            ["eam.conditional.cannotDeleteGlobal"]   = "全局条件不可删除",
+            ["eam.conditional.deleteConfirmNoUsage"] = "确认删除条件 {0}？再按 D 确认，Escape 取消",
+            ["eam.conditional.deleteConfirmSingle"]  = "确认删除条件 {0}？已有 1 个事件使用了该条件。再按 D 确认，Escape 取消",
+            ["eam.conditional.deleteConfirm"]        = "确认删除条件 {0}？已有 {1} 个事件使用了该条件。再按 D 确认，Escape 取消",
             ["eam.conditional.expressionLabel"]  = "表达式",
             ["eam.conditional.maxTimesLabel"]    = "最大执行次数",
             ["eam.conditional.rowLabel"]         = "轨道",
@@ -3700,6 +3761,9 @@ namespace RDLevelEditorAccess
             ["eam.conditionalType.LastHit"]      = "最后一击",
             ["eam.conditionalType.TimesExecuted"] = "执行次数",
             ["eam.conditionalType.Language"]     = "语言",
+            ["eam.conditional.typeLabel"]        = "类型",
+            ["eam.conditional.tagLabel"]         = "标签",
+            ["eam.conditional.descriptionLabel"] = "描述",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -3833,8 +3897,12 @@ namespace RDLevelEditorAccess
             ["eam.conditional.openEdit"]         = "Opening condition editor",
             ["eam.conditional.created"]          = "Created condition {0}",
             ["eam.conditional.edited"]           = "Edited condition {0}",
+            ["eam.conditional.deleted"]          = "Deleted condition {0}",
             ["eam.conditional.cannotEditGlobal"] = "Global conditions cannot be edited",
-            ["eam.conditional.cannotDeleteGlobal"] = "Global conditions cannot be deleted",
+            ["eam.conditional.cannotDeleteGlobal"]   = "Global conditions cannot be deleted",
+            ["eam.conditional.deleteConfirmNoUsage"] = "Delete condition {0}? Press D again to confirm, Escape to cancel",
+            ["eam.conditional.deleteConfirmSingle"]  = "Delete condition {0}? 1 event uses this condition. Press D again to confirm, Escape to cancel",
+            ["eam.conditional.deleteConfirm"]        = "Delete condition {0}? {1} events use this condition. Press D again to confirm, Escape to cancel",
             ["eam.conditional.expressionLabel"]  = "Expression",
             ["eam.conditional.maxTimesLabel"]    = "Max times",
             ["eam.conditional.rowLabel"]         = "Row",
@@ -3845,6 +3913,9 @@ namespace RDLevelEditorAccess
             ["eam.conditionalType.LastHit"]      = "Last hit",
             ["eam.conditionalType.TimesExecuted"] = "Times executed",
             ["eam.conditionalType.Language"]     = "Language",
+            ["eam.conditional.typeLabel"]        = "Type",
+            ["eam.conditional.tagLabel"]         = "Tag",
+            ["eam.conditional.descriptionLabel"] = "Description",
         };
 
         [HarmonyPrefix]
