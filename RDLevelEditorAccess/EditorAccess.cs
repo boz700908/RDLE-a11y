@@ -1770,6 +1770,56 @@ namespace RDLevelEditorAccess
                     Narration.Say(confirmMsg, NarrationCategory.Navigation);
                 }
             }
+            else if (Input.GetKeyDown(KeyCode.T))
+            {
+                _pendingDeleteConditionalId = -1;
+                // 朗读当前持续时间及操作提示
+                float dur = _conditionalTargetEvent?.conditionalDuration ?? 0f;
+                string durText = dur > 0f
+                    ? string.Format(RDString.Get("eam.conditional.duration"), FormatDuration(dur))
+                    : RDString.Get("eam.conditional.durationNone");
+                Narration.Say(durText + "，" + RDString.Get("eam.conditional.durationHint"), NarrationCategory.Navigation);
+            }
+            else if (Input.GetKeyDown(KeyCode.Equals) || Input.GetKeyDown(KeyCode.KeypadPlus))
+            {
+                // + 键：duration += 0.5
+                _pendingDeleteConditionalId = -1;
+                if (_conditionalTargetEvent != null)
+                {
+                    float newDur = (_conditionalTargetEvent.conditionalDuration + 0.5f);
+                    newDur = (float)Math.Round(newDur, 1);
+                    using (new SaveStateScope())
+                        _conditionalTargetEvent.conditionalDuration = newDur;
+                    Narration.Say(string.Format(RDString.Get("eam.conditional.durationSet"), FormatDuration(newDur)), NarrationCategory.Navigation);
+                }
+            }
+            else if (Input.GetKeyDown(KeyCode.Minus) || Input.GetKeyDown(KeyCode.KeypadMinus))
+            {
+                // - 键：duration -= 0.5（最小 0）
+                _pendingDeleteConditionalId = -1;
+                if (_conditionalTargetEvent != null)
+                {
+                    float newDur = Mathf.Max(0f, _conditionalTargetEvent.conditionalDuration - 0.5f);
+                    newDur = (float)Math.Round(newDur, 1);
+                    using (new SaveStateScope())
+                        _conditionalTargetEvent.conditionalDuration = newDur;
+                    if (newDur <= 0f)
+                        Narration.Say(RDString.Get("eam.conditional.durationCleared"), NarrationCategory.Navigation);
+                    else
+                        Narration.Say(string.Format(RDString.Get("eam.conditional.durationSet"), FormatDuration(newDur)), NarrationCategory.Navigation);
+                }
+            }
+            else if (Input.GetKeyDown(KeyCode.Backspace))
+            {
+                // Backspace：清零 duration
+                _pendingDeleteConditionalId = -1;
+                if (_conditionalTargetEvent != null && _conditionalTargetEvent.conditionalDuration > 0f)
+                {
+                    using (new SaveStateScope())
+                        _conditionalTargetEvent.conditionalDuration = 0f;
+                    Narration.Say(RDString.Get("eam.conditional.durationCleared"), NarrationCategory.Navigation);
+                }
+            }
         }
 
         /// <summary>
@@ -2270,6 +2320,15 @@ namespace RDLevelEditorAccess
         private static string FormatBarAndBeat(BarAndBeat bb) => ModUtils.FormatBarAndBeat(bb);
 
         internal static string FormatBeat(float beat) => ModUtils.FormatBeat(beat);
+
+        /// <summary>
+        /// 将持续时间（拍数）格式化为可读字符串（去除多余小数位）。
+        /// </summary>
+        private static string FormatDuration(float beats)
+        {
+            // 如果是整数拍则不显示小数，否则保留一位小数
+            return (beats % 1f == 0f) ? ((int)beats).ToString() : beats.ToString("0.#");
+        }
 
         /// <summary>
         /// 将拍号格式化为带本地化单位的完整字符串（如"2拍"或"Beat 2"）。
@@ -3758,6 +3817,11 @@ namespace RDLevelEditorAccess
             ["eam.conditional.deleteConfirm"]        = "确认删除条件 {0}？已有 {1} 个事件使用了该条件。再按 D 确认，Escape 取消",
             ["eam.conditional.tagLabel"]         = "标签",
             ["eam.conditional.descriptionLabel"] = "描述",
+            ["eam.conditional.duration"]         = "持续时间：{0} 拍",
+            ["eam.conditional.durationNone"]     = "持续时间：无",
+            ["eam.conditional.durationHint"]     = "按加号增加 0.5 拍，减号减少，Backspace 清零",
+            ["eam.conditional.durationSet"]      = "持续时间设为 {0} 拍",
+            ["eam.conditional.durationCleared"]  = "持续时间已清零",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -3899,6 +3963,11 @@ namespace RDLevelEditorAccess
             ["eam.conditional.deleteConfirm"]        = "Delete condition {0}? {1} events use this condition. Press D again to confirm, Escape to cancel",
             ["eam.conditional.tagLabel"]         = "Tag",
             ["eam.conditional.descriptionLabel"] = "Description",
+            ["eam.conditional.duration"]         = "Duration: {0} beats",
+            ["eam.conditional.durationNone"]     = "Duration: none",
+            ["eam.conditional.durationHint"]     = "Plus to add 0.5 beats, minus to subtract, Backspace to clear",
+            ["eam.conditional.durationSet"]      = "Duration set to {0} beats",
+            ["eam.conditional.durationCleared"]  = "Duration cleared",
         };
 
         [HarmonyPrefix]
