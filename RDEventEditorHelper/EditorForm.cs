@@ -46,6 +46,22 @@ namespace RDEventEditorHelper
         public string fullText;    // 选中后填充的完整文本
     }
 
+    /// <summary>
+    /// 条件编辑模式的输入数据（从 source.json 中的条件字段映射而来）
+    /// </summary>
+    public class ConditionSourceData
+    {
+        public string conditionEditMode;
+        public int conditionalId;
+        public string conditionalType;
+        public string conditionalTag;
+        public string conditionalDescription;
+        public string[] availableTypes;
+        public string[] localizedTypes;
+        public Dictionary<string, PropertyData[]> allTypeProperties;
+        public string[] rowNames;
+    }
+
     // 自动完成列表项包装类
     internal class AutocompleteItem
     {
@@ -289,6 +305,7 @@ namespace RDEventEditorHelper
 
             _btnOK.Click += (s, e) =>
             {
+                if (_isConditionMode) return; // 条件模式下由 RewireConditionOKButton 接管
                 _isClosingByButton = true;
                 OnOK?.Invoke(GetCurrentUpdates());
                 this.Close();
@@ -296,7 +313,16 @@ namespace RDEventEditorHelper
             _btnCancel.Click += (s, e) =>
             {
                 _isClosingByButton = true;
-                OnCancel?.Invoke();
+                if (_isConditionMode)
+                {
+                    // 条件模式下直接写 cancel
+                    string resultPath = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "temp", "result.json");
+                    File.WriteAllText(resultPath, JsonConvert.SerializeObject(new { token = _token, action = "cancel" }));
+                }
+                else
+                {
+                    OnCancel?.Invoke();
+                }
                 this.Close();
             };
 
@@ -312,7 +338,15 @@ namespace RDEventEditorHelper
                 if (_isClosingByButton) return;
                 e.Cancel = true;
                 _isClosingByButton = true;
-                OnCancel?.Invoke();
+                if (_isConditionMode)
+                {
+                    string resultPath = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "temp", "result.json");
+                    File.WriteAllText(resultPath, JsonConvert.SerializeObject(new { token = _token, action = "cancel" }));
+                }
+                else
+                {
+                    OnCancel?.Invoke();
+                }
                 this.Close();
             };
         }
@@ -340,6 +374,238 @@ namespace RDEventEditorHelper
 
             // NEW: 获取初始可见性（确保与Mod的enableIf状态一致）
             InitializeVisibility();
+        }
+
+        // ===================================================================================
+        // 条件编辑模式
+        // ===================================================================================
+
+        // 条件编辑专用状态
+        private ConditionSourceData _conditionSourceData;  // 条件编辑输入数据
+        private string _conditionCurrentType;              // 当前选中的条件类型名
+        private FlowLayoutPanel _conditionDynPanel;        // 动态属性区域
+        private bool _isConditionMode;                     // 是否处于条件编辑模式（屏蔽默认 OnOK 事件）
+
+        /// <summary>
+        /// 以条件编辑模式初始化窗口
+        /// </summary>
+        public void SetConditionData(ConditionSourceData sourceData, string title, string token)
+        {
+            _conditionSourceData = sourceData;
+            _conditionCurrentType = sourceData?.conditionalType ?? "Custom";
+            _isConditionMode = true;
+            _token = token;
+            this.Text = title;
+
+            FileIPC.SetCurrentToken(_token);
+
+            BuildConditionUI();
+        }
+
+        private void BuildConditionUI()
+        {
+            _panel.Controls.Clear();
+            _controls.Clear();
+
+            var sd = _conditionSourceData;
+            if (sd == null) return;
+
+            // --- 类型下拉 ---
+            var lblType = new Label { Text = "类型 (Type):", AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
+            _panel.Controls.Add(lblType);
+
+            var cmbType = new ComboBox { Width = 350, DropDownStyle = ComboBoxStyle.DropDownList };
+            string[] availableTypes = sd.availableTypes ?? new string[0];
+            string[] localizedTypes = sd.localizedTypes ?? availableTypes;
+            for (int i = 0; i < availableTypes.Length; i++)
+                cmbType.Items.Add(localizedTypes.Length > i ? localizedTypes[i] : availableTypes[i]);
+
+            int selectedIdx = Array.IndexOf(availableTypes, _conditionCurrentType);
+            cmbType.SelectedIndex = selectedIdx >= 0 ? selectedIdx : 0;
+            cmbType.Tag = availableTypes; // 存原始值
+            cmbType.AccessibleName = "条件类型";
+            _panel.Controls.Add(cmbType);
+
+            // --- 标签（tag）---
+            var lblTag = new Label { Text = "标签 (Tag):", AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
+            _panel.Controls.Add(lblTag);
+            var txtTag = new TextBox { Width = 350, Text = sd.conditionalTag ?? "" };
+            txtTag.AccessibleName = "标签";
+            _panel.Controls.Add(txtTag);
+            _controls["_condTag"] = txtTag;
+
+            // --- 描述（description）---
+            var lblDesc = new Label { Text = "描述 (Description):", AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
+            _panel.Controls.Add(lblDesc);
+            var txtDesc = new TextBox { Width = 350, Text = sd.conditionalDescription ?? "" };
+            txtDesc.AccessibleName = "描述";
+            _panel.Controls.Add(txtDesc);
+            _controls["_condDesc"] = txtDesc;
+
+            // --- 动态属性区域 ---
+            _conditionDynPanel = new FlowLayoutPanel
+            {
+                Width = 460,
+                AutoSize = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false
+            };
+            _panel.Controls.Add(_conditionDynPanel);
+
+            BuildConditionDynProps(_conditionCurrentType);
+
+            // 类型切换时重建动态属性区域
+            cmbType.SelectedIndexChanged += (s, e) =>
+            {
+                int idx = cmbType.SelectedIndex;
+                if (idx >= 0 && idx < availableTypes.Length)
+                {
+                    _conditionCurrentType = availableTypes[idx];
+                    BuildConditionDynProps(_conditionCurrentType);
+                }
+            };
+
+            // 覆盖 OK 按钮行为，输出条件专用结果
+            _btnOK.Click -= null; // 清除旧事件（注意：需改写方式）
+            RewireConditionOKButton(txtTag, txtDesc, availableTypes);
+        }
+
+        private void BuildConditionDynProps(string typeName)
+        {
+            _conditionDynPanel.Controls.Clear();
+
+            // 清除上一次动态属性的 controls 键（保留 _condTag/_condDesc）
+            var oldKeys = _controls.Keys.Where(k => k != "_condTag" && k != "_condDesc").ToList();
+            foreach (var k in oldKeys) _controls.Remove(k);
+
+            var sd = _conditionSourceData;
+            if (sd?.allTypeProperties == null) return;
+
+            if (!sd.allTypeProperties.TryGetValue(typeName, out PropertyData[] props) || props == null || props.Length == 0)
+                return;
+
+            // 用现有的属性控件构建逻辑渲染各字段
+            _properties = props;
+            foreach (var prop in props)
+            {
+                var lblProp = new Label
+                {
+                    Text = (prop.displayName ?? prop.name) + ":",
+                    AutoSize = true,
+                    Margin = new Padding(0, 6, 0, 2)
+                };
+                _conditionDynPanel.Controls.Add(lblProp);
+
+                Control ctrl = BuildSinglePropertyControl(prop);
+                if (ctrl != null)
+                {
+                    _conditionDynPanel.Controls.Add(ctrl);
+                    _controls[prop.name] = ctrl;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 为单个属性构建控件（仅支持 String/Int/Float/Enum，条件类型不需要其他类型）
+        /// </summary>
+        private Control BuildSinglePropertyControl(PropertyData prop)
+        {
+            switch (prop.type)
+            {
+                case "String":
+                {
+                    var txt = new TextBox { Width = 350, Text = prop.value ?? "" };
+                    txt.AccessibleName = prop.displayName ?? prop.name;
+                    return txt;
+                }
+                case "Int":
+                {
+                    var txt = new TextBox { Width = 120, Text = prop.value ?? "0" };
+                    txt.AccessibleName = prop.displayName ?? prop.name;
+                    txt.KeyPress += (s, e) =>
+                    {
+                        if (!char.IsDigit(e.KeyChar) && e.KeyChar != (char)Keys.Back && e.KeyChar != '-')
+                            e.Handled = true;
+                    };
+                    return txt;
+                }
+                case "Float":
+                {
+                    var txt = new TextBox { Width = 120, Text = prop.value ?? "0" };
+                    txt.AccessibleName = prop.displayName ?? prop.name;
+                    return txt;
+                }
+                case "Enum":
+                {
+                    var rawOptions = prop.options ?? new string[0];
+                    var displayOptions = prop.localizedOptions ?? rawOptions;
+                    var cmb = new ComboBox { Width = 350, DropDownStyle = ComboBoxStyle.DropDownList };
+                    cmb.Tag = rawOptions;
+                    for (int i = 0; i < displayOptions.Length; i++)
+                        cmb.Items.Add(i < displayOptions.Length ? displayOptions[i] : rawOptions[i]);
+
+                    // 根据当前值设置选中项
+                    int sel = Array.IndexOf(rawOptions, prop.value ?? "");
+                    cmb.SelectedIndex = sel >= 0 ? sel : 0;
+                    cmb.AccessibleName = prop.displayName ?? prop.name;
+
+                    // 同步 prop.value
+                    cmb.SelectedIndexChanged += (s, e) =>
+                    {
+                        int idx = cmb.SelectedIndex;
+                        if (idx >= 0 && idx < rawOptions.Length)
+                            prop.value = rawOptions[idx];
+                    };
+                    return cmb;
+                }
+                default:
+                    return null;
+            }
+        }
+
+        private void RewireConditionOKButton(TextBox txtTag, TextBox txtDesc, string[] availableTypes)
+        {
+            // 移除所有已有的 Click 处理器（通过重新赋值代替）
+            _btnOK.Click += (s, e) =>
+            {
+                if (_isClosingByButton) return; // 防止重复触发
+                _isClosingByButton = true;
+
+                // 读取动态属性值
+                var updates = new Dictionary<string, string>();
+                foreach (var kvp in _controls)
+                {
+                    if (kvp.Key == "_condTag" || kvp.Key == "_condDesc") continue;
+                    Control ctrl = kvp.Value;
+                    if (ctrl is TextBox tb)
+                        updates[kvp.Key] = tb.Text;
+                    else if (ctrl is ComboBox cmb2)
+                    {
+                        // 从 Tag 取原始值
+                        var raw = cmb2.Tag as string[];
+                        int selIdx = cmb2.SelectedIndex;
+                        updates[kvp.Key] = (raw != null && selIdx >= 0 && selIdx < raw.Length)
+                            ? raw[selIdx]
+                            : cmb2.SelectedItem?.ToString() ?? "";
+                    }
+                }
+
+                // 写 result.json（含条件专用字段）
+                var result = new
+                {
+                    token = _token,
+                    action = "ok",
+                    conditionalType = _conditionCurrentType,
+                    conditionalTag = txtTag.Text,
+                    conditionalDescription = txtDesc.Text,
+                    updates
+                };
+                string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
+                string resultPath = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "temp", "result.json");
+                File.WriteAllText(resultPath, resultJson);
+
+                this.Close();
+            };
         }
 
         private void BuildUI()

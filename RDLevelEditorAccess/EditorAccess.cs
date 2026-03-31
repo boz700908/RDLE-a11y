@@ -145,7 +145,18 @@ namespace RDLevelEditorAccess
             Instance = this;
             inputFieldReader = new InputFieldReader();
             AccessibilityBridge.Initialize(gameObject);
+            AccessibilityBridge.SetConditionalSavedCallback(OnConditionalSaved);
             Debug.Log("无障碍核心逻辑已启动 (Logic Awake)");
+        }
+
+        private void OnConditionalSaved(int id)
+        {
+            if (virtualMenuState != VirtualMenuState.ConditionalSelect || _conditionalTargetEvent == null) return;
+            BuildConditionalList(_conditionalTargetEvent);
+            int idx = _conditionalEntries.FindIndex(e => e.localId == id);
+            virtualMenuIndex = idx >= 0 ? idx : Mathf.Clamp(virtualMenuIndex, 0, _conditionalEntries.Count - 1);
+            if (_conditionalEntries.Count > 0)
+                AnnounceCurrentConditional();
         }
 
         public void OnDestroy()
@@ -1604,10 +1615,26 @@ namespace RDLevelEditorAccess
         /// </summary>
         private void HandleConditionalSelect()
         {
-            if (_conditionalTargetEvent == null || _conditionalEntries.Count == 0)
+            if (_conditionalTargetEvent == null)
             {
                 Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
                 CloseVirtualMenu();
+                return;
+            }
+
+            // 列表为空时：只允许 N 新建或 Escape 退出
+            if (_conditionalEntries.Count == 0)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
+                    CloseVirtualMenu();
+                }
+                else if (Input.GetKeyDown(KeyCode.N))
+                {
+                    Narration.Say(RDString.Get("eam.conditional.openCreate"), NarrationCategory.Navigation);
+                    AccessibilityBridge.CreateCondition(_conditionalTargetEvent);
+                }
                 return;
             }
 
@@ -1645,6 +1672,42 @@ namespace RDLevelEditorAccess
             {
                 Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
                 CloseVirtualMenu();
+            }
+            else if (Input.GetKeyDown(KeyCode.N))
+            {
+                Narration.Say(RDString.Get("eam.conditional.openCreate"), NarrationCategory.Navigation);
+                AccessibilityBridge.CreateCondition(_conditionalTargetEvent);
+            }
+            else if (Input.GetKeyDown(KeyCode.E))
+            {
+                var entry = _conditionalEntries[virtualMenuIndex];
+                if (entry.localId == -1)
+                {
+                    Narration.Say(RDString.Get("eam.conditional.cannotEditGlobal"), NarrationCategory.Navigation);
+                }
+                else
+                {
+                    Narration.Say(RDString.Get("eam.conditional.openEdit"), NarrationCategory.Navigation);
+                    AccessibilityBridge.EditCondition(entry.localId);
+                }
+            }
+            else if (Input.GetKeyDown(KeyCode.D))
+            {
+                var entry = _conditionalEntries[virtualMenuIndex];
+                if (entry.localId == -1)
+                {
+                    Narration.Say(RDString.Get("eam.conditional.cannotDeleteGlobal"), NarrationCategory.Navigation);
+                }
+                else
+                {
+                    var panel = scnEditor.instance?.conditionalsPanel;
+                    if (panel != null)
+                    {
+                        panel.Edit(entry.localId);
+                        panel.EditDelete();
+                        CloseVirtualMenu();
+                    }
+                }
             }
         }
 
@@ -3620,6 +3683,23 @@ namespace RDLevelEditorAccess
             ["eam.conditional.activated"]        = "已激活 {0}",
             ["eam.conditional.negated"]          = "已取反 {0}",
             ["eam.conditional.removed"]          = "已移除 {0}",
+            ["eam.conditional.noCondEmpty"]      = "暂无条件，按 N 新建",
+            ["eam.conditional.openCreate"]       = "正在打开新建条件编辑器",
+            ["eam.conditional.openEdit"]         = "正在打开条件编辑器",
+            ["eam.conditional.created"]          = "已新建条件 {0}",
+            ["eam.conditional.edited"]           = "已修改条件 {0}",
+            ["eam.conditional.cannotEditGlobal"] = "全局条件不可编辑",
+            ["eam.conditional.cannotDeleteGlobal"] = "全局条件不可删除",
+            ["eam.conditional.expressionLabel"]  = "表达式",
+            ["eam.conditional.maxTimesLabel"]    = "最大执行次数",
+            ["eam.conditional.rowLabel"]         = "轨道",
+            ["eam.conditional.resultTypeLabel"]  = "结果类型",
+            ["eam.conditional.anyRow"]           = "任意行",
+            ["eam.conditional.languageLabel"]    = "语言",
+            ["eam.conditionalType.Custom"]       = "自定义",
+            ["eam.conditionalType.LastHit"]      = "最后一击",
+            ["eam.conditionalType.TimesExecuted"] = "执行次数",
+            ["eam.conditionalType.Language"]     = "语言",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -3748,6 +3828,23 @@ namespace RDLevelEditorAccess
             ["eam.conditional.activated"]        = "Activated {0}",
             ["eam.conditional.negated"]          = "Negated {0}",
             ["eam.conditional.removed"]          = "Removed {0}",
+            ["eam.conditional.noCondEmpty"]      = "No conditions. Press N to create one",
+            ["eam.conditional.openCreate"]       = "Opening condition creator",
+            ["eam.conditional.openEdit"]         = "Opening condition editor",
+            ["eam.conditional.created"]          = "Created condition {0}",
+            ["eam.conditional.edited"]           = "Edited condition {0}",
+            ["eam.conditional.cannotEditGlobal"] = "Global conditions cannot be edited",
+            ["eam.conditional.cannotDeleteGlobal"] = "Global conditions cannot be deleted",
+            ["eam.conditional.expressionLabel"]  = "Expression",
+            ["eam.conditional.maxTimesLabel"]    = "Max times",
+            ["eam.conditional.rowLabel"]         = "Row",
+            ["eam.conditional.resultTypeLabel"]  = "Result type",
+            ["eam.conditional.anyRow"]           = "Any row",
+            ["eam.conditional.languageLabel"]    = "Language",
+            ["eam.conditionalType.Custom"]       = "Custom",
+            ["eam.conditionalType.LastHit"]      = "Last hit",
+            ["eam.conditionalType.TimesExecuted"] = "Times executed",
+            ["eam.conditionalType.Language"]     = "Language",
         };
 
         [HarmonyPrefix]

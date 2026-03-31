@@ -119,6 +119,38 @@ namespace RDLevelEditorAccess
             }
             _fileIPC.StartChainNameEdit();
         }
+
+        /// <summary>
+        /// 打开 Helper 新建条件，targetEvent 为新建后自动附加的事件（可为 null）
+        /// </summary>
+        public static void CreateCondition(LevelEvent_Base targetEvent)
+        {
+            if (!_isInitialized) return;
+            _fileIPC.StartConditionCreate(targetEvent);
+        }
+
+        /// <summary>
+        /// 打开 Helper 编辑已有本地条件
+        /// </summary>
+        public static void EditCondition(int localId)
+        {
+            if (!_isInitialized) return;
+            _fileIPC.StartConditionEdit(localId);
+        }
+
+        /// <summary>
+        /// 是否正在等待 Helper 返回结果
+        /// </summary>
+        public static bool IsEditing => _fileIPC?.IsPolling == true;
+
+        /// <summary>
+        /// 注册条件新建/编辑完成后的回调
+        /// </summary>
+        public static void SetConditionalSavedCallback(Action<int> callback)
+        {
+            if (_fileIPC != null)
+                _fileIPC.OnConditionalSaved = callback;
+        }
     }
 
     // ===================================================================================

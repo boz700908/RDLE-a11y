@@ -58,16 +58,39 @@ namespace RDEventEditorHelper
             EditorForm editorForm = new EditorForm();
             
             // 根据编辑类型设置标题
-            string title = editType == "settings"
-                ? "编辑关卡元数据 (Edit Level Settings)"
-                : editType == "row"
-                    ? "编辑轨道 (Edit Row)"
-                    : editType == "jump"
-                        ? "跳转到位置 (Jump to Position)"
-                        : editType == "chainName"
-                            ? "保存事件链 (Save Event Chain)"
-                            : $"编辑事件 (Edit Event): {sourceData?.eventType}";
-            editorForm.SetData(sourceData?.eventType, sourceData?.properties, title, sourceData?.levelAudioFiles, sourceData?.levelDirectory, sourceData?.localizedLevelAudioFiles, sessionToken, sourceData?.internalSongs);
+            string title;
+            if (editType == "condition")
+            {
+                title = sourceData?.conditionEditMode == "create"
+                    ? "新建条件 (Create Condition)"
+                    : $"编辑条件 (Edit Condition): {sourceData?.conditionalDescription ?? sourceData?.conditionalTag}";
+                var condData = new ConditionSourceData
+                {
+                    conditionEditMode = sourceData?.conditionEditMode,
+                    conditionalId = sourceData?.conditionalId ?? 0,
+                    conditionalType = sourceData?.conditionalType,
+                    conditionalTag = sourceData?.conditionalTag,
+                    conditionalDescription = sourceData?.conditionalDescription,
+                    availableTypes = sourceData?.availableTypes,
+                    localizedTypes = sourceData?.localizedTypes,
+                    allTypeProperties = sourceData?.allTypeProperties,
+                    rowNames = sourceData?.rowNames
+                };
+                editorForm.SetConditionData(condData, title, sessionToken);
+            }
+            else
+            {
+                title = editType == "settings"
+                    ? "编辑关卡元数据 (Edit Level Settings)"
+                    : editType == "row"
+                        ? "编辑轨道 (Edit Row)"
+                        : editType == "jump"
+                            ? "跳转到位置 (Jump to Position)"
+                            : editType == "chainName"
+                                ? "保存事件链 (Save Event Chain)"
+                                : $"编辑事件 (Edit Event): {sourceData?.eventType}";
+                editorForm.SetData(sourceData?.eventType, sourceData?.properties, title, sourceData?.levelAudioFiles, sourceData?.levelDirectory, sourceData?.localizedLevelAudioFiles, sessionToken, sourceData?.internalSongs);
+            }
 
             editorForm.OnOK += (updates) =>
             {
@@ -135,7 +158,7 @@ namespace RDEventEditorHelper
 
         private class SourceData
         {
-            public string editType;  // "event" 或 "row"
+            public string editType;  // "event"、"row"、"condition" 等
             public string eventType;
             public string token;  // 会话特征码
             public PropertyData[] properties;
@@ -143,6 +166,16 @@ namespace RDEventEditorHelper
             public string[] localizedLevelAudioFiles;  // 本地化的音频文件显示名称
             public string levelDirectory;  // 关卡目录路径
             public System.Collections.Generic.Dictionary<string, string> internalSongs;  // 内置音乐列表 (filename -> displayName)
+            // 条件编辑专用字段
+            public string conditionEditMode;     // "create" 或 "edit"
+            public int conditionalId;
+            public string conditionalType;
+            public string conditionalTag;
+            public string conditionalDescription;
+            public string[] availableTypes;
+            public string[] localizedTypes;
+            public System.Collections.Generic.Dictionary<string, RDEventEditorHelper.PropertyData[]> allTypeProperties;
+            public string[] rowNames;
         }
 
         private class ResultData
@@ -151,6 +184,10 @@ namespace RDEventEditorHelper
             public string action;
             public System.Collections.Generic.Dictionary<string, string> updates;
             public string methodName;  // 当 action 为 "execute" 时使用
+            // 条件编辑结果专用字段
+            public string conditionalType;
+            public string conditionalTag;
+            public string conditionalDescription;
         }
     }
 }

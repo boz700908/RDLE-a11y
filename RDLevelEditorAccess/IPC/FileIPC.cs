@@ -27,9 +27,23 @@ namespace RDLevelEditorAccess.IPC
         private int _currentRowIndex;  // 当前编辑的轨道索引
         private bool _isPolling;
         private string _sessionToken;  // 会话特征码
-        private string _currentEditType = "event";  // 当前编辑类型: "event" 或 "row"
+        private string _currentEditType = "event";  // 当前编辑类型: "event"、"row"、"condition" 等
         private MonoBehaviour _owner;  // 用于启动协程
         private bool _isPlayingSoundCoroutineRunning;  // 防止重入
+        // 条件编辑专用
+        private string _conditionalEditMode;  // "create" 或 "edit"
+        private int _editingConditionalId;    // edit 模式时的目标条件 ID
+        private LevelEvent_Base _conditionalTargetEvent;  // 新建时自动附加的目标事件
+
+        /// <summary>
+        /// 是否正在等待 Helper 返回结果
+        /// </summary>
+        public bool IsPolling => _isPolling;
+
+        /// <summary>
+        /// 条件新建/编辑完成后的回调，参数为条件 ID
+        /// </summary>
+        public Action<int> OnConditionalSaved;
 
         public void Initialize(MonoBehaviour owner)
         {
@@ -305,7 +319,11 @@ namespace RDLevelEditorAccess.IPC
                     return;
                 }
 
-                if (resultData.updates != null)
+                if (_currentEditType == "condition")
+                {
+                    ApplyConditionalResult(resultData);
+                }
+                else if (resultData.updates != null)
                 {
                     // 根据编辑类型选择处理方式
                     if (_currentEditType == "row" && _currentRow != null)
@@ -2200,6 +2218,341 @@ namespace RDLevelEditorAccess.IPC
             }
         }
 
+        // ===================================================================================
+        // 条件编辑 (Condition Create/Edit)
+        // ===================================================================================
+
+        /// <summary>
+        /// 打开 Helper 新建条件
+        /// </summary>
+        public void StartConditionCreate(LevelEvent_Base targetEvent)
+        {
+            if (_isPolling)
+            {
+                Debug.LogWarning("[FileIPC] 已有编辑会话进行中");
+                return;
+            }
+
+            _currentEvent = null;
+            _currentRow = null;
+            _currentEditType = "condition";
+            _conditionalEditMode = "create";
+            _editingConditionalId = 0;
+            _conditionalTargetEvent = targetEvent;
+            _sessionToken = System.Guid.NewGuid().ToString();
+
+            var sourceData = BuildConditionSourceData("create", 0, "Custom", "", "");
+
+            WriteAndLaunch(sourceData, "条件新建");
+        }
+
+        /// <summary>
+        /// 打开 Helper 编辑已有本地条件
+        /// </summary>
+        public void StartConditionEdit(int localId)
+        {
+            if (_isPolling)
+            {
+                Debug.LogWarning("[FileIPC] 已有编辑会话进行中");
+                return;
+            }
+
+            var editor = scnEditor.instance;
+            var cond = editor?.conditionals?.Find(c => c.id == localId);
+            if (cond == null)
+            {
+                Debug.LogWarning($"[FileIPC] 未找到本地条件 ID={localId}");
+                return;
+            }
+
+            _currentEvent = null;
+            _currentRow = null;
+            _currentEditType = "condition";
+            _conditionalEditMode = "edit";
+            _editingConditionalId = localId;
+            _conditionalTargetEvent = null;
+            _sessionToken = System.Guid.NewGuid().ToString();
+
+            string typeName = cond.type.ToString();
+            var sourceData = BuildConditionSourceData("edit", localId, typeName, cond.tag ?? "", cond.description ?? "");
+
+            // 预填当前值
+            if (sourceData.allTypeProperties != null && sourceData.allTypeProperties.TryGetValue(typeName, out var props))
+            {
+                var condType = cond.GetType();
+                foreach (var prop in props)
+                {
+                    var pi = condType.GetProperty(prop.name);
+                    if (pi != null)
+                    {
+                        object val = pi.GetValue(cond);
+                        prop.value = val?.ToString() ?? "";
+                    }
+                }
+            }
+
+            WriteAndLaunch(sourceData, "条件编辑");
+        }
+
+        private SourceData BuildConditionSourceData(string mode, int id, string type, string tag, string description)
+        {
+            var allTypeProps = BuildAllTypeProperties();
+            var rowNames = BuildConditionRowNames();
+
+            var availableTypes = new[] { "Custom", "LastHit", "TimesExecuted", "Language" };
+            var localizedTypes = availableTypes.Select(t =>
+            {
+                string key = $"eam.conditionalType.{t}";
+                string loc = RDString.GetWithCheck(key, out bool exists);
+                return exists ? loc : t;
+            }).ToArray();
+
+            return new SourceData
+            {
+                editType = "condition",
+                token = _sessionToken,
+                conditionEditMode = mode,
+                conditionalId = id,
+                conditionalType = type,
+                conditionalTag = tag,
+                conditionalDescription = description,
+                availableTypes = availableTypes,
+                localizedTypes = localizedTypes,
+                allTypeProperties = allTypeProps,
+                rowNames = rowNames,
+                levelDirectory = GetLevelDirectory()
+            };
+        }
+
+        private Dictionary<string, List<PropertyData>> BuildAllTypeProperties()
+        {
+            var result = new Dictionary<string, List<PropertyData>>();
+
+            // Custom: expression (String)
+            result["Custom"] = new List<PropertyData>
+            {
+                new PropertyData
+                {
+                    name = "customExpression",
+                    displayName = RDString.Get("eam.conditional.expressionLabel"),
+                    value = "",
+                    type = "String"
+                }
+            };
+
+            // TimesExecuted: maxTimes (Int)
+            result["TimesExecuted"] = new List<PropertyData>
+            {
+                new PropertyData
+                {
+                    name = "maxTimes",
+                    displayName = RDString.Get("eam.conditional.maxTimesLabel"),
+                    value = "1",
+                    type = "Int"
+                }
+            };
+
+            // LastHit: row (Enum) + resultType (Enum)
+            var rowNames = BuildConditionRowNames();
+            var rowValues = new string[rowNames.Length];
+            rowValues[0] = "-1";
+            for (int i = 1; i < rowNames.Length; i++)
+                rowValues[i] = (i - 1).ToString();
+
+            var offsetTypes = new[]
+            {
+                "VeryEarly", "SlightlyEarly", "Perfect", "SlightlyLate", "VeryLate", "Missed", "AnyEarlyOrLate"
+            };
+            var localizedOffsets = offsetTypes.Select(t =>
+            {
+                string key = $"enum.OffsetType.{t}";
+                string loc = RDString.GetWithCheck(key, out bool exists);
+                return exists ? loc : t;
+            }).ToArray();
+
+            result["LastHit"] = new List<PropertyData>
+            {
+                new PropertyData
+                {
+                    name = "row",
+                    displayName = RDString.Get("eam.conditional.rowLabel"),
+                    value = "-1",
+                    type = "Enum",
+                    options = rowValues,
+                    localizedOptions = rowNames
+                },
+                new PropertyData
+                {
+                    name = "resultType",
+                    displayName = RDString.Get("eam.conditional.resultTypeLabel"),
+                    value = "Perfect",
+                    type = "Enum",
+                    options = offsetTypes,
+                    localizedOptions = localizedOffsets
+                }
+            };
+
+            // Language: languageName (Enum, Unity SystemLanguage)
+            var langValues = Enum.GetValues(typeof(UnityEngine.SystemLanguage))
+                                 .Cast<UnityEngine.SystemLanguage>()
+                                 .Select(l => l.ToString())
+                                 .ToArray();
+            var localizedLangs = langValues.Select(l =>
+            {
+                string key = $"enum.SystemLanguage.{l}";
+                string loc = RDString.GetWithCheck(key, out bool exists);
+                return exists ? loc : l;
+            }).ToArray();
+
+            result["Language"] = new List<PropertyData>
+            {
+                new PropertyData
+                {
+                    name = "languageName",
+                    displayName = RDString.Get("eam.conditional.languageLabel"),
+                    value = langValues.Length > 0 ? langValues[0] : "",
+                    type = "Enum",
+                    options = langValues,
+                    localizedOptions = localizedLangs
+                }
+            };
+
+            return result;
+        }
+
+        private string[] BuildConditionRowNames()
+        {
+            var editor = scnEditor.instance;
+            var names = new List<string> { RDString.Get("eam.conditional.anyRow") };
+            if (editor?.rowsData != null)
+            {
+                foreach (var row in editor.rowsData)
+                {
+                    string rowName = string.IsNullOrEmpty(row.character.ToString())
+                        ? (names.Count).ToString()
+                        : row.character.ToString();
+                    names.Add(rowName);
+                }
+            }
+            return names.ToArray();
+        }
+
+        private void WriteAndLaunch(SourceData sourceData, string logLabel)
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+                File.WriteAllText(_sourcePath, JsonSerializer.Serialize(sourceData, options));
+                Debug.Log($"[FileIPC] 已写入 source.json ({logLabel})");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FileIPC] 写入 source.json 失败: {ex.Message}");
+                return;
+            }
+            LaunchHelper();
+            LockKeyboard();
+            _isPolling = true;
+        }
+
+        private void ApplyConditionalResult(ResultData resultData)
+        {
+            if (resultData?.action == "cancel" || resultData?.conditionalType == null)
+            {
+                Debug.Log("[FileIPC] 条件编辑已取消");
+                return;
+            }
+
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            string typeName = resultData.conditionalType;
+            string tag = resultData.conditionalTag ?? "";
+            string description = resultData.conditionalDescription ?? "";
+            var updates = resultData.updates ?? new Dictionary<string, string>();
+
+            // 用反射创建对应的 Conditional_XXX 实例
+            var condType = Type.GetType($"RDLevelEditor.Conditional_{typeName}, Assembly-CSharp");
+            if (condType == null)
+            {
+                Debug.LogError($"[FileIPC] 未找到条件类型: Conditional_{typeName}");
+                return;
+            }
+
+            int id;
+            if (_conditionalEditMode == "edit")
+            {
+                id = _editingConditionalId;
+            }
+            else
+            {
+                // 生成唯一 ID（从 1 起找未被占用的）
+                id = 1;
+                while (editor.conditionals != null && editor.conditionals.Exists(c => c.id == id))
+                    id++;
+            }
+
+            Conditional cond;
+            try
+            {
+                cond = (Conditional)Activator.CreateInstance(condType, id);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FileIPC] 创建条件实例失败: {ex.Message}");
+                return;
+            }
+
+            cond.tag = string.IsNullOrEmpty(tag) ? id.ToString() : tag;
+            cond.description = description;
+
+            // 反射赋值各字段
+            foreach (var kv in updates)
+            {
+                var prop = condType.GetProperty(kv.Key);
+                if (prop == null || !prop.CanWrite) continue;
+                try
+                {
+                    object converted = ConvertStringToPropertyValue(kv.Value, prop.PropertyType);
+                    if (converted != null)
+                        prop.SetValue(cond, converted);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[FileIPC] 赋值属性 {kv.Key} 失败: {ex.Message}");
+                }
+            }
+
+            using (new SaveStateScope())
+            {
+                if (_conditionalEditMode == "edit")
+                {
+                    int idx = editor.conditionals?.FindIndex(c => c.id == id) ?? -1;
+                    if (idx >= 0)
+                        editor.conditionals[idx] = cond;
+                    else
+                        editor.conditionals?.Add(cond);
+                    Debug.Log($"[FileIPC] 已更新条件 ID={id}");
+                }
+                else
+                {
+                    editor.conditionals?.Add(cond);
+                    // 自动附加到目标事件（激活状态）
+                    if (_conditionalTargetEvent != null &&
+                        editor.eventControls?.Exists(ec => ec.levelEvent == _conditionalTargetEvent) == true)
+                    {
+                        _conditionalTargetEvent.SetConditional(id, null, false);
+                        Debug.Log($"[FileIPC] 新条件 ID={id} 已自动附加到目标事件");
+                    }
+                    Debug.Log($"[FileIPC] 已新建条件 ID={id}");
+                }
+            }
+
+            string mode = _conditionalEditMode;
+            OnConditionalSaved?.Invoke(id);
+            Debug.Log($"[FileIPC] 条件{(mode == "edit" ? "编辑" : "新建")}完成，ID={id}");
+        }
+
         private void ApplySettingsUpdates(Dictionary<string, string> updates)
         {
             var editor = scnEditor.instance;
@@ -2751,7 +3104,7 @@ namespace RDLevelEditorAccess.IPC
         [Serializable]
         private class SourceData
         {
-            public string editType;  // "event" 或 "row"
+            public string editType;  // "event"、"row"、"condition" 等
             public string eventType;
             public string token;  // 会话特征码
             public List<PropertyData> properties;
@@ -2759,6 +3112,16 @@ namespace RDLevelEditorAccess.IPC
             public string[] localizedLevelAudioFiles;  // 关卡音频文件的本地化显示名称
             public string levelDirectory;  // 关卡目录路径
             public Dictionary<string, string> internalSongs;  // 内置音乐列表 (filename -> displayName)
+            // 条件编辑专用字段
+            public string conditionEditMode;     // "create" 或 "edit"
+            public int conditionalId;            // edit 时的目标条件 ID
+            public string conditionalType;       // 当前选中类型（默认 "Custom"）
+            public string conditionalTag;        // 条件 tag
+            public string conditionalDescription; // 条件 description
+            public string[] availableTypes;      // 可选条件类型名列表
+            public string[] localizedTypes;      // 可选条件类型本地化名列表
+            public Dictionary<string, List<PropertyData>> allTypeProperties; // 各类型的属性列表
+            public string[] rowNames;            // 轨道名（首项为"任意行"，供 LastHit 使用）
         }
 
         [Serializable]
@@ -2769,6 +3132,10 @@ namespace RDLevelEditorAccess.IPC
             public Dictionary<string, string> updates;
             public string methodName;  // 当 action 为 "execute" 时使用
             public string bpmPropertyName;  // 当 action 为 "bpmCalculator" 时：目标属性名
+            // 条件编辑结果专用字段
+            public string conditionalType;
+            public string conditionalTag;
+            public string conditionalDescription;
         }
 
         /// <summary>
