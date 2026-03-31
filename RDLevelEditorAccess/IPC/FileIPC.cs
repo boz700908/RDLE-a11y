@@ -2300,7 +2300,11 @@ namespace RDLevelEditorAccess.IPC
             var rowNames = BuildConditionRowNames();
 
             var availableTypes = new[] { "Custom", "LastHit", "TimesExecuted", "Language" };
-            var localizedTypes = availableTypes.Select(t => RDString.Get($"eam.conditionalType.{t}")).ToArray();
+            var localizedTypes = availableTypes.Select(t =>
+            {
+                string loc = RDString.GetWithCheck($"enum.ConditionalType.{t}", out bool exists);
+                return exists ? loc : t;
+            }).ToArray();
 
             return new SourceData
             {
@@ -2316,7 +2320,7 @@ namespace RDLevelEditorAccess.IPC
                 allTypeProperties = allTypeProps,
                 rowNames = rowNames,
                 levelDirectory = GetLevelDirectory(),
-                conditionTypeLabelLocalized = RDString.Get("eam.conditional.typeLabel"),
+                conditionTypeLabelLocalized = RDString.Get("editor.Conditionals.type"),
                 conditionTagLabelLocalized = RDString.Get("eam.conditional.tagLabel"),
                 conditionDescriptionLabelLocalized = RDString.Get("eam.conditional.descriptionLabel")
             };
@@ -2332,7 +2336,7 @@ namespace RDLevelEditorAccess.IPC
                 new PropertyData
                 {
                     name = "customExpression",
-                    displayName = RDString.Get("eam.conditional.expressionLabel"),
+                    displayName = RDString.Get("editor.Conditionals.expression"),
                     value = "",
                     type = "String"
                 }
@@ -2344,7 +2348,7 @@ namespace RDLevelEditorAccess.IPC
                 new PropertyData
                 {
                     name = "maxTimes",
-                    displayName = RDString.Get("eam.conditional.maxTimesLabel"),
+                    displayName = RDString.Get("editor.Conditionals.timesExecutedMaxTimes"),
                     value = "1",
                     type = "Int"
                 }
@@ -2373,7 +2377,7 @@ namespace RDLevelEditorAccess.IPC
                 new PropertyData
                 {
                     name = "row",
-                    displayName = RDString.Get("eam.conditional.rowLabel"),
+                    displayName = RDString.Get("editor.Conditionals.lastHitRow"),
                     value = "-1",
                     type = "Enum",
                     options = rowValues,
@@ -2382,7 +2386,7 @@ namespace RDLevelEditorAccess.IPC
                 new PropertyData
                 {
                     name = "resultType",
-                    displayName = RDString.Get("eam.conditional.resultTypeLabel"),
+                    displayName = RDString.Get("editor.Conditionals.lastHitType"),
                     value = "Perfect",
                     type = "Enum",
                     options = offsetTypes,
@@ -2407,7 +2411,7 @@ namespace RDLevelEditorAccess.IPC
                 new PropertyData
                 {
                     name = "languageName",
-                    displayName = RDString.Get("eam.conditional.languageLabel"),
+                    displayName = RDString.Get("editor.Conditionals.language"),
                     value = langValues.Length > 0 ? langValues[0] : "",
                     type = "Enum",
                     options = langValues,
@@ -2421,15 +2425,17 @@ namespace RDLevelEditorAccess.IPC
         private string[] BuildConditionRowNames()
         {
             var editor = scnEditor.instance;
-            var names = new List<string> { RDString.Get("eam.conditional.anyRow") };
+            var names = new List<string> { RDString.Get("editor.Conditionals.anyRow") };
             if (editor?.rowsData != null)
             {
-                foreach (var row in editor.rowsData)
+                for (int i = 0; i < editor.rowsData.Count; i++)
                 {
-                    string rowName = string.IsNullOrEmpty(row.character.ToString())
-                        ? (names.Count).ToString()
-                        : row.character.ToString();
-                    names.Add(rowName);
+                    var row = editor.rowsData[i];
+                    string charName = row.character == Character.Custom
+                        ? (row.customCharacterName ?? "?")
+                        : RDString.Get($"enum.Character.{row.character}.short");
+                    string roomDisplay = RDString.Get("editor.roomIndex").Replace("[index]", (row.room + 1).ToString());
+                    names.Add($"{i + 1} {charName} {roomDisplay}");
                 }
             }
             return names.ToArray();
