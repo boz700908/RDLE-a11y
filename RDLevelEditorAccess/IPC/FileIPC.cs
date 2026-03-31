@@ -2300,12 +2300,7 @@ namespace RDLevelEditorAccess.IPC
             var rowNames = BuildConditionRowNames();
 
             var availableTypes = new[] { "Custom", "LastHit", "TimesExecuted", "Language" };
-            var localizedTypes = availableTypes.Select(t =>
-            {
-                string key = $"eam.conditionalType.{t}";
-                string loc = RDString.GetWithCheck(key, out bool exists);
-                return exists ? loc : t;
-            }).ToArray();
+            var localizedTypes = availableTypes.Select(t => RDString.Get($"eam.conditionalType.{t}")).ToArray();
 
             return new SourceData
             {
