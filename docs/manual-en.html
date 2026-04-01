@@ -192,7 +192,8 @@
 <li><a href="#463-advanced-editing">4.6.3 Advanced Editing</a></li>
 </ul>
 </li>
-<li><a href="#47-editing-level-metadata">4.7 Editing Level Metadata</a></li>
+<li><a href="#47-conditions-system">4.7 Conditions System</a></li>
+<li><a href="#48-editing-level-metadata">4.8 Editing Level Metadata</a></li>
 </ul>
 </li>
 <li><a href="#5-external-editor-rdeventeditorhelper">5. External Editor (RDEventEditorHelper)</a>
@@ -253,6 +254,7 @@
 <li>Rhythm Doctor game (1.0+, standalone editor not supported)</li>
 <li>Your screen reader (this goes without saying)</li>
 </ul>
+<p>Note: It is recommended to use the latest public beta of the game for the best compatibility.</p>
 <h3 id="22-installation-steps">2.2 Installation Steps</h3>
 <p>After extracting, besides this manual, you should also see the <strong>main</strong> folder. Go into it, select all, copy to the directory where your rhythm doctor.exe is located, and paste. That's it. The next time you run the game, the mod will run smoothly.</p>
 <h2 id="3-quick-start">3. Quick Start</h2>
@@ -288,7 +290,7 @@
 <p>On the editing page, left/right arrow keys switch between events in the current tab, enter jumps to the event's location and plays, ctrl+enter edits event properties.</p>
 <p>However, there are two exceptions. When you're in the Rows or Sprites tab, you need to first press up/down arrows to switch to a row or sprite, then you can press left/right arrows to browse events. At the same time, you can also press shift+enter to edit rows. Editing sprites is not currently supported.</p>
 <h3 id="43-creating-rows-and-events">4.3 Creating Rows and Events</h3>
-<p>Press insert or f2 under a tab, and a menu will pop up listing the available event types for the current tab. Use up/down arrows to select, and press enter to create. After creation, the property editor will automatically open. If you're in the Rows tab, the created event will be placed on the currently selected row by default.</p>
+<p>Press insert or f2 under a tab, and a menu will pop up listing the available event types for the current tab. Use up/down arrows to select, and press enter to create. If you're in the Rows tab, the created event will be placed on the currently selected row by default.</p>
 <p>In the Rows or Sprites tab, press ctrl+insert or ctrl+f2 to create a new row or sprite, the operation is the same as creating an event.</p>
 <h3 id="44-edit-cursor">4.4 Edit Cursor</h3>
 <p>To make it more convenient for visually impaired players, the mod introduces the edit cursor feature. The edit cursor is a player-controllable temporary anchor point that doesn't move with playback and can be freely adjusted in position, making it convenient for players to quickly locate when creating events and other scenarios. Below are its shortcut key instructions.
@@ -356,7 +358,18 @@ PS: I know some people definitely didn't understand the definition of edit curso
 <li>Although the mod provides modifier keys to increase adjustment precision, it's still not enough in some cases.</li>
 </ol>
 <p>Therefore, if you need more precise adjustment, you can press ctrl+enter to open the external editor for editing. For more information about the external editor, please refer to the next chapter.</p>
-<h3 id="47-editing-level-metadata">4.7 Editing Level Metadata</h3>
+<h3 id="47-conditions-system">4.7 Conditions System</h3>
+<p>If you want certain event(s) to only trigger when specific conditions are met, you can use conditions. The following only covers how to use the conditions system through the mod; for more detailed rules on writing conditions, please search for RDLE tutorials on your own.</p>
+<p>Select an event, then press alt+c to open the conditions menu. The following operations are supported in this menu:</p>
+<ul>
+<li>Up/Down arrows, switch between available conditions</li>
+<li>Enter, toggle the state of the selected condition (not set / active / negated)</li>
+<li>n, create a new condition</li>
+<li>e, edit a condition</li>
+<li>d, delete a condition (press d again to confirm deletion)</li>
+</ul>
+<p>Yes, this section is that short. After all, the operations themselves aren't difficult — the tricky part is planning and writing the conditions. So the rest is up to you to find tutorials. This is a mod user manual, not an editor user manual.</p>
+<h3 id="48-editing-level-metadata">4.8 Editing Level Metadata</h3>
 <p>On the main page, you can press number key 0 on the main keyboard at any time to open the metadata editing page. Here you can edit some basic information about the level.</p>
 <h2 id="5-external-editor-rdeventeditorhelper">5. External Editor (RDEventEditorHelper)</h2>
 <h3 id="51-what-is-this">5.1 What is this?</h3>
@@ -375,7 +388,6 @@ PS: I know some people definitely didn't understand the definition of edit curso
 <li>Bookmark functionality is not supported.</li>
 <li>Event multi-selection support is not flexible enough.</li>
 <li>Since a separate property editor was written, the operation should not be as smooth as the original version (although I don't know exactly how smooth the original version is).</li>
-<li>Conditions are not supported.</li>
 <li>Some shortcut operations available in the native editor are not supported.</li>
 </ol>
 <h2 id="7-faq">7. FAQ</h2>
@@ -662,6 +674,11 @@ and try installing it.</p>
 <td>r/t</td>
 <td>Adjust property value</td>
 <td>Supports modifier keys, see <a href="#462-editing-event-properties">4.6.2 Editing Event Properties</a> for details.</td>
+</tr>
+<tr>
+<td>alt+c</td>
+<td>Open the conditions menu for the selected event</td>
+<td>See <a href="#47-conditions-system">4.7 Conditions System</a> for details.</td>
 </tr>
 <tr>
 <td>shift+space</td>
