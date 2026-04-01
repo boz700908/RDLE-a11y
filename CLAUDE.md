@@ -148,6 +148,17 @@ Key concepts from the game:
 - **onlyUI properties**: Properties marked `onlyUI = true` are NOT saved to level files
 - **PropertyInfo types**: Bool, Int, Float, String, Enum, Color, SoundData, Nullable, Array
 
+### Localization
+
+**Game built-in localization keys** are in `agents references/localization/` (`.bytes` files). Before creating a new `eam.*` key, always check whether the game already provides a key for that string. Use native keys when available; only create `eam.*` keys for mod-specific screen-reader text that has no equivalent in the game.
+
+Examples of native key locations:
+- Enum names: `Enums.bytes` — e.g. `enum.ConditionalType.Custom`
+- Editor UI labels: `LevelEditor.bytes` — e.g. `editor.Conditionals.expression`
+- Character names: `Enums.bytes` — e.g. `enum.Character.Ian.short`
+
+When using native keys, call `RDString.Get(key)` (goes through `RDStringPatch`, supports `eam.*` injection) or `RDString.GetWithCheck(key, out bool exists)` (bypasses the patch — use for native keys when you need an existence check). Do **not** call `GetWithCheck` for `eam.*` custom keys, as the patch is not applied there.
+
 ### IPC Protocol
 
 The mod and helper communicate via JSON files:
@@ -210,11 +221,15 @@ This allows properties to show/hide in real-time as the user edits, without losi
 `AccessibilityBridge` in `AccessibilityModule.cs` is the entry point — do NOT call `FileIPC` directly:
 
 ```csharp
-AccessibilityBridge.Initialize(gameObject);  // Call once on startup (from AccessLogic.Awake)
-AccessibilityBridge.EditEvent(levelEvent);   // Open event property editor
-AccessibilityBridge.EditRow(rowIndex);       // Open row property editor
-AccessibilityBridge.EditSettings();          // Open level settings editor
-AccessibilityBridge.Update();                // Called every frame from AccessLogic.Update()
+AccessibilityBridge.Initialize(gameObject);       // Call once on startup (from AccessLogic.Awake)
+AccessibilityBridge.EditEvent(levelEvent);         // Open event property editor
+AccessibilityBridge.EditRow(rowIndex);             // Open row property editor
+AccessibilityBridge.EditSettings();               // Open level settings editor
+AccessibilityBridge.CreateCondition(targetEvent); // Open condition creator (attaches to targetEvent)
+AccessibilityBridge.EditCondition(localId);       // Open condition editor for existing condition
+AccessibilityBridge.Update();                     // Called every frame from AccessLogic.Update()
+AccessibilityBridge.IsEditing                     // True while Helper window is open
+AccessibilityBridge.SetConditionalSavedCallback(Action<int> callback); // Notify when condition saved
 ```
 
 ### ModUtils Utilities
@@ -255,7 +270,10 @@ private enum VirtualMenuState
 {
     None,
     CharacterSelect,   // Adding row/sprite
-    EventTypeSelect    // Selecting event type
+    EventTypeSelect,   // Selecting event type
+    LinkSelect,        // Selecting hyperlink target
+    EventChainSelect,  // Selecting saved event chain
+    ConditionalSelect  // Browsing/toggling conditions on an event
 }
 ```
 
@@ -275,14 +293,16 @@ The reader monitors all TMP_InputField components and provides real-time feedbac
 
 ### SaveState Pattern
 
-When modifying event or row properties programmatically, always call `SaveState` first to enable undo:
+When modifying event or row properties programmatically, wrap changes in `SaveStateScope` to enable undo. `SaveStateScope` is a game-provided `IDisposable` that calls `scnEditor.SaveState` / commits on dispose:
 
 ```csharp
-scnEditor.instance.SaveState("修改属性");
-levelEvent.someProperty = newValue;
+using (new SaveStateScope())
+{
+    levelEvent.someProperty = newValue;
+}
 ```
 
-Without `SaveState`, changes are not persisted to the level file.
+If you also need to call `UpdateUIInternal()` on affected controls, do it **outside** the scope — UI updates must not be part of the saved state transaction.
 
 ### Unity + BepInEx Pattern
 
