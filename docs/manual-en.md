@@ -34,7 +34,8 @@
       - [4.6.1 Moving Events](#461-moving-events)
       - [4.6.2 Editing Event Properties](#462-editing-event-properties)
       - [4.6.3 Advanced Editing](#463-advanced-editing)
-    - [4.7 Editing Level Metadata](#47-editing-level-metadata)
+    - [4.7 Conditions System](#47-conditions-system)
+    - [4.8 Editing Level Metadata](#48-editing-level-metadata)
   - [5. External Editor (RDEventEditorHelper)](#5-external-editor-rdeventeditorhelper)
     - [5.1 What is this?](#51-what-is-this)
     - [5.2 How to use?](#52-how-to-use)
@@ -90,6 +91,8 @@ To prevent you from thinking the manual is too long and not wanting to read it, 
 - Windows system (don't ask me which specific version, as long as the game can run, the mod should probably run too)
 - Rhythm Doctor game (1.0+, standalone editor not supported)
 - Your screen reader (this goes without saying)
+
+Note: It is recommended to use the latest public beta of the game for the best compatibility.
 
 ### 2.2 Installation Steps
 
@@ -155,7 +158,7 @@ However, there are two exceptions. When you're in the Rows or Sprites tab, you n
 
 ### 4.3 Creating Rows and Events
 
-Press insert or f2 under a tab, and a menu will pop up listing the available event types for the current tab. Use up/down arrows to select, and press enter to create. After creation, the property editor will automatically open. If you're in the Rows tab, the created event will be placed on the currently selected row by default.
+Press insert or f2 under a tab, and a menu will pop up listing the available event types for the current tab. Use up/down arrows to select, and press enter to create. If you're in the Rows tab, the created event will be placed on the currently selected row by default.
 
 In the Rows or Sprites tab, press ctrl+insert or ctrl+f2 to create a new row or sprite, the operation is the same as creating an event.
 
@@ -237,7 +240,21 @@ Although the above two sets of shortcuts are convenient, they also have some sho
 
 Therefore, if you need more precise adjustment, you can press ctrl+enter to open the external editor for editing. For more information about the external editor, please refer to the next chapter.
 
-### 4.7 Editing Level Metadata
+### 4.7 Conditions System
+
+If you want certain event(s) to only trigger when specific conditions are met, you can use conditions. The following only covers how to use the conditions system through the mod; for more detailed rules on writing conditions, please search for RDLE tutorials on your own.
+
+Select an event, then press alt+c to open the conditions menu. The following operations are supported in this menu:
+
+- Up/Down arrows, switch between available conditions
+- Enter, toggle the state of the selected condition (not set / active / negated)
+- n, create a new condition
+- e, edit a condition
+- d, delete a condition (press d again to confirm deletion)
+
+Yes, this section is that short. After all, the operations themselves aren't difficult — the tricky part is planning and writing the conditions. So the rest is up to you to find tutorials. This is a mod user manual, not an editor user manual.
+
+### 4.8 Editing Level Metadata
 
 On the main page, you can press number key 0 on the main keyboard at any time to open the metadata editing page. Here you can edit some basic information about the level.
 
@@ -266,8 +283,7 @@ But then again, I hope the official version will support accessibility soon, so 
 5. Bookmark functionality is not supported.
 6. Event multi-selection support is not flexible enough.
 7. Since a separate property editor was written, the operation should not be as smooth as the original version (although I don't know exactly how smooth the original version is).
-8. Conditions are not supported.
-9. Some shortcut operations available in the native editor are not supported.
+8. Some shortcut operations available in the native editor are not supported.
 
 ## 7. FAQ
 
@@ -352,6 +368,7 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | c | Snap event to nearest half beat | None |
 | e/shift+e | Switch target property to adjust | See [4.6.2 Editing Event Properties](#462-editing-event-properties) for details. |
 | r/t | Adjust property value | Supports modifier keys, see [4.6.2 Editing Event Properties](#462-editing-event-properties) for details. |
+| alt+c | Open the conditions menu for the selected event | See [4.7 Conditions System](#47-conditions-system) for details. |
 | shift+space | Add/remove currently selected event to/from virtual selection | None |
 | ctrl+shift+space | Clear virtual selection | None |
 | - (minus)/= (equals) | Browse events in virtual selection | Add shift to quickly jump to the first/last item. |
