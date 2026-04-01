@@ -271,6 +271,7 @@ namespace RDEventEditorHelper
         private bool _isClosingByButton = false;
         private string _pendingExecuteMethod = null;  // 点击操作按钮时要执行的方法名
         private string _token = Guid.NewGuid().ToString();  // NEW: IPC session token
+        private string _previewingSoundName = null;  // 当前正在预览的音频名称
 
         public event Action<Dictionary<string, string>> OnOK;
         public event Action OnCancel;
@@ -346,7 +347,11 @@ namespace RDEventEditorHelper
 
             this.FormClosing += (s, e) =>
             {
-                if (_isClosingByButton) return;
+                if (_isClosingByButton)
+                {
+                    FileIPC.SendStopSoundRequest();
+                    return;
+                }
                 e.Cancel = true;
                 _isClosingByButton = true;
                 if (_isConditionMode)
@@ -2082,14 +2087,24 @@ namespace RDEventEditorHelper
                     e.Handled = true;
                     string rawSoundName = listView.SelectedItems[0].Tag as string;
                     if (rawSoundName == "__track_default__") return;
-                    var volTxt = soundPanel.Controls.Find("Volume", false).FirstOrDefault() as TextBox;
-                    var pitchTxt = soundPanel.Controls.Find("Pitch", false).FirstOrDefault() as TextBox;
-                    var panTxt = soundPanel.Controls.Find("Pan", false).FirstOrDefault() as TextBox;
-                    int volVal = 100, pitVal = 100, panVal = 0;
-                    if (volTxt != null && int.TryParse(volTxt.Text, out int vv)) volVal = vv;
-                    if (pitchTxt != null && int.TryParse(pitchTxt.Text, out int pv)) pitVal = pv;
-                    if (panTxt != null && int.TryParse(panTxt.Text, out int pnv)) panVal = pnv;
-                    FileIPC.SendPlaySoundRequest(rawSoundName, volVal, pitVal, panVal, prop.itsASong);
+                    if (_previewingSoundName == rawSoundName)
+                    {
+                        // 再次按空格：停止当前预览
+                        FileIPC.SendStopSoundRequest();
+                        _previewingSoundName = null;
+                    }
+                    else
+                    {
+                        var volTxt = soundPanel.Controls.Find("Volume", false).FirstOrDefault() as TextBox;
+                        var pitchTxt = soundPanel.Controls.Find("Pitch", false).FirstOrDefault() as TextBox;
+                        var panTxt = soundPanel.Controls.Find("Pan", false).FirstOrDefault() as TextBox;
+                        int volVal = 100, pitVal = 100, panVal = 0;
+                        if (volTxt != null && int.TryParse(volTxt.Text, out int vv)) volVal = vv;
+                        if (pitchTxt != null && int.TryParse(pitchTxt.Text, out int pv)) pitVal = pv;
+                        if (panTxt != null && int.TryParse(panTxt.Text, out int pnv)) panVal = pnv;
+                        FileIPC.SendPlaySoundRequest(rawSoundName, volVal, pitVal, panVal, prop.itsASong);
+                        _previewingSoundName = rawSoundName;
+                    }
                 }
             };
             var allSoundItems = listView.Items.Cast<ListViewItem>().ToList();
