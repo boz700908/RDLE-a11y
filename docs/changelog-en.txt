@@ -1,5 +1,5 @@
 1.6 (2026-04-01)
-Note: Starting from this version, the mod will only guarantee compatibility with the latest public beta of the game. The compatible version will be noted in the changelog with each update. The mod may still work in other game versions, but not all features are guaranteed to function correctly.
+Note: Starting from this version, the mod will only guarantee compatibility with the latest public beta of the game. The compatible version will be noted in the changelog with each update. The mod may still work in other game versions, but not all features are guaranteed to function correctly. When reporting issues, please make sure you are using the compatible version or above.
 Guaranteed compatible version: 1.0.5 (updated 2026-03-26)
 1. Added support for the conditions system. (See section 4.7 of the manual)
 2. When previewing sounds in the helper, pressing space again on the currently playing audio will stop playback. Closing the helper will also stop all sounds currently being previewed.
