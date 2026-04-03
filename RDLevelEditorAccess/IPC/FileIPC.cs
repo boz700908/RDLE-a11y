@@ -1532,6 +1532,7 @@ namespace RDLevelEditorAccess.IPC
                             // 非组类型：tabLabels 为 null，Helper 端不显示选项卡头
                         }
                     }
+                    else if (elemType == typeof(string)) dto.type = "StringArray";
                     else                                dto.type = "String";
 
                     if (rawValue is Array arr2) dto.arrayLength = arr2.Length;
@@ -2945,7 +2946,12 @@ namespace RDLevelEditorAccess.IPC
                     }
                     return string.Join(";", parts);
                 }
-                if (value is Array   ga) return string.Join(",", ga.Cast<object>().Select(o => o?.ToString() ?? ""));
+                if (value is Array   ga)
+                {
+                    if (ga.GetType().GetElementType() == typeof(string))
+                        return System.Text.Json.JsonSerializer.Serialize(ga.Cast<string>().ToArray());
+                    return string.Join(",", ga.Cast<object>().Select(o => o?.ToString() ?? ""));
+                }
 
                 if (value is UnityEngine.Vector2 v2) return $"{v2.x},{v2.y}";
                 if (value is UnityEngine.Vector3 v3) return $"{v3.x},{v3.y},{v3.z}";
