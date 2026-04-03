@@ -2013,7 +2013,7 @@ namespace RDLevelEditorAccess.IPC
                 {
                     dto.type = "StringArray";
                     var arr = rawValue as string[];
-                    dto.value = arr != null ? string.Join(",", arr) : "";
+                    dto.value = arr != null ? System.Text.Json.JsonSerializer.Serialize(arr) : "[]";
                     dto.arrayLength = arr?.Length ?? 0;
                 }
                 else
