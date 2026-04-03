@@ -2328,7 +2328,7 @@ namespace RDLevelEditorAccess
 
             if (openHelper)
             {
-                int newRowIndex = editor.rowsData.Count - 1;
+                int newRowIndex = editor.rowsData.IndexOf(rowData);
                 Narration.Say(string.Format(RDString.Get("eam.track.addedAndOpening"), GetCharacterName(character)), NarrationCategory.Navigation);
                 AccessibilityBridge.EditRow(newRowIndex);
             }
