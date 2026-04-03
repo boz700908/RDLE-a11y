@@ -1374,19 +1374,22 @@ namespace RDLevelEditorAccess
             }
             
             // 回车确认
+            // Shift+Enter: 添加轨道后自动打开 Helper 编辑（仅对 row 有效）
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                bool openHelper = virtualMenuPurpose == "row" &&
+                                  (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
                 Character selectedChar = characters[virtualMenuIndex];
-                
+
                 if (virtualMenuPurpose == "row")
                 {
-                    AddNewRow(selectedChar);
+                    AddNewRow(selectedChar, openHelper);
                 }
                 else if (virtualMenuPurpose == "sprite")
                 {
                     AddNewSprite(selectedChar);
                 }
-                
+
                 CloseVirtualMenu();
             }
             
@@ -2309,7 +2312,7 @@ namespace RDLevelEditorAccess
         /// <summary>
         /// 添加新轨道
         /// </summary>
-        private void AddNewRow(Character character)
+        private void AddNewRow(Character character, bool openHelper = false)
         {
             var editor = scnEditor.instance;
             if (editor == null) return;
@@ -2322,8 +2325,17 @@ namespace RDLevelEditorAccess
             
             editor.AddNewRow(rowData);
             editor.tabSection_rows.UpdateUI();
-            
+
+            if (openHelper)
+            {
+                int newRowIndex = editor.rowsData.Count - 1;
+                Narration.Say(string.Format(RDString.Get("eam.track.addedAndOpening"), GetCharacterName(character)), NarrationCategory.Navigation);
+                AccessibilityBridge.EditRow(newRowIndex);
+            }
+            else
+            {
                 Narration.Say(string.Format(RDString.Get("eam.track.added"), GetCharacterName(character)), NarrationCategory.Navigation);
+            }
         }
 
         /// <summary>
@@ -3728,6 +3740,7 @@ namespace RDLevelEditorAccess
             ["eam.event.customMethodNote"]       = "（需要配置自定义方法）",
             ["eam.event.tagNote"]                = "（标签操作）",
             ["eam.track.added"]                  = "已添加轨道，角色 {0}",
+            ["eam.track.addedAndOpening"]        = "已添加轨道，角色 {0}，正在打开编辑器",
             ["eam.sprite.added"]                 = "已添加精灵，角色 {0}",
             ["eam.confirm.changeRowType"]        = "切换轨道类型将删除轨道上的所有事件（{0}个），是否继续？",
             ["eam.error.roomFull"]               = "房间 {0} 已满，无法移动轨道",
@@ -3870,6 +3883,7 @@ namespace RDLevelEditorAccess
             ["eam.event.customMethodNote"]       = "(Requires custom method)",
             ["eam.event.tagNote"]                = "(Tag operation)",
             ["eam.track.added"]                  = "Track added, character: {0}",
+            ["eam.track.addedAndOpening"]        = "Track added, character: {0}, opening editor",
             ["eam.sprite.added"]                 = "Sprite added, character: {0}",
             ["eam.confirm.changeRowType"]        = "Changing row type will delete all {0} events on this track. Continue?",
             ["eam.error.roomFull"]               = "Room {0} is full, cannot move track",
