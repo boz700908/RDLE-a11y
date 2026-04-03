@@ -2656,7 +2656,11 @@ namespace RDLevelEditorAccess.IPC
                     }
                     else if (fieldType == typeof(string[]))
                     {
-                        parsedValue = kv.Value.Split(',').Select(s => s.Trim()).ToArray();
+                        var trimmed = kv.Value?.Trim();
+                        if (trimmed != null && trimmed.StartsWith("["))
+                            parsedValue = System.Text.Json.JsonSerializer.Deserialize<string[]>(trimmed);
+                        else
+                            parsedValue = (kv.Value ?? "").Split(',').Select(s => s.Trim()).ToArray();
                     }
                     else
                     {
