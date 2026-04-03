@@ -1454,18 +1454,20 @@ namespace RDLevelEditorAccess
             
             
             // 回车确认 - 直接创建事件（使用默认值）
+            // Ctrl+Enter: 创建后自动打开 Helper 编辑
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
+                bool openHelper = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
                 selectedEventType = eventTypes[virtualMenuIndex];
                 CloseVirtualMenu();
-                
+
                 // 使用编辑光标位置创建事件
                 var barAndBeat = _editCursor;
                 int bar = barAndBeat.bar;
                 float beat = barAndBeat.beat;
                 int row = editor.selectedRowIndex >= 0 ? editor.selectedRowIndex : 0;
-                
-                CreateEventAndEdit(selectedEventType, bar, beat, row);
+
+                CreateEventAndEdit(selectedEventType, bar, beat, row, openHelper);
             }
             
             // Escape 取消
@@ -2347,7 +2349,7 @@ namespace RDLevelEditorAccess
         /// <summary>
         /// 创建事件
         /// </summary>
-        private void CreateEventAndEdit(LevelEventType eventType, int bar, float beat, int row)
+        private void CreateEventAndEdit(LevelEventType eventType, int bar, float beat, int row, bool openHelper = false)
         {
             var editor = scnEditor.instance;
             if (editor == null) return;
@@ -2397,9 +2399,17 @@ namespace RDLevelEditorAccess
             
             // 选中新创建的事件
             editor.SelectEventControl(control, true);
-            
-            Narration.Say(string.Format(RDString.Get("eam.event.createdAndOpening"), GetEventTypeName(eventType)), NarrationCategory.Navigation);
-                    }
+
+            if (openHelper)
+            {
+                Narration.Say(string.Format(RDString.Get("eam.event.createdAndOpening"), GetEventTypeName(eventType)), NarrationCategory.Navigation);
+                AccessibilityBridge.EditEvent(levelEvent);
+            }
+            else
+            {
+                Narration.Say(string.Format(RDString.Get("eam.event.created"), GetEventTypeName(eventType)), NarrationCategory.Navigation);
+            }
+        }
 
         /// <summary>
         /// 获取当前 Tab 可用的事件类型
@@ -3704,7 +3714,8 @@ namespace RDLevelEditorAccess
             ["eam.event.selectPrompt"]           = "选择事件类型，使用上下箭头导航，回车确认，Escape取消",
             ["eam.event.createFailed"]           = "无法创建事件类型 {0}",
             ["eam.event.createError"]            = "创建事件失败",
-            ["eam.event.createdAndOpening"]      = "已创建事件 {0}",
+            ["eam.event.created"]                = "已创建事件 {0}",
+            ["eam.event.createdAndOpening"]      = "已创建事件 {0}，正在打开编辑器",
             ["eam.track.noAvailable"]            = "无轨道",
             ["eam.sprite.noAvailable"]           = "无精灵",
             ["eam.track.info"]                   = "轨道 {0} {1} {2}事件",
@@ -3845,7 +3856,8 @@ namespace RDLevelEditorAccess
             ["eam.event.selectPrompt"]           = "Select event type, arrow keys to navigate, Enter to confirm, Escape to cancel",
             ["eam.event.createFailed"]           = "Cannot create event type {0}",
             ["eam.event.createError"]            = "Event creation failed",
-            ["eam.event.createdAndOpening"]      = "Event {0} created",
+            ["eam.event.created"]                = "Event {0} created",
+            ["eam.event.createdAndOpening"]      = "Event {0} created, opening editor",
             ["eam.track.noAvailable"]            = "No tracks available",
             ["eam.sprite.noAvailable"]           = "No sprites available",
             ["eam.track.info"]                   = "Track {0} {1} {2} events",
