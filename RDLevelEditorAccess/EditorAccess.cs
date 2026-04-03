@@ -93,6 +93,9 @@ namespace RDLevelEditorAccess
         private string virtualMenuPurpose = "";  // "row", "sprite", "event"
         private LevelEventType selectedEventType;
 
+        // 虚拟菜单激活时为 true，用于屏蔽游戏原生快捷键
+        internal static bool IsVirtualMenuActive = false;
+
         // 条件选择菜单相关字段
         private struct ConditionalEntry
         {
@@ -976,6 +979,7 @@ namespace RDLevelEditorAccess
                     BuildConditionalList(evt);
                     virtualMenuIndex = 0;
                     virtualMenuState = VirtualMenuState.ConditionalSelect;
+                    SetFakeInputField();
                     Narration.Say(string.Format(RDString.Get("eam.conditional.menuHeader"),
                         ModUtils.eventNameI18n(evt)), NarrationCategory.Navigation);
                     Narration.Say(RDString.Get("editor.Conditionals"), NarrationCategory.Instruction);
@@ -1321,6 +1325,7 @@ namespace RDLevelEditorAccess
             virtualMenuState = VirtualMenuState.CharacterSelect;
             virtualMenuPurpose = purpose;
             virtualMenuIndex = 0;
+            SetFakeInputField();
             
             Narration.Say(RDString.Get("eam.char.selectPrompt"), NarrationCategory.Instruction);
             Narration.Say(GetCharacterName(RDEditorConstants.AvailableCharacters[0]), NarrationCategory.Navigation);
@@ -1418,6 +1423,7 @@ namespace RDLevelEditorAccess
 
             virtualMenuState = VirtualMenuState.EventTypeSelect;
             virtualMenuIndex = 0;
+            SetFakeInputField();
 
             Narration.Say(GetEventTypeName(eventTypes[0]), NarrationCategory.Navigation);
             Narration.Say(RDString.Get("eam.event.selectPrompt"), NarrationCategory.Instruction);
@@ -1479,6 +1485,7 @@ namespace RDLevelEditorAccess
 
             virtualMenuState = VirtualMenuState.LinkSelect;
             virtualMenuIndex = 0;
+            SetFakeInputField();
 
             string title = RDString.Get("eam.link.menu.title");
             string count = string.Format(RDString.Get("eam.link.menu.count"), currentElementLinks.Count);
@@ -1780,6 +1787,15 @@ namespace RDLevelEditorAccess
             virtualMenuState = VirtualMenuState.None;
             virtualMenuPurpose = "";
             _pendingDeleteConditionalId = -1;
+            IsVirtualMenuActive = false;
+        }
+
+        /// <summary>
+        /// 虚拟菜单打开时设置标志，屏蔽游戏原生快捷键。
+        /// </summary>
+        private void SetFakeInputField()
+        {
+            IsVirtualMenuActive = true;
         }
 
         // ===================================================================================
@@ -1871,6 +1887,7 @@ namespace RDLevelEditorAccess
 
             virtualMenuState = VirtualMenuState.EventChainSelect;
             virtualMenuIndex = 0;
+            SetFakeInputField();
             Narration.Say(eventChainNames[0], NarrationCategory.Navigation);
             Narration.Say(RDString.Get("eam.chain.selectPrompt"), NarrationCategory.Instruction);
         }
@@ -3377,6 +3394,20 @@ namespace RDLevelEditorAccess
         {
             if (newControl?.levelEvent == null) return;
             Narration.Say("已选择" + ModUtils.eventSelectI18n(newControl.levelEvent), NarrationCategory.Navigation);
+        }
+    }
+
+    // ===================================================================================
+    // 虚拟菜单激活时屏蔽游戏原生快捷键
+    // ===================================================================================
+    [HarmonyPatch(typeof(scnEditor), "get_userIsEditingAnInputField")]
+    public static class VirtualMenuInputBlockPatch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(ref bool __result)
+        {
+            if (AccessLogic.IsVirtualMenuActive)
+                __result = true;
         }
     }
 
