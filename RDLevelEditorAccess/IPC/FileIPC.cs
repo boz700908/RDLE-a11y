@@ -1138,6 +1138,14 @@ namespace RDLevelEditorAccess.IPC
                                         }
                                         valToSet = resultArr;
                                     }
+                                    else if (et == typeof(string))
+                                    {
+                                        var trimmed = strVal?.Trim();
+                                        if (trimmed != null && trimmed.StartsWith("["))
+                                            valToSet = System.Text.Json.JsonSerializer.Deserialize<string[]>(trimmed);
+                                        else
+                                            valToSet = (strVal ?? "").Split(',').Select(s => s.Trim()).ToArray();
+                                    }
                                     else
                                         valToSet = strVal;
                                 }
@@ -2916,6 +2924,7 @@ namespace RDLevelEditorAccess.IPC
                     }
                 }
                 
+                if (value is string[] sa) return System.Text.Json.JsonSerializer.Serialize(sa);
                 if (value is int[]   ia) return string.Join(",", ia);
                 if (value is float[] fa) return string.Join(",", fa);
                 if (value is bool[]  ba) return string.Join(",", ba.Select(b => b ? "true" : "false"));

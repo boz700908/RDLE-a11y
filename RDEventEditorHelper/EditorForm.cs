@@ -1427,7 +1427,18 @@ namespace RDEventEditorHelper
                     case "FloatArray":
                     case "StringArray":
                     {
-                        var vals = (prop.value ?? "").Split(',').Select(s => s.Trim()).ToArray();
+                        string[] vals;
+                        if (prop.type == "StringArray")
+                        {
+                            var trimmed = (prop.value ?? "").Trim();
+                            vals = trimmed.StartsWith("[")
+                                ? (JsonConvert.DeserializeObject<string[]>(trimmed) ?? Array.Empty<string>())
+                                : (prop.value ?? "").Split(',').Select(s => s.Trim()).ToArray();
+                        }
+                        else
+                        {
+                            vals = (prop.value ?? "").Split(',').Select(s => s.Trim()).ToArray();
+                        }
                         var arrPanel = new FlowLayoutPanel
                         {
                             FlowDirection = FlowDirection.TopDown,
@@ -1725,7 +1736,11 @@ namespace RDEventEditorHelper
                             var tail = originalFull.Split(',').Select(s => s.Trim()).ToArray();
                             for (int ti = arrayElems.Count; ti < tail.Length; ti++) arrayElems.Add(tail[ti]);
                         }
-                        value = string.Join(",", arrayElems);
+                        var propForArr = _properties.FirstOrDefault(p => p.name == propName);
+                        if (propForArr?.type == "StringArray")
+                            value = JsonConvert.SerializeObject(arrayElems);
+                        else
+                            value = string.Join(",", arrayElems);
                     }
                     else
                     {
