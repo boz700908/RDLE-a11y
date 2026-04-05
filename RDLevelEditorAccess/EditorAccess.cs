@@ -114,6 +114,8 @@ namespace RDLevelEditorAccess
         // 事件链相关字段
         private List<string> eventChainNames = new List<string>();  // 可用事件链名称列表
         internal string? _pendingChainData;                         // 暂存序列化数据等待命名
+        private static readonly float[] ChainSpeedOptions = { 0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f };
+        private int _chainSpeedIndex = 3;                           // 默认 1x
 
         // 编辑光标：时间轴上的虚拟锚点，用于精确控制事件插入/粘贴位置
         internal BarAndBeat _editCursor = new BarAndBeat(1, 1f);
@@ -1892,6 +1894,7 @@ namespace RDLevelEditorAccess
 
             virtualMenuState = VirtualMenuState.EventChainSelect;
             virtualMenuIndex = 0;
+            _chainSpeedIndex = 3;
             SetFakeInputField();
             Narration.Say(eventChainNames[0], NarrationCategory.Navigation);
             Narration.Say(RDString.Get("eam.chain.selectPrompt"), NarrationCategory.Instruction);
@@ -1919,6 +1922,22 @@ namespace RDLevelEditorAccess
             {
                 virtualMenuIndex = (virtualMenuIndex + 1) % count;
                 Narration.Say(eventChainNames[virtualMenuIndex], NarrationCategory.Navigation);
+            }
+            else if (Input.GetKeyDown(KeyCode.LeftArrow))
+            {
+                if (_chainSpeedIndex > 0)
+                {
+                    _chainSpeedIndex--;
+                    Narration.Say(string.Format(RDString.Get("eam.chain.speed"), FormatChainSpeed(ChainSpeedOptions[_chainSpeedIndex])), NarrationCategory.Navigation);
+                }
+            }
+            else if (Input.GetKeyDown(KeyCode.RightArrow))
+            {
+                if (_chainSpeedIndex < ChainSpeedOptions.Length - 1)
+                {
+                    _chainSpeedIndex++;
+                    Narration.Say(string.Format(RDString.Get("eam.chain.speed"), FormatChainSpeed(ChainSpeedOptions[_chainSpeedIndex])), NarrationCategory.Navigation);
+                }
             }
             else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
             {
@@ -2008,11 +2027,11 @@ namespace RDLevelEditorAccess
                         firstEvent = evt;
                 }
 
-                // 使用像素空间计算位置偏移
+                // 使用像素空间计算位置偏移，并应用倍速缩放
                 var tl = editor.timeline;
                 float firstEventX = tl.GetPosXFromBarAndBeat(firstEvent.barAndBeat);
                 float cursorX = tl.GetPosXFromBarAndBeat(_editCursor);
-                float offsetX = cursorX - firstEventX;
+                float speedMultiplier = ChainSpeedOptions[_chainSpeedIndex];
 
                 // 创建事件控件并插入
                 var controls = new List<LevelEventControl_Base>();
@@ -2020,9 +2039,9 @@ namespace RDLevelEditorAccess
                 {
                     foreach (var evt in events)
                     {
-                        // 应用位置偏移
-                        float currentX = tl.GetPosXFromBarAndBeat(evt.barAndBeat);
-                        float newX = Mathf.Max(0f, currentX + offsetX);
+                        // 相对锚点的像素距离除以倍速，实现间距缩放
+                        float relativeX = tl.GetPosXFromBarAndBeat(evt.barAndBeat) - firstEventX;
+                        float newX = Mathf.Max(0f, cursorX + relativeX / speedMultiplier);
                         var newPos = tl.GetBarAndBeatWithPosX(newX);
                         evt.bar = newPos.bar;
                         evt.beat = newPos.beat;
@@ -2292,6 +2311,15 @@ namespace RDLevelEditorAccess
         private static string FormatBarAndBeat(BarAndBeat bb) => ModUtils.FormatBarAndBeat(bb);
 
         internal static string FormatBeat(float beat) => ModUtils.FormatBeat(beat);
+
+        /// <summary>
+        /// 将事件链倍速格式化为字符串（去掉末尾无意义的零，如 1.0 → "1"，0.25 → "0.25"）。
+        /// </summary>
+        private static string FormatChainSpeed(float speed)
+        {
+            // G4 格式会去掉末尾零，并在必要时使用科学计数法，但这里数值范围固定不会触发
+            return speed.ToString("G4", System.Globalization.CultureInfo.InvariantCulture);
+        }
 
         /// <summary>
         /// 将拍号格式化为带本地化单位的完整字符串（如"2拍"或"Beat 2"）。
@@ -3781,7 +3809,7 @@ namespace RDLevelEditorAccess
             ["eam.vsel.empty"]                   = "虚拟选区为空",
             // 事件链
             ["eam.chain.noChains"]               = "无可用事件链",
-            ["eam.chain.selectPrompt"]           = "选择事件链，上下箭头导航，回车确认，Escape取消",
+            ["eam.chain.selectPrompt"]           = "选择事件链，上下箭头导航，左右箭头调节倍速，回车确认，Escape取消",
             ["eam.chain.inserted"]               = "已插入事件链 {0}，共 {1} 个事件",
             ["eam.chain.saved"]                  = "已保存事件链：{0}",
             ["eam.chain.saveFailed"]             = "保存事件链失败：{0}",
@@ -3790,6 +3818,7 @@ namespace RDLevelEditorAccess
             ["eam.chain.nameLabel"]              = "事件链名称",
             ["eam.chain.noLevel"]                = "请先打开一个关卡",
             ["eam.chain.skippedEvents"]          = "{0} 个事件因类型不存在被跳过",
+            ["eam.chain.speed"]                  = "{0}x 倍速",
             ["eam.bpmcalc.hint"]                 = "请跟着音乐的节拍敲击空格键16次",
             // 条件系统
             ["eam.conditional.menuHeader"]       = "{0} 的条件",
@@ -3924,7 +3953,7 @@ namespace RDLevelEditorAccess
             ["eam.vsel.empty"]                   = "Virtual selection is empty",
             // Event Chains
             ["eam.chain.noChains"]               = "No event chains available",
-            ["eam.chain.selectPrompt"]           = "Select event chain, Up/Down to navigate, Enter to confirm, Escape to cancel",
+            ["eam.chain.selectPrompt"]           = "Select event chain, Up/Down to navigate, Left/Right to adjust speed, Enter to confirm, Escape to cancel",
             ["eam.chain.inserted"]               = "Inserted event chain {0}, {1} events",
             ["eam.chain.saved"]                  = "Event chain saved: {0}",
             ["eam.chain.saveFailed"]             = "Failed to save event chain: {0}",
@@ -3933,6 +3962,7 @@ namespace RDLevelEditorAccess
             ["eam.chain.nameLabel"]              = "Event Chain Name",
             ["eam.chain.noLevel"]                = "Please open a level first",
             ["eam.chain.skippedEvents"]          = "{0} events skipped due to missing type",
+            ["eam.chain.speed"]                  = "{0}x speed",
             ["eam.bpmcalc.hint"]                 = "Tap the spacebar 16 times to the beat of the music",
             // Conditional system
             ["eam.conditional.menuHeader"]       = "{0}'s conditions",
