@@ -1,3 +1,9 @@
+1.6.1 (2026-04-06)
+Guaranteed compatible version: 1.0.5 (updated 2026-03-26)
+1. Fixed an issue where commas in the original sentence were accidentally split into multiple elements when editing rank descriptions.
+2. When an event type is selected in the add event menu, pressing ctrl+enter will automatically create the event and open the helper. Without ctrl, the helper will not open automatically after creating the event.
+3. When inserting an event chain, you can now press left/right arrows to adjust the speed multiplier to stretch/compress the spacing between events.
+
 1.6 (2026-04-01)
 Note: Starting from this version, the mod will only guarantee compatibility with the latest public beta of the game. The compatible version will be noted in the changelog with each update. The mod may still work in other game versions, but not all features are guaranteed to function correctly. When reporting issues, please make sure you are using the compatible version or above.
 Guaranteed compatible version: 1.0.5 (updated 2026-03-26)

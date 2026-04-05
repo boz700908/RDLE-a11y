@@ -41,6 +41,7 @@
     - [5.2 How to use?](#52-how-to-use)
   - [6. Known Issues and Limitations](#6-known-issues-and-limitations)
   - [7. FAQ](#7-faq)
+    - [How to switch the game to the beta branch?](#how-to-switch-the-game-to-the-beta-branch)
     - [Why isn't the mod loading?](#why-isnt-the-mod-loading)
     - [Why won't the helper open?](#why-wont-the-helper-open)
     - [Why does the game freeze after the save dialog pops up?](#why-does-the-game-freeze-after-the-save-dialog-pops-up)
@@ -93,6 +94,7 @@ To prevent you from thinking the manual is too long and not wanting to read it, 
 - Your screen reader (this goes without saying)
 
 Note: It is recommended to use the latest public beta of the game for the best compatibility.
+[Click here to see how to switch](#how-to-switch-the-game-to-the-beta-branch)
 
 ### 2.2 Installation Steps
 
@@ -162,6 +164,8 @@ Press insert or f2 under a tab, and a menu will pop up listing the available eve
 
 In the Rows or Sprites tab, press ctrl+insert or ctrl+f2 to create a new row or sprite, the operation is the same as creating an event.
 
+Tip: When adding an event, pressing ctrl+enter directly will create the event and automatically open the event editor at the same time.
+
 ### 4.4 Edit Cursor
 
 To make it more convenient for visually impaired players, the mod introduces the edit cursor feature. The edit cursor is a player-controllable temporary anchor point that doesn't move with playback and can be freely adjusted in position, making it convenient for players to quickly locate when creating events and other scenarios. Below are its shortcut key instructions.
@@ -205,6 +209,8 @@ To use this feature, you only need to remember two shortcuts:
 
 - ctrl+semicolon, save all events in the current virtual selection as an event chain
 - semicolon, insert an event chain at the edit cursor position
+
+When selecting an event chain, you can press left/right arrows to adjust the speed multiplier, which affects the spacing between events after insertion. The default is 1x (the original spacing of the event chain). At 0.5x the spacing will be stretched to twice the original, at 2x it will be compressed to half, and so on.
 
 Note: Event chains are stored in the **.RDLEAccess/EventChains** folder under the current level directory. If you want to use them in another level, you need to copy them manually. This is for easier organization and management.
 
@@ -286,6 +292,16 @@ But then again, I hope the official version will support accessibility soon, so 
 8. Some shortcut operations available in the native editor are not supported.
 
 ## 7. FAQ
+
+### How to switch the game to the beta branch?
+
+If you have the Steam version of the game, follow these steps:
+
+1. Find Rhythm Doctor in your Steam library.
+2. Right-click and select Properties.
+3. Switch to the Betas tab.
+4. Select the second entry in the list, i.e. beta public beta testing.
+5. Restart the game.
 
 ### Why isn't the mod loading?
 
