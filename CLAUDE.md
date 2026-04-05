@@ -11,74 +11,30 @@ RDMods is a Unity C# modding project for **Rhythm Doctor** that adds accessibili
 
 **Architecture**: The mod runs inside Unity's level editor and communicates with the helper via file-based IPC using `temp/source.json` and `temp/result.json`.
 
-## Initial Development Setup
+## Setup
 
-### Prerequisites
-
-- Rhythm Doctor (Steam version)
-- [BepInEx 5.x](https://github.com/BepInEx/BepInEx/releases) installed in game directory
-- [.NET SDK 9.0](https://dotnet.microsoft.com/download) or later
-- Git
-
-### First-Time Setup
-
-Before building for the first time:
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/white-rice94/RDLE-a11y.git
-   cd RDLE-a11y
-   ```
-
-2. Copy the example configuration:
-   ```bash
-   cp Directory.Build.user.props.example Directory.Build.user.props
-   ```
-
-3. Edit `Directory.Build.user.props` and set `<GameDir>` to your Rhythm Doctor installation path:
-   ```xml
-   <GameDir>C:\Program Files (x86)\Steam\steamapps\common\Rhythm Doctor</GameDir>
-   ```
-
-4. Ensure BepInEx 5.x is installed in the game directory.
-
-The build system will automatically deploy outputs to the configured game directory.
+Copy `Directory.Build.user.props.example` → `Directory.Build.user.props` and set `<GameDir>` to the Rhythm Doctor installation path. The build system auto-deploys outputs to the game directory.
 
 ## Build Commands
 
 ```bash
-# Build entire solution (Debug)
-dotnet build RDLE-a11y.sln
-
-# Build Release
+dotnet build RDLE-a11y.sln              # Debug (auto-deploys to GameDir)
 dotnet build RDLE-a11y.sln -c Release
-
-# Build individual projects
-dotnet build RDLevelEditorAccess/RDLevelEditorAccess.csproj
+dotnet build RDLevelEditorAccess/RDLevelEditorAccess.csproj  # Individual project
 dotnet build RDEventEditorHelper/RDEventEditorHelper.csproj
-
-# Clean
 dotnet clean RDLE-a11y.sln
-
-# Create release package
-./release.sh
+./release.sh                            # Build Release + package into release/main/
 ```
 
-**Auto-deployment**: `Directory.Build.props` automatically copies build outputs to the game directory:
+**Auto-deployment**: `Directory.Build.props` copies outputs on every build:
 - Mod DLL → `{GameDir}/BepInEx/plugins/`
 - Helper EXE → `{GameDir}/`
-
-**Release Process**: The `release.sh` script builds Release configuration and packages everything into `release/main/`:
-- Compiles both projects in Release mode
-- Copies DLL and EXE from game directory to release folder
-- Copies documentation (including HTML versions) from `docs/` to `release/docs/`
-- Creates a distribution-ready package structure
 
 ## Project Structure
 
 ```
 RDLevelEditorAccess/
-├── EditorAccess.cs           # BepInEx plugin entry, Harmony patches, core logic
+├── EditorAccess.cs           # BepInEx plugin entry, Harmony patches, AccessLogic MonoBehaviour (core, ~4000 lines)
 ├── AccessibilityModule.cs    # Public API (AccessibilityBridge) + UnityDispatcher
 ├── CustomUINavigator.cs      # Disables native UI navigation
 ├── InputFieldReader.cs       # Text-to-speech for input fields
@@ -98,27 +54,9 @@ agents references/Assembly-CSharp/
     └── InspectorPanel.cs     # Property panel base
 
 docs/
-├── manual-cn.md              # Chinese user manual
-├── manual-en.md              # English user manual
-├── manual-cn.html            # Chinese manual (HTML version)
-├── manual-en.html            # English manual (HTML version)
-├── changelog-cn.txt          # Chinese changelog
-└── changelog-en.txt          # English changelog
+├── manual-cn.md / manual-en.md        # User manuals (also .html versions)
+├── changelog-cn.txt / changelog-en.txt
 ```
-
-### Dependencies
-
-**RDLevelEditorAccess** (.NET Standard 2.1):
-- `Microsoft.Windows.Compatibility` 10.0.2
-- `System.Collections.Immutable` 8.0.0
-- `System.Text.Json` 8.0.5
-- Unity DLLs: `UnityEngine`, `UnityEngine.UI`, `Unity.TextMeshPro`
-- BepInEx: `BepInEx.dll`, `0Harmony.dll`
-- Game DLLs: `Assembly-CSharp.dll`, `RDTools.dll`
-
-**RDEventEditorHelper** (.NET Framework 4.8):
-- `Newtonsoft.Json` 13.0.3
-- `System.Windows.Forms`, `System.Drawing`
 
 ## Keyboard Shortcuts
 
@@ -138,6 +76,32 @@ The mod provides extensive keyboard navigation for accessibility:
 When `virtualMenuState != None`, arrow keys navigate virtual menus instead of the timeline.
 
 ## Key Architecture Concepts
+
+### AccessLogic — the heart of the mod
+
+`AccessLogic` (in `EditorAccess.cs`) is a MonoBehaviour injected into the scene. Its `Update()` dispatches to one of three mutually exclusive input handlers each frame:
+
+- **`HandleGeneralUINavigation`** — active when a Unity UI menu is open; handles Tab/Arrow/Enter within Unity UI elements
+- **`HandleTimelineNavigation`** — default handler; event selection, movement, insertion/deletion on the timeline
+- **`HandleVirtualMenu`** — active when `virtualMenuState != None`; arrow keys drive a custom keyboard menu instead of the timeline
+
+Key fields: `_editCursor` (BarAndBeat, current insert position), `virtualMenuState` (VirtualMenuState enum), `virtualMenuIndex`, `virtualSelection` (multi-event selection set).
+
+### VirtualMenuState
+
+`AccessLogic` uses a `VirtualMenuState` enum to track which virtual menu is active:
+
+```csharp
+private enum VirtualMenuState
+{
+    None,
+    CharacterSelect,   // Adding row/sprite
+    EventTypeSelect,   // Selecting event type
+    LinkSelect,        // Selecting hyperlink target
+    EventChainSelect,  // Selecting saved event chain (;)
+    ConditionalSelect  // Browsing/toggling conditions on an event
+}
+```
 
 ### Game Code Reference
 
@@ -243,42 +207,6 @@ ModUtils.FormatBarAndBeat(BarAndBeat bb)         // Format bar/beat display
 ModUtils.FormatBeat(float beat)                  // Format beat with smart rounding
 ```
 
-### Navigation System
-
-`AccessLogic` implements three distinct navigation handlers:
-
-1. **HandleGeneralUINavigation**: For Unity UI menus (Tab, Arrow keys, Enter)
-   - Activates when Unity UI menus are open
-   - Provides keyboard navigation for buttons, dropdowns, etc.
-
-2. **HandleTimelineNavigation**: For timeline operations
-   - Event selection and movement
-   - Timeline scrolling
-   - Event insertion/deletion
-
-3. **HandleVirtualMenu**: For custom selection dialogs
-   - Character/sprite selection
-   - Event type selection
-   - Uses `VirtualMenuState` enum to track active menu
-
-### VirtualMenuState
-
-`AccessLogic` maintains a virtual menu system for keyboard-accessible selection dialogs:
-
-```csharp
-private enum VirtualMenuState
-{
-    None,
-    CharacterSelect,   // Adding row/sprite
-    EventTypeSelect,   // Selecting event type
-    LinkSelect,        // Selecting hyperlink target
-    EventChainSelect,  // Selecting saved event chain
-    ConditionalSelect  // Browsing/toggling conditions on an event
-}
-```
-
-When `virtualMenuState != None`, arrow keys navigate the virtual menu instead of the timeline.
-
 ### InputFieldReader
 
 `InputFieldReader.cs` implements a sophisticated text-to-speech system for input fields:
@@ -306,98 +234,15 @@ If you also need to call `UpdateUIInternal()` on affected controls, do it **outs
 
 ### Unity + BepInEx Pattern
 
-The mod uses a two-part initialization:
-1. **EditorAccess** (BepInEx plugin): Loads on game start, applies Harmony patches
-2. **AccessLogic** (MonoBehaviour): Injected into scene, handles per-frame logic
-
-```csharp
-[BepInPlugin("com.hzt.rd-editor-access", "RDEditorAccess", "1.0")]
-public class EditorAccess : BaseUnityPlugin
-{
-    public void Awake()
-    {
-        var harmony = new Harmony("com.hzt.rd-editor-access");
-        harmony.PatchAll();
-    }
-}
-
-public class AccessLogic : MonoBehaviour
-{
-    public static AccessLogic Instance { get; private set; }
-
-    public void Awake() { Instance = this; }
-    public void Update() { /* per-frame logic */ }
-}
-```
-
-### Harmony Patches
-
-The mod applies multiple Harmony patches to intercept game behavior:
-
-| Patch Class | Target Method | Purpose |
-|-------------|---------------|---------|
-| **EditorPatch** | SelectEventControl | Announce event selection |
-| **EditorPatch** | AddEventControlToSelection | Announce multi-selection |
-| **TabSectionPatch** | ChangePage | Announce tab changes |
-| **TimelinePatch** | PreviousPage/NextPage | Announce timeline navigation |
-| **PastePatch** | Paste | Announce paste operations |
-| **RDStringPatch** | Get | Inject localized strings |
-
-All patches use `[HarmonyPostfix]` to run after the original method, ensuring game functionality is preserved.
+The mod uses a two-part initialization: `EditorAccess` (BepInEx plugin, applies Harmony patches in `Awake`) and `AccessLogic` (MonoBehaviour injected into scene, runs per-frame logic in `Update`). All Harmony patches use `[HarmonyPostfix]`. `RDStringPatch` intercepts `RDString.Get` to inject `eam.*` custom keys.
 
 ## Code Style Guidelines
 
-### Naming Conventions
-
-| Element | Convention | Example |
-|---------|------------|---------|
-| Classes | PascalCase | `EditorAccess`, `FileIPC` |
-| Methods | PascalCase | `HandleGeneralUINavigation` |
-| Properties | PascalCase | `Instance`, `TargetEventSystem` |
-| Private fields | camelCase or _prefix | `allControls`, `_isPolling` |
-| Parameters | camelCase | `menuName`, `rootObject` |
-
-### Import Organization
-
-Order alphabetically within groups, separated by blank lines:
-
-```csharp
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
-using BepInEx;
-using HarmonyLib;
-
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
-
-using RDLevelEditor;
-```
-
-Use aliases for conflicts:
-```csharp
-using Button = UnityEngine.UI.Button;           // In Unity code
-using Button = System.Windows.Forms.Button;     // In WinForms code
-```
-
-### Comments and Documentation
-
-- Chinese comments are standard in this codebase
-- Use XML docs for public APIs
-- Explain "why" not "what"
-- Use `[ModuleName]` prefix in log messages
-
-### Region Blocks
-
-Use double-line style for major sections:
-
-```csharp
-// ===================================================================================
-// 第一部分：加载器 (Loader)
-// ===================================================================================
-```
+- Chinese comments are standard; use XML docs for public APIs; use `[ModuleName]` prefix in log messages
+- Private fields: camelCase or `_prefix`; methods/classes/properties: PascalCase
+- Import groups (System → BepInEx/Harmony → Unity → RDLevelEditor), alphabetical within groups
+- Use `using Button = UnityEngine.UI.Button;` / `using Button = System.Windows.Forms.Button;` for namespace conflicts
+- Major section separators: `// ==================...`
 
 ## Unity-Specific Guidelines
 
@@ -410,132 +255,23 @@ if (scnEditor.instance == null) return;
 if (menuObj != null && menuObj.activeInHierarchy) { }
 ```
 
-### Harmony Patching
-
-```csharp
-[HarmonyPatch(typeof(scnEditor))]
-public static class EditorPatch
-{
-    [HarmonyPatch("SelectEventControl")]
-    [HarmonyPostfix]
-    public static void SelectEventControlPostfix(LevelEventControl_Base newControl)
-    {
-        if (newControl?.levelEvent == null) return;
-        Narration.Say(ModUtils.eventSelectI18n(newControl.levelEvent),
-                     NarrationCategory.Navigation);
-    }
-}
-```
-
 ### Accessibility (Screen Reader Support)
 
 Use the game's `Narration` class:
 
 ```csharp
-// Navigation feedback (immediate)
 Narration.Say("已选中按钮", NarrationCategory.Navigation);
-
-// With position info
 Narration.Say("菜单项", NarrationCategory.Navigation,
               itemIndex: 2, itemsLength: 5,
               elementType: ElementType.Button);
 ```
 
-## WinForms Guidelines
-
-Set accessibility properties for screen readers:
-
-```csharp
-using Button = System.Windows.Forms.Button;
-using Control = System.Windows.Forms.Control;
-
-var btn = new Button
-{
-    Text = "确定",
-    AccessibleName = "确定按钮",
-    AccessibleRole = AccessibleRole.PushButton
-};
-```
-
-## Error Handling and Logging
-
-```csharp
-try
-{
-    // Risky operation
-}
-catch (Exception ex)
-{
-    Debug.LogError($"[ModuleName] 操作失败: {ex.Message}");
-    Debug.LogException(ex);  // Full stack trace
-}
-```
-
-**Debug Mode**: The Helper application supports DEBUG mode. When enabled, it writes detailed logs to `RDEventEditorHelper.log` in the game directory.
-
 ## Debugging
 
-### Debugging the Mod (RDLevelEditorAccess)
-
-1. **View logs**: BepInEx logs are written to `{GameDir}/BepInEx/LogOutput.log`
-2. **Enable debug logging**: Edit `{GameDir}/BepInEx/config/BepInEx.cfg`:
-   ```ini
-   [Logging.Console]
-   Enabled = true
-
-   [Logging.Disk]
-   Enabled = true
-   ```
-3. **Attach debugger**: Use Visual Studio or Rider to attach to the `Rhythm Doctor.exe` process
-4. **Add breakpoints**: Set breakpoints in your code, but note that Unity's IL2CPP may affect debugging
-
-### Debugging the Helper (RDEventEditorHelper)
-
-1. **Enable DEBUG mode**: Set environment variable or modify code to enable logging
-2. **View logs**: Check `{GameDir}/RDEventEditorHelper.log`
-3. **Manual testing**: Create a test `temp/source.json` and run the helper directly:
-   ```bash
-   cd "{GameDir}"
-   ./RDEventEditorHelper.exe
-   ```
-4. **Attach debugger**: Launch helper from Visual Studio/Rider with debugger attached
-
-### Common Issues
-
-- **Mod not loading**: Check BepInEx logs for errors, verify DLL is in `BepInEx/plugins/`
-- **Helper not launching**: Verify EXE is in game root directory, check file permissions
-- **IPC timeout**: Check if `temp/` directory exists and is writable
-- **Unity null reference**: Always check `scnEditor.instance == null` before accessing game objects
-
-## Testing
-
-**Current Status**: No automated tests exist. Manual testing is done in-game.
-
-**To add tests** (future):
-```bash
-# Create test project
-dotnet new xunit -n RDMods.Tests -o RDMods.Tests
-dotnet sln add RDMods.Tests/RDMods.Tests.csproj
-
-# Run tests
-dotnet test
-dotnet test --filter "FullyQualifiedName~ClassName.MethodName"
-```
+- **Mod logs**: `{GameDir}/BepInEx/LogOutput.log`
+- **Helper logs**: `{GameDir}/RDEventEditorHelper.log` (requires DEBUG mode enabled in code)
+- **Manual Helper test**: Create `temp/source.json` and run `RDEventEditorHelper.exe` from `{GameDir}`
 
 ## Git Commit Messages
 
-Use short Chinese descriptions:
-```
-添加 XX 功能
-修复 XX 问题
-重构 XX 模块
-优化 XX 性能
-```
-
-## License
-
-This project is licensed under the MIT License.
-
-## Repository
-
-GitHub: [white-rice94/RDLE-a11y](https://github.com/white-rice94/RDLE-a11y)
+Use short Chinese descriptions: `添加 XX 功能` / `修复 XX 问题` / `重构 XX 模块`
