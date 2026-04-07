@@ -1291,7 +1291,7 @@ namespace RDEventEditorHelper
 
                     case "SoundData":
                     {
-                        group.Height = 240;
+                        group.Height = 270;
                         inputCtrl = CreateSoundDataPanelFromValue(prop, prop.value);
                         break;
                     }
@@ -1305,7 +1305,7 @@ namespace RDEventEditorHelper
                         {
                             // 组类型：按 tabLabels 数量创建选项卡，显示本地化子类型名
                             int tabCount = prop.tabLabels.Length;
-                            var tabCtrl = new TabControl { Width = 440, Height = 260, Name = "SoundDataArrayTabs" };
+                            var tabCtrl = new TabControl { Width = 440, Height = 290, Name = "SoundDataArrayTabs" };
                             for (int i = 0; i < tabCount; i++)
                             {
                                 string tabText = prop.tabLabels[i];
@@ -1314,13 +1314,13 @@ namespace RDEventEditorHelper
                                 page.Controls.Add(CreateSoundDataPanelFromValue(prop, soundValue));
                                 tabCtrl.TabPages.Add(page);
                             }
-                            group.Height = 290;
+                            group.Height = 320;
                             inputCtrl = tabCtrl;
                         }
                         else
                         {
                             // 非组类型：不显示选项卡头，直接显示声音面板
-                            group.Height = 240;
+                            group.Height = 270;
                             inputCtrl = CreateSoundDataPanelFromValue(prop, elements.Length > 0 ? elements[0] : "");
                         }
                         break;
@@ -1977,7 +1977,7 @@ namespace RDEventEditorHelper
         {
             bool hasSoundOptions = prop.soundOptions != null && prop.soundOptions.Length > 0;
             bool canBrowseFile = prop.allowCustomFile;
-            var soundPanel = new Panel { Width = 420, Height = 210, Top = 20, Left = 10 };
+            var soundPanel = new Panel { Width = 420, Height = 240, Top = 20, Left = 10 };
             var txtHiddenFilename = new TextBox { Text = filename, Width = 1, Top = 0, Left = 0, Name = "Filename", Visible = false };
             var txtOriginalFilename = new TextBox { Text = filename, Width = 1, Top = 0, Left = 0, Name = "OriginalFilename", Visible = false };
             soundPanel.Controls.Add(txtHiddenFilename);
@@ -2088,12 +2088,50 @@ namespace RDEventEditorHelper
                     if (af == filename) lvItem.Selected = true;
                 }
             }
+            // 手动输入选项（始终在列表末尾）
+            var manualItem = new ListViewItem("手动输入文件名 (Enter filename manually)") { Tag = "__manual__" };
+            listView.Items.Add(manualItem);
+
+            // 手动输入控件（初始隐藏）
+            var lblManual = new Label { Name = "ManualLabel", Text = "文件名 (Filename):", Width = 90, Top = 158, Left = 0, Visible = false };
+            var txtManual = new TextBox { Name = "ManualInput", Width = 310, Top = 156, Left = 95, Visible = false, AccessibleName = "手动输入文件名 (Enter filename manually)" };
+            soundPanel.Controls.Add(lblManual);
+            soundPanel.Controls.Add(txtManual);
+
+            // 若当前值不在任何列表项中，选中手动输入项并预填值
             if (!string.IsNullOrEmpty(filename))
             {
-                bool found = listView.Items.Cast<ListViewItem>().Any(it => it.Tag as string == filename);
-                if (!found) { var extItem = new ListViewItem(filename) { Tag = filename }; listView.Items.Add(extItem); extItem.Selected = true; }
+                bool found = listView.Items.Cast<ListViewItem>().Any(it => it.Tag as string == filename && it.Tag as string != "__manual__");
+                if (!found)
+                {
+                    manualItem.Selected = true;
+                    txtManual.Text = filename;
+                    txtHiddenFilename.Text = filename;
+                    lblManual.Visible = true;
+                    txtManual.Visible = true;
+                }
             }
-            listView.SelectedIndexChanged += (s, e) => { if (listView.SelectedItems.Count > 0) txtHiddenFilename.Text = listView.SelectedItems[0].Tag as string ?? listView.SelectedItems[0].Text; };
+
+            listView.SelectedIndexChanged += (s, e) =>
+            {
+                if (listView.SelectedItems.Count > 0)
+                {
+                    string tag = listView.SelectedItems[0].Tag as string;
+                    bool isManual = tag == "__manual__";
+                    lblManual.Visible = isManual;
+                    txtManual.Visible = isManual;
+                    if (isManual)
+                    {
+                        txtHiddenFilename.Text = txtManual.Text;
+                        txtManual.Focus();
+                    }
+                    else
+                    {
+                        txtHiddenFilename.Text = tag ?? listView.SelectedItems[0].Text;
+                    }
+                }
+            };
+            txtManual.TextChanged += (s, e) => { txtHiddenFilename.Text = txtManual.Text; };
             listView.DoubleClick += (s, e) => { _isClosingByButton = true; OnOK?.Invoke(GetCurrentUpdates()); this.Close(); };
             listView.KeyDown += (s, e) =>
             {
@@ -2101,7 +2139,7 @@ namespace RDEventEditorHelper
                 {
                     e.Handled = true;
                     string rawSoundName = listView.SelectedItems[0].Tag as string;
-                    if (rawSoundName == "__track_default__") return;
+                    if (rawSoundName == "__track_default__" || rawSoundName == "__manual__") return;
                     if (_previewingSoundName == rawSoundName)
                     {
                         // 再次按空格：停止当前预览
@@ -2135,17 +2173,17 @@ namespace RDEventEditorHelper
             soundPanel.Controls.Add(listView);
             listView.Refresh();
             if (listView.SelectedItems.Count > 0) { int si = listView.SelectedIndices[0]; listView.Items[si].Focused = true; listView.EnsureVisible(si); listView.Focus(); }
-            soundPanel.Controls.Add(new Label { Text = "音量 (Volume):", Width = 80, Top = 155, Left = 0 });
-            soundPanel.Controls.Add(new TextBox { Text = volume, Width = 60, Top = 153, Left = 85, Name = "Volume", AccessibleName = "音量 (Volume)" });
-            soundPanel.Controls.Add(new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 150 });
-            soundPanel.Controls.Add(new Label { Text = "音调 (Pitch):", Width = 80, Top = 155, Left = 215 });
-            soundPanel.Controls.Add(new TextBox { Text = pitch, Width = 60, Top = 153, Left = 295, Name = "Pitch", AccessibleName = "音调 (Pitch)" });
-            soundPanel.Controls.Add(new Label { Text = "(0-300)", Width = 60, Top = 155, Left = 285 });
-            soundPanel.Controls.Add(new Label { Text = "声道 (Pan):", Width = 65, Top = 180, Left = 0 });
-            soundPanel.Controls.Add(new TextBox { Text = pan, Width = 60, Top = 178, Left = 70, Name = "Pan", AccessibleName = "声道 (Pan)" });
-            soundPanel.Controls.Add(new Label { Text = "(-100~100)", Width = 65, Top = 180, Left = 135 });
-            soundPanel.Controls.Add(new Label { Text = "偏移 (Offset):", Width = 75, Top = 180, Left = 205 });
-            soundPanel.Controls.Add(new TextBox { Text = offset, Width = 60, Top = 178, Left = 285, Name = "Offset", AccessibleName = "偏移 (Offset)" });
+            soundPanel.Controls.Add(new Label { Text = "音量 (Volume):", Width = 80, Top = 185, Left = 0 });
+            soundPanel.Controls.Add(new TextBox { Text = volume, Width = 60, Top = 183, Left = 85, Name = "Volume", AccessibleName = "音量 (Volume)" });
+            soundPanel.Controls.Add(new Label { Text = "(0-300)", Width = 60, Top = 185, Left = 150 });
+            soundPanel.Controls.Add(new Label { Text = "音调 (Pitch):", Width = 80, Top = 185, Left = 215 });
+            soundPanel.Controls.Add(new TextBox { Text = pitch, Width = 60, Top = 183, Left = 295, Name = "Pitch", AccessibleName = "音调 (Pitch)" });
+            soundPanel.Controls.Add(new Label { Text = "(0-300)", Width = 60, Top = 185, Left = 285 });
+            soundPanel.Controls.Add(new Label { Text = "声道 (Pan):", Width = 65, Top = 210, Left = 0 });
+            soundPanel.Controls.Add(new TextBox { Text = pan, Width = 60, Top = 208, Left = 70, Name = "Pan", AccessibleName = "声道 (Pan)" });
+            soundPanel.Controls.Add(new Label { Text = "(-100~100)", Width = 65, Top = 210, Left = 135 });
+            soundPanel.Controls.Add(new Label { Text = "偏移 (Offset):", Width = 75, Top = 210, Left = 205 });
+            soundPanel.Controls.Add(new TextBox { Text = offset, Width = 60, Top = 208, Left = 285, Name = "Offset", AccessibleName = "偏移 (Offset)" });
             soundPanel.Controls.Add(new Label { Text = "毫秒 (ms)", Width = 55, Top = 180, Left = 350 });
             return soundPanel;
         }
@@ -2164,6 +2202,12 @@ namespace RDEventEditorHelper
             {
                 string tag = lv.SelectedItems[0].Tag as string;
                 if (tag == "__track_default__") return "";
+                if (tag == "__manual__")
+                {
+                    // 读取手动输入框的内容
+                    if (string.IsNullOrEmpty(fn)) return "";
+                    return $"{fn}|{txtVolume?.Text ?? "100"}|{txtPitch?.Text ?? "100"}|{txtPan?.Text ?? "0"}|{txtOffset?.Text ?? "0"}";
+                }
                 if (!string.IsNullOrEmpty(fn))
                     return $"{fn}|{txtVolume?.Text ?? "100"}|{txtPitch?.Text ?? "100"}|{txtPan?.Text ?? "0"}|{txtOffset?.Text ?? "0"}";
                 var txtOrig = panel.Controls.Find("OriginalFilename", false).FirstOrDefault() as TextBox;
