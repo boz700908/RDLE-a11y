@@ -272,6 +272,7 @@ namespace RDEventEditorHelper
         private string _pendingExecuteMethod = null;  // 点击操作按钮时要执行的方法名
         private string _token = Guid.NewGuid().ToString();  // NEW: IPC session token
         private string _previewingSoundName = null;  // 当前正在预览的音频名称
+        private bool _soundFocusRegistered = false;   // 是否已注册初始聚焦事件（只允许首个 SoundData 面板注册）
 
         public event Action<Dictionary<string, string>> OnOK;
         public event Action OnCancel;
@@ -2172,7 +2173,24 @@ namespace RDEventEditorHelper
             };
             soundPanel.Controls.Add(listView);
             listView.Refresh();
-            if (listView.SelectedItems.Count > 0) { int si = listView.SelectedIndices[0]; listView.Items[si].Focused = true; listView.EnsureVisible(si); listView.Focus(); }
+            // 延迟到窗体显示后再聚焦，确保控件已在窗体树中（只注册一次，首个 SoundData 面板优先）
+            if (!_soundFocusRegistered)
+            {
+                _soundFocusRegistered = true;
+                EventHandler shownHandler = null;
+                shownHandler = (s, e) =>
+                {
+                    this.Shown -= shownHandler;
+                    if (listView.SelectedItems.Count > 0)
+                    {
+                        int si = listView.SelectedIndices[0];
+                        listView.Items[si].Focused = true;
+                        listView.EnsureVisible(si);
+                        listView.Focus();
+                    }
+                };
+                this.Shown += shownHandler;
+            }
             soundPanel.Controls.Add(new Label { Text = "音量 (Volume):", Width = 80, Top = 185, Left = 0 });
             soundPanel.Controls.Add(new TextBox { Text = volume, Width = 60, Top = 183, Left = 85, Name = "Volume", AccessibleName = "音量 (Volume)" });
             soundPanel.Controls.Add(new Label { Text = "(0-300)", Width = 60, Top = 185, Left = 150 });
