@@ -1,3 +1,9 @@
+1.6.2 (2026-04-08)
+Guaranteed compatible version: 1.0.5 (updated 2026-03-26)
+1. Added shortcut action support for some events (e.g. automatically adding nurse voice lines based on the rhythm of a oneshot beat).
+2. When selecting a sound, you can now manually enter a filename.
+3. Fixed an issue where the sound list did not automatically focus on the currently selected item when opening the helper.
+
 1.6.1 (2026-04-06)
 Guaranteed compatible version: 1.0.5 (updated 2026-03-26)
 1. Fixed an issue where commas in the original sentence were accidentally split into multiple elements when editing rank descriptions.
