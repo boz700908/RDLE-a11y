@@ -112,6 +112,17 @@ Key concepts from the game:
 - **onlyUI properties**: Properties marked `onlyUI = true` are NOT saved to level files
 - **PropertyInfo types**: Bool, Int, Float, String, Enum, Color, SoundData, Nullable, Array
 
+### SoundData Panel Sentinel Values
+
+The `CreateSoundDataPanel()` in `EditorForm.cs` uses special Tag values for non-file ListView items:
+
+| Tag | Meaning | Serialized as |
+|-----|---------|---------------|
+| `"__track_default__"` | Use track default (nullable SoundData) | empty string `""` |
+| `"__manual__"` | Manual filename input mode | value from `ManualInput` TextBox |
+
+When handling ListView selection or sound preview, always guard against both sentinels.
+
 ### Localization
 
 **Game built-in localization keys** are in `agents references/localization/` (`.bytes` files). Before creating a new `eam.*` key, always check whether the game already provides a key for that string. Use native keys when available; only create `eam.*` keys for mod-specific screen-reader text that has no equivalent in the game.
@@ -156,6 +167,10 @@ The mod and helper communicate via JSON files:
 5. **Mod polls** for result, applies changes, deletes result file
 
 The `token` field is used to match responses to requests and prevent race conditions.
+
+When the helper sends `action: "execute"`, the mod first looks for `methodName` on the `LevelEvent` object (reflection-based `ButtonAttribute` buttons), then falls back to calling it on the current `InspectorPanel` via `scnEditor.instance.inspectorPanelManager.GetCurrent()` (hardcoded panel buttons such as `BreakIntoOneshotBeats`).
+
+Hardcoded panel buttons (not in the property system) are registered in the `HardcodedButtons` static dictionary in `FileIPC.cs` and appended to the property list during serialization with `type: "Button"`, identical in format to reflection-based buttons.
 
 #### Dynamic UI Visibility System
 
