@@ -822,6 +822,26 @@ namespace RDLevelEditorAccess.IPC
                 tabLabelsChanges["sounds"] = newTabLabels;
             }
 
+            // 重算硬编码面板按钮的可见性
+            if (HardcodedButtons.TryGetValue(currentEvent.type, out var hardDefs))
+            {
+                foreach (var def in hardDefs)
+                {
+                    try
+                    {
+                        bool shouldShow = def.isVisible(currentEvent);
+                        var existingProp = request.currentProperties
+                            ?.FirstOrDefault(p => p.name == def.methodName);
+                        if (existingProp != null && existingProp.isVisible != shouldShow)
+                            visibilityChanges[def.methodName] = shouldShow;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[FileIPC] 硬编码按钮可见性重算失败 {def.methodName}: {ex.Message}");
+                    }
+                }
+            }
+
             return new PropertyUpdateResponse
             {
                 token = request.token,
@@ -859,16 +879,36 @@ namespace RDLevelEditorAccess.IPC
 
             try
             {
-                var method = ev.GetType().GetMethod(methodName);
-                if (method == null)
+                // 优先在 LevelEvent 上查找（反射型 ButtonAttribute 按钮）
+                var method = ev.GetType().GetMethod(methodName,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (method != null)
                 {
-                    Debug.LogError($"[FileIPC] 找不到方法: {methodName}");
+                    Debug.Log($"[FileIPC] 执行事件操作: {methodName}");
+                    method.Invoke(ev, null);
+                    Debug.Log($"[FileIPC] 操作执行完成: {methodName}");
                     return;
                 }
 
-                Debug.Log($"[FileIPC] 执行操作: {methodName}");
-                method.Invoke(ev, null);
-                Debug.Log($"[FileIPC] 操作执行完成: {methodName}");
+                // 回退到当前 InspectorPanel（硬编码按钮）
+                var panel = scnEditor.instance?.inspectorPanelManager?.GetCurrent();
+                if (panel == null)
+                {
+                    Debug.LogError($"[FileIPC] 找不到方法 '{methodName}'（事件上不存在），且当前面板为空");
+                    return;
+                }
+
+                var panelMethod = panel.GetType().GetMethod(methodName,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (panelMethod == null)
+                {
+                    Debug.LogError($"[FileIPC] 找不到方法 '{methodName}'（在事件和面板上均未找到）");
+                    return;
+                }
+
+                Debug.Log($"[FileIPC] 执行面板操作: {methodName} on {panel.GetType().Name}");
+                panelMethod.Invoke(panel, null);
+                Debug.Log($"[FileIPC] 面板操作执行完成: {methodName}");
             }
             catch (Exception ex)
             {
@@ -1655,8 +1695,67 @@ namespace RDLevelEditorAccess.IPC
                 }
             }
 
+            // 追加硬编码面板按钮（不在属性系统中，需手动注册）
+            if (ev != null && HardcodedButtons.TryGetValue(ev.type, out var hardDefs))
+            {
+                foreach (var def in hardDefs)
+                {
+                    string displayName = RDString.GetWithCheck(def.localizationKey, out bool exists);
+                    if (!exists) displayName = def.methodName;
+                    else displayName = StripRichTextTags(displayName);
+                    bool visible = false;
+                    try { visible = def.isVisible(ev); }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[FileIPC] 硬编码按钮可见性检查失败 {def.methodName}: {ex.Message}");
+                    }
+                    list.Add(new PropertyData
+                    {
+                        name = def.methodName,
+                        displayName = displayName,
+                        type = "Button",
+                        methodName = def.methodName,
+                        isVisible = visible
+                    });
+                }
+            }
+
             return list;
         }
+
+        // ===================================================================================
+        // 硬编码检查器按钮（非属性系统，直接定义在 InspectorPanel 子类上）
+        // ===================================================================================
+
+        private struct HardcodedButtonDef
+        {
+            public string methodName;
+            public string localizationKey;
+            public Func<LevelEvent_Base, bool> isVisible;
+        }
+
+        private static readonly Dictionary<LevelEventType, List<HardcodedButtonDef>> HardcodedButtons =
+            new Dictionary<LevelEventType, List<HardcodedButtonDef>>
+            {
+                [LevelEventType.AddOneshotBeat] = new List<HardcodedButtonDef>
+                {
+                    new HardcodedButtonDef {
+                        methodName = "BreakIntoOneshotBeats",
+                        localizationKey = "editor.AddOneshotBeat.break",
+                        isVisible = ev => ((LevelEvent_AddOneshotBeat)ev).loops > 0
+                    },
+                    new HardcodedButtonDef {
+                        methodName = "SwitchControlToSetOneshotWave",
+                        localizationKey = "editor.AddOneshotBeat.switchToSetWave",
+                        isVisible = ev => ((LevelEvent_AddOneshotBeat)ev).loops == 0
+                    },
+                    new HardcodedButtonDef {
+                        methodName = "CreateNurseCue",
+                        localizationKey = "editor.AddOneshotBeat.createCue",
+                        isVisible = ev => true
+                    },
+                }
+            };
 
         // ===================================================================================
         // 自动完成方法收集
