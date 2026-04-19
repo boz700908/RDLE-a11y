@@ -26,6 +26,7 @@ namespace RDLevelEditorAccess.IPC
         private LevelEvent_MakeRow _currentRow;  // 当前编辑的轨道
         private int _currentRowIndex;  // 当前编辑的轨道索引
         private bool _isPolling;
+        private Process _helperProcess;  // 当前运行的 Helper 进程（用于紧急终止）
         private string _sessionToken;  // 会话特征码
         private string _currentEditType = "event";  // 当前编辑类型: "event"、"row"、"condition" 等
         private MonoBehaviour _owner;  // 用于启动协程
@@ -1372,7 +1373,7 @@ namespace RDLevelEditorAccess.IPC
 
             try
             {
-                Process.Start(new ProcessStartInfo
+                _helperProcess = Process.Start(new ProcessStartInfo
                 {
                     FileName = helperPath,
                     UseShellExecute = false
@@ -1383,6 +1384,34 @@ namespace RDLevelEditorAccess.IPC
             {
                 Debug.LogError($"[FileIPC] 启动 Helper 失败: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 紧急强制取消：终止轮询、杀死 Helper 进程、解锁键盘
+        /// </summary>
+        public void ForceCancel()
+        {
+            Debug.LogWarning("[FileIPC] 紧急强制取消：终止 Helper 轮询");
+            _isPolling = false;
+
+            try
+            {
+                if (_helperProcess != null && !_helperProcess.HasExited)
+                {
+                    _helperProcess.Kill();
+                    Debug.LogWarning("[FileIPC] 已强制终止 Helper 进程");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FileIPC] 终止 Helper 进程失败: {ex.Message}");
+            }
+            finally
+            {
+                _helperProcess = null;
+            }
+
+            UnlockKeyboard();
         }
 
         private List<PropertyData> ExtractProperties(LevelEvent_Base ev)

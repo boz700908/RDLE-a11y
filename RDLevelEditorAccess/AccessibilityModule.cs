@@ -144,6 +144,15 @@ namespace RDLevelEditorAccess
         public static bool IsEditing => _fileIPC?.IsPolling == true;
 
         /// <summary>
+        /// 紧急强制取消：终止 Helper 进程并解锁键盘
+        /// </summary>
+        public static void ForceCancel()
+        {
+            if (_fileIPC != null)
+                _fileIPC.ForceCancel();
+        }
+
+        /// <summary>
         /// 注册条件新建/编辑完成后的回调
         /// </summary>
         public static void SetConditionalSavedCallback(Action<int> callback)

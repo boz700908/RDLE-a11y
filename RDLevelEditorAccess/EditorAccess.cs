@@ -93,6 +93,11 @@ namespace RDLevelEditorAccess
         private string virtualMenuPurpose = "";  // "row", "sprite", "event"
         private LevelEventType selectedEventType;
 
+        // 紧急回退：Helper 卡死时快速按 Esc 5 次强制取消
+        private int _emergencyEscCount = 0;
+        private float _emergencyEscLastTime = 0f;
+        private const float EscWindowSeconds = 2f;   // 2 秒内按够 5 次
+
         // 虚拟菜单激活时为 true，用于屏蔽游戏原生快捷键
         internal static bool IsVirtualMenuActive = false;
 
@@ -194,8 +199,24 @@ namespace RDLevelEditorAccess
             // --- FileIPC 轮询 ---
             AccessibilityBridge.Update();
 
-            // Helper 运行时不处理任何快捷键
-            if (AccessibilityBridge.IsEditing) return;
+            // Helper 运行时不处理任何快捷键，但检测紧急 Esc×5 回退
+            if (AccessibilityBridge.IsEditing)
+            {
+                if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    if (Time.realtimeSinceStartup - _emergencyEscLastTime > EscWindowSeconds)
+                        _emergencyEscCount = 0;
+                    _emergencyEscLastTime = Time.realtimeSinceStartup;
+                    _emergencyEscCount++;
+                    if (_emergencyEscCount >= 5)
+                    {
+                        _emergencyEscCount = 0;
+                        AccessibilityBridge.ForceCancel();
+                        Narration.Say(RDString.Get("eam.helper.forceCancelled"), NarrationCategory.Notification);
+                    }
+                }
+                return;
+            }
 
             if (scnEditor.instance == null) return;
 
@@ -3817,6 +3838,7 @@ namespace RDLevelEditorAccess
             ["eam.confirm.changeRowType"]        = "切换轨道类型将删除轨道上的所有事件（{0}个），是否继续？",
             ["eam.error.roomFull"]               = "房间 {0} 已满，无法移动轨道",
             ["eam.error.helperNotFound"]         = "无法启动事件编辑器，请确保 RDEventEditorHelper.exe 存在",
+            ["eam.helper.forceCancelled"]        = "已强制退出事件编辑器",
             ["eam.cursor.jump.title"]            = "跳转到位置",
             ["eam.cursor.jump.bar"]              = "小节",
             ["eam.cursor.jump.beat"]             = "拍",
@@ -3962,6 +3984,7 @@ namespace RDLevelEditorAccess
             ["eam.confirm.changeRowType"]        = "Changing row type will delete all {0} events on this track. Continue?",
             ["eam.error.roomFull"]               = "Room {0} is full, cannot move track",
             ["eam.error.helperNotFound"]         = "Cannot start event editor. Please ensure RDEventEditorHelper.exe exists",
+            ["eam.helper.forceCancelled"]        = "Event editor forcefully closed",
             ["eam.cursor.jump.title"]            = "Jump to Position",
             ["eam.cursor.jump.bar"]              = "Bar",
             ["eam.cursor.jump.beat"]             = "Beat",
