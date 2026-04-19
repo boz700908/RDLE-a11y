@@ -3338,6 +3338,40 @@ namespace RDLevelEditorAccess
                 ? $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}"
                 : $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}，{summary}";
             Narration.Say(announcement, NarrationCategory.Navigation);
+            var _editor = scnEditor.instance;
+            if (_editor != null)
+            {
+                var comments = GetCommentsAtPosition(_editor, levelEvent.bar, levelEvent.beat);
+                foreach (var (tabName, comment) in comments)
+                {
+                    string commentText = string.IsNullOrWhiteSpace(comment.text) ? "" : comment.text;
+                    Narration.Say(
+                        string.Format(RDString.Get("eam.event.commentAt"), tabName, commentText),
+                        NarrationCategory.Navigation,
+                        flipCategoryQueueBehaviour: true);
+                }
+            }
+        }
+
+        private static List<(string tabName, LevelEvent_Comment comment)> GetCommentsAtPosition(
+            scnEditor editor, int bar, float beat)
+        {
+            var result = new List<(string, LevelEvent_Comment)>();
+            void Scan(IEnumerable<LevelEventControl_Base> controls, string tabName)
+            {
+                foreach (var ctrl in controls)
+                    if (ctrl?.levelEvent is LevelEvent_Comment c && c.bar == bar && c.beat == beat)
+                        result.Add((tabName, c));
+            }
+            Scan(editor.eventControls_sounds,  RDString.Get("editor.sounds"));
+            Scan(editor.eventControls_actions, RDString.Get("editor.actions"));
+            Scan(editor.eventControls_rooms,   RDString.Get("editor.rooms"));
+            Scan(editor.eventControls_windows, RDString.Get("editor.windows"));
+            foreach (var row in editor.eventControls_rows)
+                Scan(row, RDString.Get("editor.rows"));
+            foreach (var spr in editor.eventControls_sprites)
+                Scan(spr, RDString.Get("editor.sprites"));
+            return result;
         }
 
         /// <summary>
@@ -3767,6 +3801,7 @@ namespace RDLevelEditorAccess
             ["eam.event.noSelection"]            = "未选中任何事件",
             ["eam.event.mixedMoveBlocked"]       = "无法移动：选中的事件类型不一致",
             ["eam.event.commentNote"]            = "（注释事件）",
+            ["eam.event.commentAt"]              = "{0} 的注释：{1}",
             ["eam.event.levelEndNote"]           = "（结束关卡）",
             ["eam.event.customMethodNote"]       = "（需要配置自定义方法）",
             ["eam.event.tagNote"]                = "（标签操作）",
@@ -3911,6 +3946,7 @@ namespace RDLevelEditorAccess
             ["eam.event.noSelection"]            = "No events selected",
             ["eam.event.mixedMoveBlocked"]       = "Cannot move: selected events have mixed positioning types",
             ["eam.event.commentNote"]            = "(Comment event)",
+            ["eam.event.commentAt"]              = "Comment in {0}: {1}",
             ["eam.event.levelEndNote"]           = "(Level end)",
             ["eam.event.customMethodNote"]       = "(Requires custom method)",
             ["eam.event.tagNote"]                = "(Tag operation)",
