@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -3344,7 +3345,7 @@ namespace RDLevelEditorAccess
                 var comments = GetCommentsAtPosition(_editor, levelEvent.bar, levelEvent.beat, levelEvent);
                 if (comments.Count > 0)
                 {
-                    _editor.LevelEditorPlaySound("sndEditorPopupSmall", "LevelEditorActive");
+                    AccessLogic.Instance?.StartCoroutine(PlayCommentSound(_editor));
                 }
                 foreach (var (tabName, comment) in comments)
                 {
@@ -3354,6 +3355,14 @@ namespace RDLevelEditorAccess
                         flipCategoryQueueBehaviour: true);
                 }
             }
+        }
+
+        private static IEnumerator PlayCommentSound(scnEditor editor)
+        {
+            var src = editor.LevelEditorPlaySound("sndButtonHover", "LevelEditorActive");
+            if (src != null && src.clip != null)
+                yield return new WaitForSeconds(src.clip.length);
+            editor.LevelEditorPlaySound("sndButtonRadio", "LevelEditorActive");
         }
 
         private static List<(string tabName, LevelEvent_Comment comment)> GetCommentsAtPosition(
