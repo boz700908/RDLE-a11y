@@ -3341,12 +3341,11 @@ namespace RDLevelEditorAccess
             var _editor = scnEditor.instance;
             if (_editor != null)
             {
-                var comments = GetCommentsAtPosition(_editor, levelEvent.bar, levelEvent.beat);
+                var comments = GetCommentsAtPosition(_editor, levelEvent.bar, levelEvent.beat, levelEvent);
                 foreach (var (tabName, comment) in comments)
                 {
-                    string commentText = string.IsNullOrWhiteSpace(comment.text) ? "" : comment.text;
                     Narration.Say(
-                        string.Format(RDString.Get("eam.event.commentAt"), tabName, commentText),
+                        string.Format(RDString.Get("eam.event.commentAt"), tabName, comment.text),
                         NarrationCategory.Navigation,
                         flipCategoryQueueBehaviour: true);
                 }
@@ -3354,13 +3353,16 @@ namespace RDLevelEditorAccess
         }
 
         private static List<(string tabName, LevelEvent_Comment comment)> GetCommentsAtPosition(
-            scnEditor editor, int bar, float beat)
+            scnEditor editor, int bar, float beat, LevelEvent_Base exclude)
         {
             var result = new List<(string, LevelEvent_Comment)>();
             void Scan(IEnumerable<LevelEventControl_Base> controls, string tabName)
             {
                 foreach (var ctrl in controls)
-                    if (ctrl?.levelEvent is LevelEvent_Comment c && c.bar == bar && c.beat == beat)
+                    if (ctrl?.levelEvent is LevelEvent_Comment c
+                        && c.bar == bar && c.beat == beat
+                        && !string.IsNullOrWhiteSpace(c.text)
+                        && !ReferenceEquals(c, exclude))
                         result.Add((tabName, c));
             }
             Scan(editor.eventControls_sounds,  RDString.Get("editor.sounds"));
