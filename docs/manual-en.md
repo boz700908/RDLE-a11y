@@ -50,6 +50,7 @@
     - [8.1 Native Editor Common Shortcuts Reference](#81-native-editor-common-shortcuts-reference)
     - [8.2 Mod Shortcuts Reference](#82-mod-shortcuts-reference)
     - [8.3 Contact Information](#83-contact-information)
+    - [8.4 Sponsorship](#84-sponsorship)
 
 
 ------
@@ -402,3 +403,16 @@ QQ: 1528344627
 [itch.io page](https://white-rice94.itch.io/rdle-access)
 
 [GitHub](https://github.com/white-rice94/RDLE-a11y)
+
+### 8.4 Sponsorship
+
+If this mod has been helpful to you and you'd like to support my development work, in addition to recommending it to more people, you can also consider giving me some financial support. Please note that sponsorship here is directed to me **personally** and has nothing to do with **7th Beat Games**.
+
+Since this project uses AI assistance, I need to continuously invest funds to purchase AI API credits during development. If accumulated over time, the total cost of developing this mod will become increasingly high. Therefore, all sponsorship funds will be used entirely to purchase AI model usage credits to ease my financial pressure.
+
+Sponsorship is entirely voluntary. Whether or not you sponsor, it will not affect your full use of any features in this mod, and I will not treat you differently in terms of issue reporting or future maintenance.
+
+Note: Due to geographic limitations, I can only accept sponsorships via WeChat Pay and Alipay. If you cannot use these two platforms, please feel free to ignore this section.
+
+![WeChat Pay QR Code](https://fs.226372.xyz/pay/WeChat.png "Scan QR code to sponsor")
+![Alipay QR Code](https://fs.226372.xyz/pay/Alipay.jpg "Scan QR code to sponsor")
