@@ -194,6 +194,9 @@ namespace RDLevelEditorAccess
             // --- FileIPC 轮询 ---
             AccessibilityBridge.Update();
 
+            // Helper 运行时不处理任何快捷键
+            if (AccessibilityBridge.IsEditing) return;
+
             if (scnEditor.instance == null) return;
 
             // --- 虚拟菜单优先处理（最高优先级）---
@@ -3456,7 +3459,7 @@ namespace RDLevelEditorAccess
         [HarmonyPostfix]
         public static void Postfix(ref bool __result)
         {
-            if (AccessLogic.IsVirtualMenuActive)
+            if (AccessLogic.IsVirtualMenuActive || AccessibilityBridge.IsEditing)
                 __result = true;
         }
     }
