@@ -1320,9 +1320,8 @@ namespace RDEventEditorHelper
                         }
                         else
                         {
-                            // 非组类型：不显示选项卡头，直接显示声音面板
-                            group.Height = 270;
-                            inputCtrl = CreateSoundDataPanelFromValue(prop, elements.Length > 0 ? elements[0] : "");
+                            // 非组类型：动态数组，支持添加元素
+                            inputCtrl = BuildDynamicSoundArrayControl(prop, elements, group);
                         }
                         break;
                     }
@@ -1764,8 +1763,19 @@ namespace RDEventEditorHelper
                 }
                 else if (ctrl is Panel ctrlPanel)
                 {
+                    // 检查是否是动态数组容器
+                    if (ctrlPanel.Name == "DynamicSoundArrayContainer")
+                    {
+                        var tc = ctrlPanel.Controls.OfType<TabControl>().FirstOrDefault();
+                        if (tc == null)
+                            value = "";
+                        else
+                            value = string.Join(";", tc.TabPages.Cast<TabPage>()
+                                .Select(tp => GetSoundDataPanelValue(
+                                    tp.Controls.OfType<Panel>().FirstOrDefault())));
+                    }
                     // 检查是否是 Character 类型的 Panel
-                    if (ctrlPanel.Controls.Find("CharacterValue", false).FirstOrDefault() is TextBox charValue)
+                    else if (ctrlPanel.Controls.Find("CharacterValue", false).FirstOrDefault() is TextBox charValue)
                     {
                         // Character 类型
                         value = charValue.Text;
@@ -1880,6 +1890,73 @@ namespace RDEventEditorHelper
                     }
                 }
             });
+        }
+
+        private Panel BuildDynamicSoundArrayControl(PropertyData prop, string[] elements, GroupBox group)
+        {
+            var container = new Panel { Name = "DynamicSoundArrayContainer", Width = 440, AutoSize = false };
+            container.Tag = prop;
+
+            var addBtn = new System.Windows.Forms.Button
+            {
+                Text = "添加 (Add)",
+                Width = 120,
+                Height = 28,
+                Left = 0
+            };
+            addBtn.Click += (s, e) => AddDynamicSoundArrayElement(container, prop, group);
+
+            if (elements.Length > 0)
+            {
+                var tabCtrl = new TabControl { Name = "DynamicSoundArrayTabs", Width = 440, Height = 260, Top = 0, Left = 0 };
+                for (int i = 0; i < elements.Length; i++)
+                {
+                    var page = new TabPage((i + 1).ToString()) { AccessibleName = (i + 1).ToString() };
+                    page.Controls.Add(CreateSoundDataPanelFromValue(prop, elements[i]));
+                    tabCtrl.TabPages.Add(page);
+                }
+                addBtn.Top = tabCtrl.Bottom + 4;
+                container.Height = addBtn.Bottom + 4;
+                container.Controls.Add(tabCtrl);
+                container.Controls.Add(addBtn);
+                group.Height = 350;
+            }
+            else
+            {
+                addBtn.Top = 0;
+                container.Height = addBtn.Bottom + 4;
+                container.Controls.Add(addBtn);
+                group.Height = 80;
+            }
+
+            return container;
+        }
+
+        private void AddDynamicSoundArrayElement(Panel container, PropertyData prop, GroupBox group)
+        {
+            var tabCtrl = container.Controls.OfType<TabControl>()
+                .FirstOrDefault(c => c.Name == "DynamicSoundArrayTabs");
+
+            if (tabCtrl == null)
+            {
+                tabCtrl = new TabControl { Name = "DynamicSoundArrayTabs", Width = 440, Height = 260, Top = 0, Left = 0 };
+                // 移动添加按钮
+                var existingBtn = container.Controls.OfType<System.Windows.Forms.Button>().FirstOrDefault();
+                if (existingBtn != null) existingBtn.Top = tabCtrl.Bottom + 4;
+                container.Controls.Add(tabCtrl);
+            }
+
+            int newIndex = tabCtrl.TabPages.Count;
+            var page = new TabPage((newIndex + 1).ToString()) { AccessibleName = (newIndex + 1).ToString() };
+            page.Controls.Add(CreateSoundDataPanelFromValue(prop, ""));
+            tabCtrl.TabPages.Add(page);
+            tabCtrl.SelectedTab = page;
+
+            // 更新添加按钮位置
+            var btn = container.Controls.OfType<System.Windows.Forms.Button>().FirstOrDefault();
+            if (btn != null) btn.Top = tabCtrl.Bottom + 4;
+            container.Height = (btn?.Bottom ?? tabCtrl.Bottom) + 4;
+            group.Height = 350;
         }
 
         private void RebuildSoundDataArrayControl(string propertyName, string[] newTabLabels)
