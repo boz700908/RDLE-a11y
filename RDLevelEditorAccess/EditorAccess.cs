@@ -3338,13 +3338,13 @@ namespace RDLevelEditorAccess
                 ? $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}"
                 : $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}，{summary}";
             Narration.Say(announcement, NarrationCategory.Navigation);
-            var _editor = scnEditor.instance;
-            if (_editor != null)
+            var editor = scnEditor.instance;
+            if (editor != null)
             {
-                var comments = GetCommentsAtPosition(_editor, levelEvent.bar, levelEvent.beat, levelEvent);
+                var comments = GetCommentsAtPosition(editor, levelEvent.bar, levelEvent.beat, levelEvent);
                 if (comments.Count > 0)
                 {
-                    _editor.LevelEditorPlaySound("sndButtonRadio", "LevelEditorActive");
+                    editor.LevelEditorPlaySound("sndButtonRadio", "LevelEditorActive");
                 }
                 foreach (var (tabName, comment) in comments)
                 {
@@ -3374,9 +3374,9 @@ namespace RDLevelEditorAccess
             Scan(editor.eventControls_rooms,   RDString.Get("editor.rooms"));
             Scan(editor.eventControls_windows, RDString.Get("editor.windows"));
             foreach (var row in editor.eventControls_rows)
-                Scan(row, RDString.Get("editor.rows"));
+                if (row != null) Scan(row, RDString.Get("editor.rows"));
             foreach (var spr in editor.eventControls_sprites)
-                Scan(spr, RDString.Get("editor.sprites"));
+                if (spr != null) Scan(spr, RDString.Get("editor.sprites"));
             return result;
         }
 

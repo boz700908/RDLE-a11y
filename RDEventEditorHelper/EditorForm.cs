@@ -1940,10 +1940,10 @@ namespace RDEventEditorHelper
             if (tabCtrl == null)
             {
                 tabCtrl = new TabControl { Name = "DynamicSoundArrayTabs", Width = 440, Height = 260, Top = 0, Left = 0 };
-                // 移动添加按钮
+                container.Controls.Add(tabCtrl);
+                // 移动添加按钮（先 Add 再取 Bottom，确保布局已知）
                 var existingBtn = container.Controls.OfType<System.Windows.Forms.Button>().FirstOrDefault();
                 if (existingBtn != null) existingBtn.Top = tabCtrl.Bottom + 4;
-                container.Controls.Add(tabCtrl);
             }
 
             int newIndex = tabCtrl.TabPages.Count;
