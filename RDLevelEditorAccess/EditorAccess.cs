@@ -3342,6 +3342,10 @@ namespace RDLevelEditorAccess
             if (_editor != null)
             {
                 var comments = GetCommentsAtPosition(_editor, levelEvent.bar, levelEvent.beat, levelEvent);
+                if (comments.Count > 0)
+                {
+                    _editor.LevelEditorPlaySound("sndEditorPopupSmall", "LevelEditorActive");
+                }
                 foreach (var (tabName, comment) in comments)
                 {
                     Narration.Say(
