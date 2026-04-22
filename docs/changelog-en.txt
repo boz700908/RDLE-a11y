@@ -1,5 +1,5 @@
 1.6.3 (2026-04-21)
-Guaranteed compatible version: 1.0.5 (updated 2026-03-26)
+Guaranteed compatible version: 1.0.5 (updated 2026-04-21)
 1. Added support for setting a custom nurse counting sound effect.
 2. All keyboard shortcuts are now fully locked while the helper is open for event editing. To prevent the helper from causing a freeze if something goes wrong, you can press Esc 5 times quickly in-game at any time to force-terminate the helper and unlock the keyboard.
 3. When navigating to an event that has a comment at the same position, a sound effect will play and the comment will be read out automatically.
