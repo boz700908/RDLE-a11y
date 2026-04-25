@@ -85,7 +85,9 @@ namespace RDEventEditorHelper
                             ? "跳转到位置 (Jump to Position)"
                             : editType == "chainName"
                                 ? "保存事件链 (Save Event Chain)"
-                                : $"编辑事件 (Edit Event): {sourceData?.eventType}";
+                                : editType == "gridCustom"
+                                    ? "自定义网格精度 (Custom Grid Size)"
+                                    : $"编辑事件 (Edit Event): {sourceData?.eventType}";
                 editorForm.SetData(sourceData?.eventType, sourceData?.properties, title, sourceData?.levelAudioFiles, sourceData?.levelDirectory, sourceData?.localizedLevelAudioFiles, sessionToken, sourceData?.internalSongs);
             }
 
