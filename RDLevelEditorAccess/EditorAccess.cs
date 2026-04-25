@@ -1919,7 +1919,7 @@ namespace RDLevelEditorAccess
                     if (Input.GetKeyDown(kc))
                     {
                         virtualMenuIndex = i <= count ? i - 1 : count - 1;
-                        ConfirmSelection();
+                        AnnounceCurrentItem();
                         break;
                     }
                 }
