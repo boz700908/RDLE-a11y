@@ -54,8 +54,8 @@
       - [Menu Operations](#menu-operations)
       - [Basic Operations](#basic-operations)
       - [Editing Operations](#editing-operations)
-      - [Edit Cursor](#edit-cursor-1)
-      - [Virtual Selection and Event Chains](#virtual-selection-and-event-chains-1)
+      - [Edit Cursor](#edit-cursor)
+      - [Virtual Selection and Event Chains](#virtual-selection-and-event-chains)
     - [8.3 Contact Information](#83-contact-information)
     - [8.4 Sponsorship](#84-sponsorship)
 
