@@ -153,6 +153,15 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
+        /// 打开自定义网格精度输入对话框
+        /// </summary>
+        public static void GridCustomInput(int currentCustomValue)
+        {
+            if (!_isInitialized) return;
+            _fileIPC.StartGridCustomEdit(currentCustomValue);
+        }
+
+        /// <summary>
         /// 注册条件新建/编辑完成后的回调
         /// </summary>
         public static void SetConditionalSavedCallback(Action<int> callback)

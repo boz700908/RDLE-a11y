@@ -344,6 +344,10 @@ namespace RDLevelEditorAccess.IPC
                     {
                         ApplyChainNameResult(resultData.updates);
                     }
+                    else if (_currentEditType == "gridCustom")
+                    {
+                        ApplyGridCustomResult(resultData.updates);
+                    }
                     else if (_currentEvent != null)
                     {
                         ApplyUpdates(_currentEvent, resultData.updates);
@@ -2805,6 +2809,71 @@ namespace RDLevelEditorAccess.IPC
                 editor.levelSettings = (RDLevelSettings)boxed;
             }
             Debug.Log("[FileIPC] 已应用关卡元数据更改");
+        }
+
+        public void StartGridCustomEdit(int currentCustomValue)
+        {
+            if (_isPolling)
+            {
+                Debug.LogWarning("[FileIPC] 已有编辑会话进行中");
+                return;
+            }
+
+            _currentEvent = null;
+            _currentRow = null;
+            _currentEditType = "gridCustom";
+            _sessionToken = System.Guid.NewGuid().ToString();
+
+            var properties = new List<PropertyData>
+            {
+                new PropertyData
+                {
+                    name = "denominator",
+                    displayName = RDString.Get("eam.grid.custom.label"),
+                    value = currentCustomValue.ToString(),
+                    type = "Int"
+                }
+            };
+
+            var sourceData = new SourceData
+            {
+                editType = "gridCustom",
+                eventType = "GridCustom",
+                token = _sessionToken,
+                properties = properties,
+                levelDirectory = GetLevelDirectory()
+            };
+
+            try
+            {
+                var opts = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+                File.WriteAllText(_sourcePath, JsonSerializer.Serialize(sourceData, opts));
+                Debug.Log("[FileIPC] 已写入 source.json (自定义网格)");
+            }
+            catch (Exception ex) { Debug.LogError($"[FileIPC] 写入 source.json 失败: {ex.Message}"); return; }
+
+            LaunchHelper();
+            LockKeyboard();
+            _isPolling = true;
+        }
+
+        private void ApplyGridCustomResult(Dictionary<string, string> updates)
+        {
+            if (updates == null || !updates.ContainsKey("denominator")) return;
+
+            if (!int.TryParse(updates["denominator"], out int value) || value <= 0)
+            {
+                Narration.Say(RDString.Get("eam.grid.custom.invalid"), NarrationCategory.Navigation);
+                return;
+            }
+
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            editor.UpdateFreetimeSnapValue(value.ToString());
+            string label = string.Format(RDString.Get("eam.grid.item"), value);
+            Narration.Say(label, NarrationCategory.Navigation);
+            Debug.Log($"[FileIPC] 自定义网格精度已设为 1/{value}");
         }
 
         private void ApplyJumpToCursorUpdates(Dictionary<string, string> updates)

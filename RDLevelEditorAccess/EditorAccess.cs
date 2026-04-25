@@ -1878,13 +1878,29 @@ namespace RDLevelEditorAccess
 
             void ConfirmSelection()
             {
-                int curIndex = GetDenominatorIndex(editor);
-                int diff = virtualMenuIndex - curIndex;
-                if (diff != 0)
+                // 选中自定义项（最后一项）→ 先切换到该 index，再弹 Helper 输入
+                if (virtualMenuIndex == count - 1)
                 {
-                    // CycleSnapValues 是 public，循环调用到目标 index
-                    int dir = diff > 0 ? 1 : -1;
-                    for (int i = 0; i < Mathf.Abs(diff); i++)
+                    int curIndex = GetDenominatorIndex(editor);
+                    int diff = virtualMenuIndex - curIndex;
+                    if (diff != 0)
+                    {
+                        int dir = diff > 0 ? 1 : -1;
+                        for (int i = 0; i < Mathf.Abs(diff); i++)
+                            editor.CycleSnapValues(dir);
+                    }
+                    int currentCustomValue = values[count - 1];
+                    CloseVirtualMenu();
+                    AccessibilityBridge.GridCustomInput(currentCustomValue);
+                    return;
+                }
+
+                int cIndex = GetDenominatorIndex(editor);
+                int d = virtualMenuIndex - cIndex;
+                if (d != 0)
+                {
+                    int dir = d > 0 ? 1 : -1;
+                    for (int i = 0; i < Mathf.Abs(d); i++)
                         editor.CycleSnapValues(dir);
                 }
                 AnnounceCurrentItem();
@@ -3935,6 +3951,8 @@ namespace RDLevelEditorAccess
             ["eam.grid.selectPrompt"]            = "选择网格精度，使用上下箭头导航，数字键快速选择，回车确认，Escape取消",
             ["eam.grid.item"]                    = "1/{0} 网格",
             ["eam.grid.custom"]                  = "自定义网格",
+            ["eam.grid.custom.label"]            = "自定义分母（正整数）",
+            ["eam.grid.custom.invalid"]          = "无效分母，请输入正整数",
             ["eam.event.createFailed"]           = "无法创建事件类型 {0}",
             ["eam.event.createError"]            = "创建事件失败",
             ["eam.event.created"]                = "已创建事件 {0}",
@@ -4084,6 +4102,8 @@ namespace RDLevelEditorAccess
             ["eam.grid.selectPrompt"]            = "Select grid size, arrow keys to navigate, number keys to quick-select, Enter to confirm, Escape to cancel",
             ["eam.grid.item"]                    = "1/{0} grid",
             ["eam.grid.custom"]                  = "Custom grid",
+            ["eam.grid.custom.label"]            = "Custom denominator (positive integer)",
+            ["eam.grid.custom.invalid"]          = "Invalid denominator, please enter a positive integer",
             ["eam.event.createFailed"]           = "Cannot create event type {0}",
             ["eam.event.createError"]            = "Event creation failed",
             ["eam.event.created"]                = "Event {0} created",
