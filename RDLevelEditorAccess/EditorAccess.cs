@@ -251,7 +251,7 @@ namespace RDLevelEditorAccess
                 }
             }
 
-            if (Input.GetKeyDown(KeyCode.F12))
+            if (Input.GetKeyDown(KeyCode.BackQuote))
             {
                 scnEditor.instance.TwoPlayerButtonClick();
                 string modeKey = GC.twoPlayerMode ? "eam.playerMode.two" : "eam.playerMode.one";

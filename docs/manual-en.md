@@ -416,7 +416,7 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | Shortcut | Function | Notes |
 | --- | --- | --- |
 | f10 | Open/close editor main menu | None |
-| f12 | Toggle single/two-player mode | This is only for testing how the level behaves in different modes; it does not change level data. |
+| \` (backtick) | Toggle single/two-player mode | This is only for testing how the level behaves in different modes; it does not change level data. |
 | Left/Right arrows | Browse events in current tab (or row) | None |
 | Up/Down arrows | Switch rows/sprites in Rows/Sprites tab | None |
 | enter | Jump to selected event's position and start playing | None |
