@@ -251,6 +251,13 @@ namespace RDLevelEditorAccess
                 }
             }
 
+            if (Input.GetKeyDown(KeyCode.F12))
+            {
+                scnEditor.instance.TwoPlayerButtonClick();
+                string modeKey = GC.twoPlayerMode ? "eam.playerMode.two" : "eam.playerMode.one";
+                Narration.Say(RDString.Get(modeKey), NarrationCategory.Notification);
+            }
+
             // --- 菜单/弹窗拦截逻辑 (优先级从高到低) ---
 
             // 1. 免责声明 (最高优先级)
@@ -4040,6 +4047,8 @@ namespace RDLevelEditorAccess
             ["eam.conditional.deleteConfirm"]        = "确认删除条件 {0}？已有 {1} 个事件使用了该条件。再按 D 确认，Escape 取消",
             ["eam.conditional.tagLabel"]         = "标签",
             ["eam.conditional.descriptionLabel"] = "描述",
+            ["eam.playerMode.one"]               = "单人模式",
+            ["eam.playerMode.two"]               = "双人模式",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -4191,6 +4200,8 @@ namespace RDLevelEditorAccess
             ["eam.conditional.deleteConfirm"]        = "Delete condition {0}? {1} events use this condition. Press D again to confirm, Escape to cancel",
             ["eam.conditional.tagLabel"]         = "Tag",
             ["eam.conditional.descriptionLabel"] = "Description",
+            ["eam.playerMode.one"]               = "Single player mode",
+            ["eam.playerMode.two"]               = "Two player mode",
         };
 
         [HarmonyPrefix]
