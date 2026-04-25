@@ -1376,7 +1376,7 @@ namespace RDLevelEditorAccess.IPC
                 _helperProcess = Process.Start(new ProcessStartInfo
                 {
                     FileName = helperPath,
-                    UseShellExecute = false
+                    UseShellExecute = true
                 });
                 Debug.Log("[FileIPC] 已启动 RDEventEditorHelper.exe");
             }

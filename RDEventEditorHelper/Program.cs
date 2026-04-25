@@ -15,14 +15,12 @@ namespace RDEventEditorHelper
         [STAThread]
         static void Main()
         {
-#if DEBUG
-            // Debug 模式：覆盖之前的日志
+            // 启动时覆盖之前的日志
             if (File.Exists(LogPath))
             {
                 File.Delete(LogPath);
             }
             Log("=== Helper 启动 ===");
-#endif
 
             if (!Directory.Exists(TempDir))
             {
@@ -31,22 +29,16 @@ namespace RDEventEditorHelper
 
             if (!File.Exists(SourcePath))
             {
-#if DEBUG
                 Log("source.json 不存在，退出");
-#endif
                 return;
             }
 
             string json = File.ReadAllText(SourcePath);
             File.Delete(SourcePath);
-#if DEBUG
             Log($"已读取 source.json 内容:\n{json}");
-#endif
 
             var sourceData = JsonConvert.DeserializeObject<SourceData>(json);
-#if DEBUG
             Log($"编辑类型: {sourceData?.editType ?? "event"}, 事件类型: {sourceData?.eventType}, 特征码: {sourceData?.token}, 属性数量: {sourceData?.properties?.Length ?? 0}");
-#endif
 
             // 保存特征码，必须在所有响应中回传
             string sessionToken = sourceData?.token ?? "";
@@ -102,9 +94,7 @@ namespace RDEventEditorHelper
                 var result = new ResultData { token = sessionToken, action = "ok", updates = updates };
                 string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
                 File.WriteAllText(ResultPath, resultJson);
-#if DEBUG
                 Log($"已写入 result.json (ok), token: {sessionToken}，退出");
-#endif
             };
 
             editorForm.OnCancel += () =>
@@ -112,9 +102,7 @@ namespace RDEventEditorHelper
                 var result = new ResultData { token = sessionToken, action = "cancel" };
                 string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
                 File.WriteAllText(ResultPath, resultJson);
-#if DEBUG
                 Log($"已写入 result.json (cancel), token: {sessionToken}，退出");
-#endif
             };
 
             editorForm.OnExecute += (methodName) =>
@@ -122,9 +110,7 @@ namespace RDEventEditorHelper
                 var result = new ResultData { token = sessionToken, action = "execute", methodName = methodName };
                 string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
                 File.WriteAllText(ResultPath, resultJson);
-#if DEBUG
                 Log($"已写入 result.json (execute: {methodName}), token: {sessionToken}，退出");
-#endif
             };
 
             editorForm.OnBPMCalculator += (updates) =>
@@ -132,24 +118,17 @@ namespace RDEventEditorHelper
                 var result = new ResultData { token = sessionToken, action = "bpmCalculator", updates = updates };
                 string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
                 File.WriteAllText(ResultPath, resultJson);
-#if DEBUG
                 Log($"已写入 result.json (bpmCalculator), token: {sessionToken}，退出");
-#endif
             };
 
-#if DEBUG
             Log("显示编辑器窗口");
-#endif
             Application.Run(editorForm);
 
-#if DEBUG
             Log("=== Helper 退出 ===");
-#endif
         }
 
         private static void Log(string msg)
         {
-#if DEBUG
             try
             {
                 using var fs = new FileStream(LogPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
@@ -158,7 +137,6 @@ namespace RDEventEditorHelper
                 sw.Flush();
             }
             catch { }
-#endif
         }
 
         private class SourceData

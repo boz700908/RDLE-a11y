@@ -282,6 +282,11 @@ namespace RDEventEditorHelper
         public EditorForm()
         {
             InitializeComponent();
+            this.Shown += (s, e) =>
+            {
+                this.Activate();
+                this.BringToFront();
+            };
         }
 
         private void InitializeComponent()
