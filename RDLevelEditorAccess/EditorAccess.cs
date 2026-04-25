@@ -1852,7 +1852,7 @@ namespace RDLevelEditorAccess
 
             string label = virtualMenuIndex < values.Length - 1
                 ? string.Format(RDString.Get("eam.grid.item"), values[virtualMenuIndex])
-                : RDString.Get("eam.grid.custom");
+                : string.Format(RDString.Get("eam.grid.custom"), values[values.Length - 1]);
             Narration.Say(label, NarrationCategory.Navigation);
             Narration.Say(RDString.Get("eam.grid.selectPrompt"), NarrationCategory.Instruction);
         }
@@ -1872,37 +1872,32 @@ namespace RDLevelEditorAccess
             {
                 string label = virtualMenuIndex < count - 1
                     ? string.Format(RDString.Get("eam.grid.item"), values[virtualMenuIndex])
-                    : RDString.Get("eam.grid.custom");
+                    : string.Format(RDString.Get("eam.grid.custom"), values[count - 1]);
                 Narration.Say(label, NarrationCategory.Navigation);
             }
 
             void ConfirmSelection()
             {
-                // 选中自定义项（最后一项）→ 先切换到该 index，再弹 Helper 输入
-                if (virtualMenuIndex == count - 1)
+                bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+
+                // 切换 denominator index 到目标值
+                int curIndex = GetDenominatorIndex(editor);
+                int diff = virtualMenuIndex - curIndex;
+                if (diff != 0)
                 {
-                    int curIndex = GetDenominatorIndex(editor);
-                    int diff = virtualMenuIndex - curIndex;
-                    if (diff != 0)
-                    {
-                        int dir = diff > 0 ? 1 : -1;
-                        for (int i = 0; i < Mathf.Abs(diff); i++)
-                            editor.CycleSnapValues(dir);
-                    }
-                    int currentCustomValue = values[count - 1];
+                    int dir = diff > 0 ? 1 : -1;
+                    for (int i = 0; i < Mathf.Abs(diff); i++)
+                        editor.CycleSnapValues(dir);
+                }
+
+                // 自定义项：Ctrl+Enter 弹 Helper，Enter 直接应用当前自定义值
+                if (virtualMenuIndex == count - 1 && ctrl)
+                {
                     CloseVirtualMenu();
-                    AccessibilityBridge.GridCustomInput(currentCustomValue);
+                    AccessibilityBridge.GridCustomInput(values[count - 1]);
                     return;
                 }
 
-                int cIndex = GetDenominatorIndex(editor);
-                int d = virtualMenuIndex - cIndex;
-                if (d != 0)
-                {
-                    int dir = d > 0 ? 1 : -1;
-                    for (int i = 0; i < Mathf.Abs(d); i++)
-                        editor.CycleSnapValues(dir);
-                }
                 AnnounceCurrentItem();
                 CloseVirtualMenu();
             }
@@ -3948,9 +3943,9 @@ namespace RDLevelEditorAccess
             ["eam.char.selectPrompt"]            = "选择角色，使用上下箭头导航，回车确认，Escape取消",
             ["eam.event.noTypesAvailable"]       = "当前 Tab 没有可用的事件类型",
             ["eam.event.selectPrompt"]           = "选择事件类型，使用上下箭头导航，回车确认，Escape取消",
-            ["eam.grid.selectPrompt"]            = "选择网格精度，使用上下箭头导航，数字键快速选择，回车确认，Escape取消",
+            ["eam.grid.selectPrompt"]            = "选择网格精度，使用上下箭头导航，数字键快速选择，回车确认，自定义项可用Ctrl+回车编辑，Escape取消",
             ["eam.grid.item"]                    = "1/{0} 网格",
-            ["eam.grid.custom"]                  = "自定义网格",
+            ["eam.grid.custom"]                  = "1/{0} 自定义网格",
             ["eam.grid.custom.label"]            = "分母 (Denominator)",
             ["eam.grid.custom.invalid"]          = "无效分母，请输入正整数 (Invalid denominator, please enter a positive integer)",
             ["eam.event.createFailed"]           = "无法创建事件类型 {0}",
@@ -4099,9 +4094,9 @@ namespace RDLevelEditorAccess
             ["eam.char.selectPrompt"]            = "Select character, arrow keys to navigate, Enter to confirm, Escape to cancel",
             ["eam.event.noTypesAvailable"]       = "No event types available in current tab",
             ["eam.event.selectPrompt"]           = "Select event type, arrow keys to navigate, Enter to confirm, Escape to cancel",
-            ["eam.grid.selectPrompt"]            = "Select grid size, arrow keys to navigate, number keys to quick-select, Enter to confirm, Escape to cancel",
+            ["eam.grid.selectPrompt"]            = "Select grid size, arrow keys to navigate, number keys to quick-select, Enter to confirm, Ctrl+Enter to edit custom value, Escape to cancel",
             ["eam.grid.item"]                    = "1/{0} grid",
-            ["eam.grid.custom"]                  = "Custom grid",
+            ["eam.grid.custom"]                  = "1/{0} custom grid",
             ["eam.grid.custom.label"]            = "Custom denominator (positive integer)",
             ["eam.grid.custom.invalid"]          = "Invalid denominator, please enter a positive integer",
             ["eam.event.createFailed"]           = "Cannot create event type {0}",
