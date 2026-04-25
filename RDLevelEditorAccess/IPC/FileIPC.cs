@@ -105,6 +105,7 @@ namespace RDLevelEditorAccess.IPC
             try
             {
                 var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+                sourceData.language = RDString.isChinese ? "zh" : "en";
                 string json = JsonSerializer.Serialize(sourceData, options);
                 File.WriteAllText(_sourcePath, json);
                 Debug.Log($"[FileIPC] 已写入 source.json: {json.Length} 字符");
@@ -170,6 +171,7 @@ namespace RDLevelEditorAccess.IPC
             try
             {
                 var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+                sourceData.language = RDString.isChinese ? "zh" : "en";
                 string json = JsonSerializer.Serialize(sourceData, options);
                 File.WriteAllText(_sourcePath, json);
                 Debug.Log($"[FileIPC] 已写入 source.json (轨道编辑): {json.Length} 字符");
@@ -2188,6 +2190,7 @@ namespace RDLevelEditorAccess.IPC
             try
             {
                 var opts = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+                sourceData.language = RDString.isChinese ? "zh" : "en";
                 File.WriteAllText(_sourcePath, JsonSerializer.Serialize(sourceData, opts));
                 Debug.Log("[FileIPC] 已写入 source.json (元数据编辑)");
             }
@@ -2249,6 +2252,7 @@ namespace RDLevelEditorAccess.IPC
             try
             {
                 var opts = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+                sourceData.language = RDString.isChinese ? "zh" : "en";
                 File.WriteAllText(_sourcePath, JsonSerializer.Serialize(sourceData, opts));
                 Debug.Log("[FileIPC] 已写入 source.json (跳转光标)");
             }
@@ -2295,6 +2299,7 @@ namespace RDLevelEditorAccess.IPC
             try
             {
                 var opts = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+                sourceData.language = RDString.isChinese ? "zh" : "en";
                 File.WriteAllText(_sourcePath, JsonSerializer.Serialize(sourceData, opts));
                 Debug.Log("[FileIPC] 已写入 source.json (事件链命名)");
             }
@@ -2601,6 +2606,7 @@ namespace RDLevelEditorAccess.IPC
         {
             try
             {
+                sourceData.language = RDString.isChinese ? "zh" : "en";
                 var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
                 File.WriteAllText(_sourcePath, JsonSerializer.Serialize(sourceData, options));
                 Debug.Log($"[FileIPC] 已写入 source.json ({logLabel})");
@@ -3356,6 +3362,7 @@ namespace RDLevelEditorAccess.IPC
         [Serializable]
         private class SourceData
         {
+            public string language;   // "zh" or "en"
             public string editType;  // "event"、"row"、"condition" 等
             public string eventType;
             public string token;  // 会话特征码

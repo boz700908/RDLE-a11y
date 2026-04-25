@@ -43,7 +43,8 @@ namespace RDEventEditorHelper
             // 保存特征码，必须在所有响应中回传
             string sessionToken = sourceData?.token ?? "";
             string editType = sourceData?.editType ?? "event";
-            
+            Loc.Lang = sourceData?.language == "en" ? "en" : "zh";
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
@@ -54,8 +55,8 @@ namespace RDEventEditorHelper
             if (editType == "condition")
             {
                 title = sourceData?.conditionEditMode == "create"
-                    ? "新建条件 (Create Condition)"
-                    : $"编辑条件 (Edit Condition): {sourceData?.conditionalDescription ?? sourceData?.conditionalTag}";
+                    ? Loc.Get("新建条件", "Create Condition")
+                    : $"{Loc.Get("编辑条件", "Edit Condition")}: {sourceData?.conditionalDescription ?? sourceData?.conditionalTag}";
                 var condData = new ConditionSourceData
                 {
                     conditionEditMode = sourceData?.conditionEditMode,
@@ -78,16 +79,16 @@ namespace RDEventEditorHelper
             else
             {
                 title = editType == "settings"
-                    ? "编辑关卡元数据 (Edit Level Settings)"
+                    ? Loc.Get("编辑关卡元数据", "Edit Level Settings")
                     : editType == "row"
-                        ? "编辑轨道 (Edit Row)"
+                        ? Loc.Get("编辑轨道", "Edit Row")
                         : editType == "jump"
-                            ? "跳转到位置 (Jump to Position)"
+                            ? Loc.Get("跳转到位置", "Jump to Position")
                             : editType == "chainName"
-                                ? "保存事件链 (Save Event Chain)"
+                                ? Loc.Get("保存事件链", "Save Event Chain")
                                 : editType == "gridCustom"
-                                    ? "自定义网格精度 (Custom Grid Size)"
-                                    : $"编辑事件 (Edit Event): {sourceData?.eventType}";
+                                    ? Loc.Get("自定义网格精度", "Custom Grid Size")
+                                    : $"{Loc.Get("编辑事件", "Edit Event")}: {sourceData?.eventType}";
                 editorForm.SetData(sourceData?.eventType, sourceData?.properties, title, sourceData?.levelAudioFiles, sourceData?.levelDirectory, sourceData?.localizedLevelAudioFiles, sessionToken, sourceData?.internalSongs);
             }
 
@@ -143,6 +144,7 @@ namespace RDEventEditorHelper
 
         private class SourceData
         {
+            public string language;   // "zh" or "en"
             public string editType;  // "event"、"row"、"condition" 等
             public string eventType;
             public string token;  // 会话特征码
