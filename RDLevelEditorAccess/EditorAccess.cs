@@ -85,7 +85,8 @@ namespace RDLevelEditorAccess
             EventTypeSelect,      // 事件类型选择
             LinkSelect,           // 链接选择
             EventChainSelect,     // 事件链选择
-            ConditionalSelect     // 条件选择
+            ConditionalSelect,    // 条件选择
+            GridSelect            // 网格精度选择
         }
 
         private VirtualMenuState virtualMenuState = VirtualMenuState.None;
@@ -781,6 +782,16 @@ namespace RDLevelEditorAccess
                 return;
             }
 
+            // Alt+G: 打开网格精度选择菜单
+            if (Input.GetKeyDown(KeyCode.G) &&
+                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)) &&
+                !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl) &&
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
+            {
+                StartGridSelect();
+                return;
+            }
+
             // Insert 或 F2: 添加事件
             if ((Input.GetKeyDown(KeyCode.Insert) || Input.GetKeyDown(KeyCode.F2)) &&
                 !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl))
@@ -839,8 +850,8 @@ namespace RDLevelEditorAccess
             {
                 var tl = editor.timeline;
                 float cursorX = tl.GetPosXFromBarAndBeat(_editCursor);
-                float halfBeat = tl.cellWidth * 0.5f;
-                float snappedX = Mathf.Max(0f, Mathf.Round(cursorX / halfBeat) * halfBeat);
+                float snapBeat = tl.cellWidth * (1f / editor.denominator);
+                float snappedX = Mathf.Max(0f, Mathf.Round(cursorX / snapBeat) * snapBeat);
                 _editCursor = tl.GetBarAndBeatWithPosX(snappedX);
                 Narration.Say(RDString.Get("eam.cursor.snapPrefix") + FormatBarAndBeat(_editCursor), NarrationCategory.Navigation);
             }
@@ -895,7 +906,7 @@ namespace RDLevelEditorAccess
                 }
                 else
                 {
-                    MoveEditCursor(alt ? -0.01f : shift ? -0.1f : -1f);
+                    MoveEditCursor(alt ? -0.01f : shift ? -0.1f : -1f / scnEditor.instance.denominator);
                 }
             }
 
@@ -911,7 +922,7 @@ namespace RDLevelEditorAccess
                 }
                 else
                 {
-                    MoveEditCursor(alt ? 0.01f : shift ? 0.1f : 1f);
+                    MoveEditCursor(alt ? 0.01f : shift ? 0.1f : 1f / scnEditor.instance.denominator);
                 }
             }
 
@@ -946,7 +957,7 @@ namespace RDLevelEditorAccess
                     }
                     else
                     {
-                        MoveSelectedEvents(alt ? -0.01f : shift ? -0.1f : -1f);
+                        MoveSelectedEvents(alt ? -0.01f : shift ? -0.1f : -1f / scnEditor.instance.denominator);
                     }
                 }
             }
@@ -975,7 +986,7 @@ namespace RDLevelEditorAccess
                     }
                     else
                     {
-                        MoveSelectedEvents(alt ? 0.01f : shift ? 0.1f : 1f);
+                        MoveSelectedEvents(alt ? 0.01f : shift ? 0.1f : 1f / scnEditor.instance.denominator);
                     }
                 }
             }
@@ -988,7 +999,7 @@ namespace RDLevelEditorAccess
                 if (moveMode == EventMoveMode.Mixed)
                     Narration.Say(RDString.Get("eam.event.mixedMoveBlocked"), NarrationCategory.Navigation);
                 else if (moveMode != EventMoveMode.BarOnly)
-                    SnapSelectedEventsToHalfBeat();
+                    SnapSelectedEventsToGrid();
             }
 
             // Alt+C：打开当前选中事件的条件选择菜单
@@ -1339,6 +1350,9 @@ namespace RDLevelEditorAccess
                     break;
                 case VirtualMenuState.ConditionalSelect:
                     HandleConditionalSelect();
+                    break;
+                case VirtualMenuState.GridSelect:
+                    HandleGridSelectMenu();
                     break;
             }
         }
@@ -1810,6 +1824,108 @@ namespace RDLevelEditorAccess
             }
         }
 
+        // 反射缓存：denominatorIndex / denominatorValues 均为 private
+        private static readonly System.Reflection.FieldInfo _denominatorIndexField =
+            typeof(scnEditor).GetField("denominatorIndex", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        private static readonly System.Reflection.FieldInfo _denominatorValuesField =
+            typeof(scnEditor).GetField("denominatorValues", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        private int GetDenominatorIndex(scnEditor editor) =>
+            _denominatorIndexField != null ? (int)_denominatorIndexField.GetValue(editor) : 3;
+
+        private int[] GetDenominatorValues(scnEditor editor) =>
+            _denominatorValuesField != null ? (int[])_denominatorValuesField.GetValue(editor) : new int[] { 1, 2, 3, 4, 6, 8, 12, 16, 100 };
+
+        /// <summary>
+        /// 开始网格精度选择菜单（Alt+G）
+        /// </summary>
+        private void StartGridSelect()
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            var values = GetDenominatorValues(editor);
+            int curIndex = GetDenominatorIndex(editor);
+            virtualMenuState = VirtualMenuState.GridSelect;
+            virtualMenuIndex = curIndex;
+            SetFakeInputField();
+
+            string label = virtualMenuIndex < values.Length - 1
+                ? string.Format(RDString.Get("eam.grid.item"), values[virtualMenuIndex])
+                : RDString.Get("eam.grid.custom");
+            Narration.Say(label, NarrationCategory.Navigation);
+            Narration.Say(RDString.Get("eam.grid.selectPrompt"), NarrationCategory.Instruction);
+        }
+
+        /// <summary>
+        /// 处理网格精度选择菜单
+        /// </summary>
+        private void HandleGridSelectMenu()
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            var values = GetDenominatorValues(editor);
+            int count = values.Length;
+
+            void AnnounceCurrentItem()
+            {
+                string label = virtualMenuIndex < count - 1
+                    ? string.Format(RDString.Get("eam.grid.item"), values[virtualMenuIndex])
+                    : RDString.Get("eam.grid.custom");
+                Narration.Say(label, NarrationCategory.Navigation);
+            }
+
+            void ConfirmSelection()
+            {
+                int curIndex = GetDenominatorIndex(editor);
+                int diff = virtualMenuIndex - curIndex;
+                if (diff != 0)
+                {
+                    // CycleSnapValues 是 public，循环调用到目标 index
+                    int dir = diff > 0 ? 1 : -1;
+                    for (int i = 0; i < Mathf.Abs(diff); i++)
+                        editor.CycleSnapValues(dir);
+                }
+                AnnounceCurrentItem();
+                CloseVirtualMenu();
+            }
+
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex - 1 + count) % count;
+                AnnounceCurrentItem();
+            }
+            else if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex + 1) % count;
+                AnnounceCurrentItem();
+            }
+            else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                ConfirmSelection();
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
+                CloseVirtualMenu();
+            }
+            else
+            {
+                // 数字键 1~8 直接跳到对应 index（1→0 ... 8→7），9 选自定义（index count-1）
+                for (int i = 1; i <= 9; i++)
+                {
+                    KeyCode kc = KeyCode.Alpha0 + i;
+                    if (Input.GetKeyDown(kc))
+                    {
+                        virtualMenuIndex = i <= count ? i - 1 : count - 1;
+                        ConfirmSelection();
+                        break;
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// 关闭虚拟菜单
         /// </summary>
@@ -2263,10 +2379,10 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
-        /// 将所有选中事件吸附到最近的正拍或半拍（0.5 拍间隔）。
+        /// 将所有选中事件吸附到当前网格精度（由原生编辑器 denominator 决定）。
         /// 使用像素空间运算以自动处理变速小节。
         /// </summary>
-        private void SnapSelectedEventsToHalfBeat()
+        private void SnapSelectedEventsToGrid()
         {
             var editor = scnEditor.instance;
             if (editor?.timeline == null) return;
@@ -2277,14 +2393,14 @@ namespace RDLevelEditorAccess
             }
 
             var tl = editor.timeline;
-            float halfBeat = tl.cellWidth * 0.5f;
+            float snapBeat = tl.cellWidth * (1f / editor.denominator);
 
             using (new SaveStateScope())
             {
                 foreach (var control in editor.selectedControls)
                 {
                     float posX = tl.GetPosXFromBarAndBeat(control.levelEvent.barAndBeat);
-                    float snappedX = Mathf.Max(0f, Mathf.Round(posX / halfBeat) * halfBeat);
+                    float snappedX = Mathf.Max(0f, Mathf.Round(posX / snapBeat) * snapBeat);
                     var newPos = tl.GetBarAndBeatWithPosX(snappedX);
                     control.bar = newPos.bar;
                     control.beat = newPos.beat;
@@ -3816,6 +3932,9 @@ namespace RDLevelEditorAccess
             ["eam.char.selectPrompt"]            = "选择角色，使用上下箭头导航，回车确认，Escape取消",
             ["eam.event.noTypesAvailable"]       = "当前 Tab 没有可用的事件类型",
             ["eam.event.selectPrompt"]           = "选择事件类型，使用上下箭头导航，回车确认，Escape取消",
+            ["eam.grid.selectPrompt"]            = "选择网格精度，使用上下箭头导航，数字键快速选择，回车确认，Escape取消",
+            ["eam.grid.item"]                    = "1/{0} 网格",
+            ["eam.grid.custom"]                  = "自定义网格",
             ["eam.event.createFailed"]           = "无法创建事件类型 {0}",
             ["eam.event.createError"]            = "创建事件失败",
             ["eam.event.created"]                = "已创建事件 {0}",
@@ -3962,6 +4081,9 @@ namespace RDLevelEditorAccess
             ["eam.char.selectPrompt"]            = "Select character, arrow keys to navigate, Enter to confirm, Escape to cancel",
             ["eam.event.noTypesAvailable"]       = "No event types available in current tab",
             ["eam.event.selectPrompt"]           = "Select event type, arrow keys to navigate, Enter to confirm, Escape to cancel",
+            ["eam.grid.selectPrompt"]            = "Select grid size, arrow keys to navigate, number keys to quick-select, Enter to confirm, Escape to cancel",
+            ["eam.grid.item"]                    = "1/{0} grid",
+            ["eam.grid.custom"]                  = "Custom grid",
             ["eam.event.createFailed"]           = "Cannot create event type {0}",
             ["eam.event.createError"]            = "Event creation failed",
             ["eam.event.created"]                = "Event {0} created",
