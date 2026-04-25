@@ -26,22 +26,24 @@
     - [4.1 Menu/Dialog Navigation](#41-menudialog-navigation)
     - [4.2 Timeline Navigation](#42-timeline-navigation)
     - [4.3 Creating Rows and Events](#43-creating-rows-and-events)
-    - [4.4 Edit Cursor](#44-edit-cursor)
-    - [4.5 Virtual Selection and Event Chains](#45-virtual-selection-and-event-chains)
-      - [4.5.1 Virtual Selection](#451-virtual-selection)
-      - [4.5.2 Event Chains](#452-event-chains)
-    - [4.6 Editing Events](#46-editing-events)
-      - [4.6.1 Moving Events](#461-moving-events)
-      - [4.6.2 Editing Event Properties](#462-editing-event-properties)
-      - [4.6.3 Advanced Editing](#463-advanced-editing)
-    - [4.7 Conditions System](#47-conditions-system)
-    - [4.8 Editing Level Metadata](#48-editing-level-metadata)
+    - [4.4 Grid System](#44-grid-system)
+    - [4.5 Edit Cursor](#45-edit-cursor)
+    - [4.6 Virtual Selection and Event Chains](#46-virtual-selection-and-event-chains)
+      - [4.6.1 Virtual Selection](#461-virtual-selection)
+      - [4.6.2 Event Chains](#462-event-chains)
+    - [4.7 Editing Events](#47-editing-events)
+      - [4.7.1 Moving Events](#471-moving-events)
+      - [4.7.2 Editing Event Properties](#472-editing-event-properties)
+      - [4.7.3 Advanced Editing](#473-advanced-editing)
+    - [4.8 Conditions System](#48-conditions-system)
+    - [4.9 Editing Level Metadata](#49-editing-level-metadata)
   - [5. External Editor (RDEventEditorHelper)](#5-external-editor-rdeventeditorhelper)
     - [5.1 What is this?](#51-what-is-this)
     - [5.2 How to use?](#52-how-to-use)
   - [6. Known Issues and Limitations](#6-known-issues-and-limitations)
   - [7. FAQ](#7-faq)
     - [How to switch the game to the beta branch?](#how-to-switch-the-game-to-the-beta-branch)
+    - [How to report issues effectively?](#how-to-report-issues-effectively)
     - [Why isn't the mod loading?](#why-isnt-the-mod-loading)
     - [Why won't the helper open?](#why-wont-the-helper-open)
     - [Why does the game freeze after the save dialog pops up?](#why-does-the-game-freeze-after-the-save-dialog-pops-up)
@@ -49,6 +51,11 @@
   - [8. Appendix](#8-appendix)
     - [8.1 Native Editor Common Shortcuts Reference](#81-native-editor-common-shortcuts-reference)
     - [8.2 Mod Shortcuts Reference](#82-mod-shortcuts-reference)
+      - [Menu Operations](#menu-operations)
+      - [Basic Operations](#basic-operations)
+      - [Editing Operations](#editing-operations)
+      - [Edit Cursor](#edit-cursor-1)
+      - [Virtual Selection and Event Chains](#virtual-selection-and-event-chains-1)
     - [8.3 Contact Information](#83-contact-information)
     - [8.4 Sponsorship](#84-sponsorship)
 
@@ -167,18 +174,35 @@ In the Rows or Sprites tab, press ctrl+insert or ctrl+f2 to create a new row or 
 
 Tip: When adding an event, pressing ctrl+enter directly will create the event and automatically open the event editor at the same time.
 
-### 4.4 Edit Cursor
+### 4.4 Grid System
+
+The grid divides the timeline into equal units at a fixed ratio, helping you align beats more precisely. If you've used a digital audio workstation, this concept should be familiar.
+
+A grid unit is expressed as a fraction 1/x, meaning each beat is divided equally into x parts.
+
+If the above explanation confused you, don't worry — you'll naturally understand it after using it for a while.
+
+Here's how to use it.
+
+Press alt+g in the editor to open the grid settings menu. This menu supports up/down arrow key navigation and number key shortcuts for quick selection. You can also press esc to close the menu or enter to confirm at any time.
+
+The menu contains nine options. The first eight are preset common options that cover most situations. If those aren't enough, the editor also supports a custom grid. Navigate to the custom grid option with up/down arrows or press number key 9, then press enter to apply directly, or ctrl+enter to set a custom grid size. Your custom value is saved until you close the level editor — even if you switch to another grid unit, you can easily switch back.
+
+You might ask: the grid is set up, but how do I use it?
+Patience — you'll find out shortly.
+
+### 4.5 Edit Cursor
 
 To make it more convenient for visually impaired players, the mod introduces the edit cursor feature. The edit cursor is a player-controllable temporary anchor point that doesn't move with playback and can be freely adjusted in position, making it convenient for players to quickly locate when creating events and other scenarios. Below are its shortcut key instructions.
 PS: I know some people definitely didn't understand the definition of edit cursor above, but trust me, after reading the shortcut key instructions you should understand... I hope...
 
 - / (slash), move the edit cursor to the current playback position
 - shift+slash, announce the current position of the edit cursor
-- ctrl+slash, snap the edit cursor to the nearest half beat
+- ctrl+slash, snap the edit cursor to the nearest grid
 - ctrl+shift+slash, open the edit cursor jump dialog
 - alt+slash, jump to the edit cursor's position and start playing
-- , (comma), move the edit cursor forward by 1 beat (add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar)
-- . (period), move the edit cursor backward by 1 beat (add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar)
+- , (comma), move the edit cursor forward by 1 grid unit (add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar)
+- . (period), move the edit cursor backward by 1 grid unit (add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar)
 
 In addition to quick jumping, the edit cursor's applicable scope also includes:
 
@@ -186,9 +210,9 @@ In addition to quick jumping, the edit cursor's applicable scope also includes:
 - The target position when pasting events
 - More scenarios below
 
-### 4.5 Virtual Selection and Event Chains
+### 4.6 Virtual Selection and Event Chains
 
-#### 4.5.1 Virtual Selection
+#### 4.6.1 Virtual Selection
 
 Virtual selection is a more flexible selection system than the native editor's, independent of the native editor's selection. Using both selections together can improve efficiency when performing complex event selections. Hopefully this can somewhat compensate for the inability of visually impaired players to use mouse drag selection.
 
@@ -200,7 +224,7 @@ Below are its shortcut key instructions.
 - ctrl+shift+x, cut all events in the virtual selection
 - ctrl+shift+c, copy all events in the virtual selection
 
-#### 4.5.2 Event Chains
+#### 4.6.2 Event Chains
 
 The event chain feature allows you to save fixed combinations of events as presets, so when you need to reuse them, you don't have to insert each event one by one — just insert a pre-created event chain and all events will automatically appear in the level. Event chains for each level are stored independently and cannot be used across levels. If your level has custom game mechanics, this feature might be helpful.
 
@@ -215,15 +239,15 @@ When selecting an event chain, you can press left/right arrows to adjust the spe
 
 Note: Event chains are stored in the **.RDLEAccess/EventChains** folder under the current level directory. If you want to use them in another level, you need to copy them manually. This is for easier organization and management.
 
-### 4.6 Editing Events
+### 4.7 Editing Events
 
-#### 4.6.1 Moving Events
+#### 4.7.1 Moving Events
 
 The mod provides a simple set of shortcuts to adjust the beat position of events. This set of shortcuts, aside from different keys and different adjustment targets, has a lot in common with the edit cursor. As follows:
 
-- z, move event forward by 1 beat (also supports modifier keys)
-- x, move event backward by 1 beat (also supports modifier keys)
-- c, snap event to the nearest half beat
+- z, move event forward by 1 grid unit (also supports modifier keys)
+- x, move event backward by 1 grid unit (also supports modifier keys)
+- c, snap event to the nearest grid
 
 Note 1: If the selected event doesn't have a beat property, pressing z and x will change to moving forward/backward by 1 bar, and modifier keys are not supported.
 
@@ -231,14 +255,14 @@ Note 2: The above shortcuts are effective for all selected events.
 
 Note 3: If the selected events include both events with beat properties and events without beat properties, they cannot be moved.
 
-#### 4.6.2 Editing Event Properties
+#### 4.7.2 Editing Event Properties
 
 There is also a set of shortcuts to quickly adjust some basic properties of events. As follows:
 
 - e/shift+e, switch the target property to adjust
 - r/t, adjust the property value (if the property has multiple options, it switches between options; if it's a toggle, it switches between enabled/disabled; if it's an integer, the adjustment step is 1 and modifier keys are not supported; if it's a float, the default step is 0.1, add shift for 0.01, add alt for 0.001, add shift and alt for 0.0001)
 
-#### 4.6.3 Advanced Editing
+#### 4.7.3 Advanced Editing
 
 Although the above two sets of shortcuts are convenient, they also have some shortcomings:
 
@@ -247,7 +271,7 @@ Although the above two sets of shortcuts are convenient, they also have some sho
 
 Therefore, if you need more precise adjustment, you can press ctrl+enter to open the external editor for editing. For more information about the external editor, please refer to the next chapter.
 
-### 4.7 Conditions System
+### 4.8 Conditions System
 
 If you want certain event(s) to only trigger when specific conditions are met, you can use conditions. The following only covers how to use the conditions system through the mod; for more detailed rules on writing conditions, please search for RDLE tutorials on your own.
 
@@ -261,7 +285,7 @@ Select an event, then press alt+c to open the conditions menu. The following ope
 
 Yes, this section is that short. After all, the operations themselves aren't difficult — the tricky part is planning and writing the conditions. So the rest is up to you to find tutorials. This is a mod user manual, not an editor user manual.
 
-### 4.8 Editing Level Metadata
+### 4.9 Editing Level Metadata
 
 On the main page, you can press number key 0 on the main keyboard at any time to open the metadata editing page. Here you can edit some basic information about the level.
 
@@ -277,20 +301,20 @@ When you select an event or row in the level editor, or press number key 0 on th
 
 Additionally, if the focus is on a sound list, you can press the space key to play the currently selected sound effect.
 
+During editing, if the helper freezes or fails to launch for any reason and you cannot perform any operations, you can quickly press esc five times in the game to force terminate it. Note: Do not do this if the helper is working normally, or all changes you made in the helper will be lost.
+
 ## 6. Known Issues and Limitations
 
 This mod still has many features waiting to be improved. The following lists currently known issues and limitations. The issues in the list will be attempted to be resolved one by one in future versions.
 
 But then again, I hope the official version will support accessibility soon, so this mod won't need to keep updating.
 
-1. Most events under the Rooms tab are generally poorly supported, and many properties cannot be edited.
-2. The Sprites tab is even more out of the question.
-3. Window dance? What's that? Addendum: I took a look, it seems to be editable, but I can't see it anyway, so I don't know if it works or not.
-4. Some custom options are not supported (such as custom characters).
-5. Bookmark functionality is not supported.
-6. Event multi-selection support is not flexible enough.
-7. Since a separate property editor was written, the operation should not be as smooth as the original version (although I don't know exactly how smooth the original version is).
-8. Some shortcut operations available in the native editor are not supported.
+1. The Sprites tab is barely supported.
+2. Window dance? What's that? Addendum: I took a look, it seems to be editable, but I can't see it anyway, so I don't know if it works or not.
+3. Some custom options are not supported (such as custom characters).
+4. Bookmark functionality is not supported.
+5. Event multi-selection support is not flexible enough.
+6. Since a separate property editor was written, the operation should not be as smooth as the original version (although I don't know exactly how smooth the original version is).
 
 ## 7. FAQ
 
@@ -303,6 +327,21 @@ If you have the Steam version of the game, follow these steps:
 3. Switch to the Betas tab.
 4. Select the second entry in the list, i.e. beta public beta testing.
 5. Restart the game.
+
+### How to report issues effectively?
+
+You can find ways to contact me in [8.3 Contact Information](#83-contact-information).
+
+First, please describe your problem and steps to reproduce it in detail. Also, it's best to attach the logs from when the problem occurred.
+
+How to view logs:
+
+1. Open **BepInEx/config/BepInEx.cfg** with a text editor.
+2. Find ``[Logging.Console]`` and set ``Enabled = true``.
+3. Launch the game. A console window will appear alongside the game window.
+4. Reproduce your problem.
+5. After successfully reproducing the problem, switch to the console window and check whether there are any log entries with an **Error** prefix. If there are, provide me with that log entry and some nearby entries. If not, provide the most recent entries anyway — you never know, it might reveal the issue.
+6. If you don't want the console window to appear every time the game starts, refer to step 2 and set ``Enabled = false``.
 
 ### Why isn't the mod loading?
 
@@ -364,28 +403,55 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 
 ### 8.2 Mod Shortcuts Reference
 
+#### Menu Operations
+
+| Shortcut | Function | Notes |
+| --- | --- | --- |
+| Up/Down arrows | Browse between menu items | None |
+| enter | Activate selected item | None |
+| space | Open link | None |
+
+#### Basic Operations
+
 | Shortcut | Function | Notes |
 | --- | --- | --- |
 | f10 | Open/close editor main menu | None |
+| f12 | Toggle single/two-player mode | This is only for testing how the level behaves in different modes; it does not change level data. |
 | Left/Right arrows | Browse events in current tab (or row) | None |
 | Up/Down arrows | Switch rows/sprites in Rows/Sprites tab | None |
 | enter | Jump to selected event's position and start playing | None |
+| alt+g | Open grid settings menu | See [4.4 Grid System](#44-grid-system) for details. |
+
+#### Editing Operations
+
+| Shortcut | Function | Notes |
+| --- | --- | --- |
 | ctrl+enter | Open helper to edit event | None |
 | shift+enter | Open helper to edit row | None |
 | Number key 0 | Open helper to edit metadata | None |
 | insert or f2 | Insert event at edit cursor | None |
 | ctrl+insert or ctrl+f2 | Add row/sprite to room (only valid in Rows/Sprites tab) | None |
+| z/x | Move selected event forward/backward by 1 grid unit (or 1 bar) | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. See [4.7.1 Moving Events](#471-moving-events) for details. |
+| c | Snap event to nearest grid | None |
+| e/shift+e | Switch target property to adjust | See [4.7.2 Editing Event Properties](#472-editing-event-properties) for details. |
+| r/t | Adjust property value | Supports modifier keys, see [4.7.2 Editing Event Properties](#472-editing-event-properties) for details. |
+| alt+c | Open the conditions menu for the selected event | See [4.8 Conditions System](#48-conditions-system) for details. |
+
+#### Edit Cursor
+
+| Shortcut | Function | Notes |
+| --- | --- | --- |
 | / (slash) | Move edit cursor to playhead position | None |
 | shift+/ | Announce edit cursor's current position | None |
-| ctrl+/ | Snap edit cursor to nearest half beat | None |
+| ctrl+/ | Snap edit cursor to nearest grid | None |
 | ctrl+shift+/ | Open edit cursor jump dialog | None |
 | alt+/ | Jump to edit cursor's position and start playing | None |
-| , (comma) and . (period) | Move edit cursor forward/backward by 1 beat | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. |
-| z/x | Move selected event forward/backward by 1 beat (or 1 bar) | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. See [4.6.1 Moving Events](#461-moving-events) for details. |
-| c | Snap event to nearest half beat | None |
-| e/shift+e | Switch target property to adjust | See [4.6.2 Editing Event Properties](#462-editing-event-properties) for details. |
-| r/t | Adjust property value | Supports modifier keys, see [4.6.2 Editing Event Properties](#462-editing-event-properties) for details. |
-| alt+c | Open the conditions menu for the selected event | See [4.7 Conditions System](#47-conditions-system) for details. |
+| , (comma) and . (period) | Move edit cursor forward/backward by 1 grid unit | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. |
+
+#### Virtual Selection and Event Chains
+
+| Shortcut | Function | Notes |
+| --- | --- | --- |
 | shift+space | Add/remove currently selected event to/from virtual selection | None |
 | ctrl+shift+space | Clear virtual selection | None |
 | - (minus)/= (equals) | Browse events in virtual selection | Add shift to quickly jump to the first/last item. |
@@ -403,6 +469,8 @@ QQ: 1528344627
 [itch.io page](https://white-rice94.itch.io/rdle-access)
 
 [GitHub](https://github.com/white-rice94/RDLE-a11y)
+
+[AudioGames forum thread](https://forum.audiogames.net/post/954352/#p954352)
 
 ### 8.4 Sponsorship
 

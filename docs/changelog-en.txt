@@ -1,25 +1,33 @@
+1.7 (2026-04-25)
+Guaranteed compatible game version: 1.1.0 (updated 2026-04-22)
+1. Added support for the native editor's grid system, with minor changes to some shortcut behaviors. (See sections 4.4, 4.5, and 4.7.1 of the manual)
+2. Attempted to fix a bug where the helper would crash frequently.
+3. Improved helper localization.
+4. Added F12 to toggle single/two-player mode, for testing how the level behaves in different modes.
+5. Reorganized section 8.2 of the manual, categorizing shortcuts for easier reference.
+
 1.6.3 (2026-04-21)
-Guaranteed compatible version: 1.0.5 (updated 2026-04-21)
+Guaranteed compatible game version: 1.1.0 (updated 2026-04-21)
 1. Added support for setting a custom nurse counting sound effect.
 2. All keyboard shortcuts are now fully locked while the helper is open for event editing. To prevent the helper from causing a freeze if something goes wrong, you can press Esc 5 times quickly in-game at any time to force-terminate the helper and unlock the keyboard.
 3. When navigating to an event that has a comment at the same position, a sound effect will play and the comment will be read out automatically.
 
 1.6.2 (2026-04-08)
-Guaranteed compatible version: 1.0.5 (updated 2026-03-26)
+Guaranteed compatible game version: 1.0.5 (updated 2026-03-26)
 1. Added shortcut action support for some events (e.g. automatically adding nurse voice lines based on the rhythm of a oneshot beat).
 2. When selecting a sound, you can now manually enter a filename.
 3. Fixed an issue where the sound list did not automatically focus on the currently selected item when opening the helper.
 
 1.6.1 (2026-04-06)
-Guaranteed compatible version: 1.0.5 (updated 2026-03-26)
+Guaranteed compatible game version: 1.0.5 (updated 2026-03-26)
 1. Fixed an issue where commas in the original sentence were accidentally split into multiple elements when editing rank descriptions.
 2. When an event type is selected in the add event menu, pressing ctrl+enter will automatically create the event and open the helper. Without ctrl, the helper will not open automatically after creating the event.
 3. When inserting an event chain, you can now press left/right arrows to adjust the speed multiplier to stretch/compress the spacing between events.
 
 1.6 (2026-04-01)
 Note: Starting from this version, the mod will only guarantee compatibility with the latest public beta of the game. The compatible version will be noted in the changelog with each update. The mod may still work in other game versions, but not all features are guaranteed to function correctly. When reporting issues, please make sure you are using the compatible version or above.
-Guaranteed compatible version: 1.0.5 (updated 2026-03-26)
-1. Added support for the conditions system. (See section 4.7 of the manual)
+Guaranteed compatible game version: 1.0.5 (updated 2026-03-26)
+1. Added support for the conditions system. (See section 4.8 of the manual)
 2. When previewing sounds in the helper, pressing space again on the currently playing audio will stop playback. Closing the helper will also stop all sounds currently being previewed.
 
 1.5.1 (2026-03-28)
@@ -29,7 +37,7 @@ Guaranteed compatible version: 1.0.5 (updated 2026-03-26)
 4. Added support for the native editor's BPM calculator.
 
 1.5 (2026-03-25)
-1. Added virtual selection and event chain features, improving efficiency when performing complex event selections and additions. (See section 4.5 of the manual)
+1. Added virtual selection and event chain features, improving efficiency when performing complex event selections and additions. (See section 4.6 of the manual)
 2. Possibly fixed an issue where music offset had a chance of becoming 0.
 
 1.4.0.2 (2026-03-22)
@@ -55,7 +63,7 @@ Fixed a bug introduced in v1.4 where left/right cursor navigation would switch t
 3. Fixed an issue with floating-point precision loss.
 
 1.3 (2026-03-07)
-1. Added a set of shortcuts to perform simple edits on event properties without opening the helper. (See section 4.6.2 of the manual)
+1. Added a set of shortcuts to perform simple edits on event properties without opening the helper. (See section 4.7.2 of the manual)
 2. Optimized row editing, now supports more properties.
 3. When selecting music, you can now choose from all built-in music in the game.
 4. Fixed a bug where audio files in the level directory could not be previewed.

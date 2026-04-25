@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code in this repo.
 
 ## Project Overview
 
@@ -72,13 +72,13 @@ docs/
 | **Alt+G** | Open grid size menu |
 | **Tab** | Navigate UI elements in menus |
 
-`virtualMenuState != None`: arrow keys navigate virtual menus, not timeline.
+When `virtualMenuState != None`, arrow keys navigate virtual menus instead of timeline.
 
 ## Key Architecture Concepts
 
 ### AccessLogic — core of mod
 
-`AccessLogic` (`EditorAccess.cs`): MonoBehaviour injected into scene. `Update()` dispatches to one of three mutually exclusive handlers:
+`AccessLogic` (in `EditorAccess.cs`): MonoBehaviour injected into scene. `Update()` dispatches to one of three mutually exclusive handlers:
 
 - **`HandleGeneralUINavigation`** — Unity UI menu open; Tab/Arrow/Enter in UI elements
 - **`HandleTimelineNavigation`** — default; event selection, movement, insertion/deletion
@@ -119,7 +119,7 @@ Key concepts:
 | `"__track_default__"` | Use track default (nullable SoundData) | `""` |
 | `"__manual__"` | Manual filename input mode | value from `ManualInput` TextBox |
 
-Guard against both sentinels in ListView selection / sound preview.
+Always guard against both sentinels in ListView selection / sound preview.
 
 ### Localization
 
@@ -164,7 +164,9 @@ Native key locations:
 
 `token` matches responses to requests, prevents race conditions.
 
-`action: "execute"`: mod looks for `methodName` on `LevelEvent` (reflection), falls back to `scnEditor.instance.inspectorPanelManager.GetCurrent()` (hardcoded panel buttons like `BreakIntoOneshotBeats`). Hardcoded panel buttons registered in `HardcodedButtons` dict in `FileIPC.cs`, appended with `type: "Button"`.
+`action: "execute"`: mod looks for `methodName` on `LevelEvent` (reflection), falls back to `scnEditor.instance.inspectorPanelManager.GetCurrent()` (hardcoded panel buttons like `BreakIntoOneshotBeats`).
+
+Hardcoded panel buttons registered in `HardcodedButtons` dict in `FileIPC.cs`, appended with `type: "Button"`.
 
 #### Dynamic UI Visibility
 
@@ -177,7 +179,7 @@ Native key locations:
    { "token": "...", "isVisible": true }
    ```
 
-Properties show/hide real-time without losing focus. Mod announces changes via low-priority screen reader notifications.
+Properties show/hide in real-time without losing focus. Mod announces changes via low-priority screen reader notifications.
 
 ### AccessibilityBridge (Public API)
 
@@ -207,7 +209,7 @@ ModUtils.FormatBeat(float beat)                  // Format beat with smart round
 
 ### InputFieldReader
 
-TTS system for input fields (`InputFieldReader.cs`):
+TTS system for input fields in `InputFieldReader.cs`:
 - State diffing: compare prev/current text + caret
 - Character-by-character reading on type/delete
 - Caret movement: read char at cursor
