@@ -1475,7 +1475,7 @@ namespace RDLevelEditorAccess
             virtualMenuIndex = 0;
             SetFakeInputField();
 
-            Narration.Say(GetEventTypeName(eventTypes[0]), NarrationCategory.Navigation);
+            Narration.Say(GetEventTypeNameWithShortcut(editor.currentTab, 0, eventTypes[0]), NarrationCategory.Navigation);
             Narration.Say(RDString.Get("eam.event.selectPrompt"), NarrationCategory.Instruction);
         }
 
@@ -1494,12 +1494,12 @@ namespace RDLevelEditorAccess
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
                 virtualMenuIndex = (virtualMenuIndex - 1 + eventTypes.Count) % eventTypes.Count;
-                Narration.Say(GetEventTypeName(eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
+                Narration.Say(GetEventTypeNameWithShortcut(editor.currentTab, virtualMenuIndex, eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
             }
             else if (Input.GetKeyDown(KeyCode.DownArrow))
             {
                 virtualMenuIndex = (virtualMenuIndex + 1) % eventTypes.Count;
-                Narration.Say(GetEventTypeName(eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
+                Narration.Say(GetEventTypeNameWithShortcut(editor.currentTab, virtualMenuIndex, eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
             }
 
             // 字母快捷键跳转（仅移动光标，不创建事件）
@@ -1512,7 +1512,7 @@ namespace RDLevelEditorAccess
                     if (kc.key != KeyCode.None && kc.shift == shift && Input.GetKeyDown(kc.key))
                     {
                         virtualMenuIndex = i;
-                        Narration.Say(GetEventTypeName(eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
+                        Narration.Say(GetEventTypeNameWithShortcut(editor.currentTab, virtualMenuIndex, eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
                         break;
                     }
                 }
@@ -2657,6 +2657,21 @@ namespace RDLevelEditorAccess
         {
             string str = RDString.GetWithCheck($"editor.{eventType}", out bool exists);
             return exists ? str : eventType.ToString();
+        }
+
+        private string GetEventTypeNameWithShortcut(Tab tab, int index, LevelEventType eventType)
+        {
+            string name = GetEventTypeName(eventType);
+            if (RDEditorConstants.eventKeyCodes.TryGetValue(tab, out var keyCodes) && index < keyCodes.Count)
+            {
+                var kc = keyCodes[index];
+                if (kc.key != KeyCode.None)
+                {
+                    string keyStr = kc.shift ? $"Shift+{kc.key.ToString().ToLower()}" : kc.key.ToString().ToLower();
+                    name = $"{name} ({keyStr})";
+                }
+            }
+            return name;
         }
 
         /// <summary>
