@@ -1501,8 +1501,23 @@ namespace RDLevelEditorAccess
                 virtualMenuIndex = (virtualMenuIndex + 1) % eventTypes.Count;
                 Narration.Say(GetEventTypeName(eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
             }
-            
-            
+
+            // 字母快捷键跳转（仅移动光标，不创建事件）
+            if (RDEditorConstants.eventKeyCodes.TryGetValue(editor.currentTab, out var keyCodes))
+            {
+                bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                for (int i = 0; i < eventTypes.Count && i < keyCodes.Count; i++)
+                {
+                    var kc = keyCodes[i];
+                    if (kc.key != KeyCode.None && kc.shift == shift && Input.GetKeyDown(kc.key))
+                    {
+                        virtualMenuIndex = i;
+                        Narration.Say(GetEventTypeName(eventTypes[virtualMenuIndex]), NarrationCategory.Navigation);
+                        break;
+                    }
+                }
+            }
+
             // 回车确认 - 直接创建事件（使用默认值）
             // Ctrl+Enter: 创建后自动打开 Helper 编辑
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
