@@ -1,7 +1,7 @@
 {
   "pluginId": "rdlea11y",
   "repoVersion": "1",
-  "generatedAt": "2026-05-01T07:35:02.190386Z",
+  "generatedAt": "2026-05-01T07:43:32.3672116Z",
   "games": [
     {
       "gameId": "RhythmDoctor",
@@ -26,7 +26,20 @@
     }
   ],
   "releasesByGameId": {
-    "RhythmDoctor": []
+    "RhythmDoctor": [
+      {
+        "gameId": "RhythmDoctor",
+        "pluginId": "rdlea11y",
+        "version": "1.7",
+        "channel": "stable",
+        "packageUrl": "https://github.com/white-rice94/RDLE-a11y/releases/download/v1.7/RDLE-Access-1.7.zip",
+        "sha256": "94e2611fa2e192f5a810542dc4c0728d44ee0b91b90e0d1daf7fdeacf5d20938",
+        "changelogUrl": "https://github.com/white-rice94/RDLE-a11y/releases/tag/v1.7",
+        "notes": null,
+        "compatibility": null,
+        "patreon": null
+      }
+    ]
   },
   "author": {
     "displayName": "whiterice94",
