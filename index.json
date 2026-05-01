@@ -1,0 +1,17 @@
+{
+  "pluginId": "rdlea11y",
+  "repoVersion": "1",
+  "generatedAt": "2026-05-01T07:32:01.8335478Z",
+  "games": [],
+  "releasesByGameId": {},
+  "author": {
+    "displayName": "whiterice94",
+    "bio": null,
+    "websiteUrl": null,
+    "discordUrl": null,
+    "patreonUrl": null,
+    "gitHubUrl": null,
+    "donationUrl": null
+  },
+  "dependencyPresets": []
+}
