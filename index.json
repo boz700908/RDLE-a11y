@@ -1,7 +1,7 @@
 {
   "pluginId": "rdlea11y",
   "repoVersion": "1",
-  "generatedAt": "2026-05-01T07:43:32.3672116Z",
+  "generatedAt": "2026-05-01T07:44:55.9555795Z",
   "games": [
     {
       "gameId": "RhythmDoctor",
@@ -11,7 +11,25 @@
       "steamAppId": "774181",
       "exeName": "Rhythm Doctor.exe",
       "probeRules": [],
-      "dependencies": [],
+      "dependencies": [
+        {
+          "id": "bepinex",
+          "type": "framework",
+          "minVersion": null,
+          "check": {
+            "registryKey": null,
+            "registryValue": null,
+            "filePath": "winhttp.dll"
+          },
+          "fix": {
+            "downloadUrl": "https://github.com/BepInEx/BepInEx/releases",
+            "bundledPath": null,
+            "autoInstall": null
+          },
+          "required": true,
+          "versionDiscovery": null
+        }
+      ],
       "tags": [
         "screen-reader",
         "completable"
