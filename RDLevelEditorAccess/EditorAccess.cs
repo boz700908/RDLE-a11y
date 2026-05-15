@@ -1062,6 +1062,15 @@ namespace RDLevelEditorAccess
                     virtualSelectionBrowseIndex = -1;
                 }
             }
+            // ctrl+space： 选中虚拟选区中的事件
+            else if (Input.GetKeyDown(KeyCode.Space) && ctrlPressed && !shiftPressed)
+            {
+                List<LevelEventControl_Base> sortedSelection = GetSortedVirtualSelection();
+if (sortedSelection.Count > 0)
+                {
+scnEditor.instance.SelectEventControls(sortedSelection);
+                }
+            }
 
             // 减号：浏览虚拟选区（上一个 / Shift：第一个）
             if (Input.GetKeyDown(KeyCode.Minus))
