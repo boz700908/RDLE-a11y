@@ -2021,17 +2021,20 @@ namespace RDLevelEditorAccess
                         if (sorted.Count > 0)
                         {
                             editor.SelectEventControls(sorted);
+                            Narration.Say(string.Format(RDString.Get("eam.vsel.selectedCount"), sorted.Count), NarrationCategory.Navigation);
                         }
                         break;
                     case 1:
                         // 将当前选区添加到虚拟选区
                         if (editor.selectedControls != null && editor.selectedControls.Count > 0)
                         {
+                            int addedCount = editor.selectedControls.Count;
                             foreach (var control in editor.selectedControls)
                             {
                                 virtualSelection.Add(control);
                             }
                             virtualSelectionBrowseIndex = -1;
+                            Narration.Say(string.Format(RDString.Get("eam.vsel.addedCount"), addedCount), NarrationCategory.Navigation);
                         }
                         break;
                 }
@@ -4130,6 +4133,8 @@ namespace RDLevelEditorAccess
             ["eam.vsel.options"]                = "虚拟选区选项",
             ["eam.vsel.selectEvents"]           = "选中虚拟选区中的事件",
             ["eam.vsel.addSelected"]            = "将当前选区添加到虚拟选区",
+            ["eam.vsel.selectedCount"]          = "已选中{0}个事件",
+            ["eam.vsel.addedCount"]             = "已添加{0}个事件到虚拟选区",
             // 事件链
             ["eam.chain.noChains"]               = "无可用事件链",
             ["eam.chain.selectPrompt"]           = "选择事件链，上下箭头导航，左右箭头调节倍速，回车确认，Escape取消",
@@ -4286,6 +4291,8 @@ namespace RDLevelEditorAccess
             ["eam.vsel.options"]                = "Virtual Selection Options",
             ["eam.vsel.selectEvents"]           = "Select events in virtual selection",
             ["eam.vsel.addSelected"]            = "Add current selection to virtual selection",
+            ["eam.vsel.selectedCount"]          = "Selected {0} events",
+            ["eam.vsel.addedCount"]             = "Added {0} events to virtual selection",
             // Event Chains
             ["eam.chain.noChains"]               = "No event chains available",
             ["eam.chain.selectPrompt"]           = "Select event chain, Up/Down to navigate, Left/Right to adjust speed, Enter to confirm, Escape to cancel",
