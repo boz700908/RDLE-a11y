@@ -86,7 +86,8 @@ namespace RDLevelEditorAccess
             LinkSelect,           // 链接选择
             EventChainSelect,     // 事件链选择
             ConditionalSelect,    // 条件选择
-            GridSelect            // 网格精度选择
+            GridSelect,            // 网格精度选择
+            VirtualSelectionOptions  // 虚拟选择选项
         }
 
         private VirtualMenuState virtualMenuState = VirtualMenuState.None;
@@ -1032,6 +1033,14 @@ namespace RDLevelEditorAccess
             // 虚拟选区快捷键
             // ===================================================================================
 
+            // Ctrl+Alt+Space：打开虚拟选区选项菜单
+            bool altPressed = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+            if (Input.GetKeyDown(KeyCode.Space) && ctrlPressed && altPressed)
+            {
+                StartVirtualSelectionOptions();
+                return;
+            }
+
             bool shiftPressed = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
             // Ctrl+Shift+Space：清空虚拟选区
@@ -1062,16 +1071,6 @@ namespace RDLevelEditorAccess
                     virtualSelectionBrowseIndex = -1;
                 }
             }
-            // ctrl+space： 选中虚拟选区中的事件
-            else if (Input.GetKeyDown(KeyCode.Space) && ctrlPressed && !shiftPressed)
-            {
-                List<LevelEventControl_Base> sortedSelection = GetSortedVirtualSelection();
-if (sortedSelection.Count > 0)
-                {
-scnEditor.instance.SelectEventControls(sortedSelection);
-                }
-            }
-
             // 减号：浏览虚拟选区（上一个 / Shift：第一个）
             if (Input.GetKeyDown(KeyCode.Minus))
             {
@@ -1369,6 +1368,9 @@ scnEditor.instance.SelectEventControls(sortedSelection);
                     break;
                 case VirtualMenuState.GridSelect:
                     HandleGridSelectMenu();
+                    break;
+                case VirtualMenuState.VirtualSelectionOptions:
+                    HandleVirtualSelectionOptionsMenu();
                     break;
             }
         }
@@ -1889,6 +1891,17 @@ scnEditor.instance.SelectEventControls(sortedSelection);
         }
 
         /// <summary>
+        /// 开始虚拟选区选项菜单
+        /// </summary>
+        private void StartVirtualSelectionOptions()
+        {
+            virtualMenuState = VirtualMenuState.VirtualSelectionOptions;
+            virtualMenuIndex = 0;
+            SetFakeInputField();
+            Narration.Say(RDString.Get("eam.vsel.options"), NarrationCategory.Navigation);
+        }
+
+        /// <summary>
         /// 处理网格精度选择菜单
         /// </summary>
         private void HandleGridSelectMenu()
@@ -1965,6 +1978,69 @@ scnEditor.instance.SelectEventControls(sortedSelection);
                         break;
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// 处理虚拟选区选项菜单（选择/添加）
+        /// </summary>
+        private void HandleVirtualSelectionOptionsMenu()
+        {
+            const int itemCount = 2;
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            void AnnounceCurrentItem()
+            {
+                string label = virtualMenuIndex switch
+                {
+                    0 => RDString.Get("eam.vsel.selectEvents"),
+                    1 => RDString.Get("eam.vsel.addSelected"),
+                    _ => ""
+                };
+                Narration.Say(label, NarrationCategory.Navigation);
+            }
+
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex - 1 + itemCount) % itemCount;
+                AnnounceCurrentItem();
+            }
+            else if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex + 1) % itemCount;
+                AnnounceCurrentItem();
+            }
+            else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                switch (virtualMenuIndex)
+                {
+                    case 0:
+                        // 选中虚拟选区中的事件
+                        var sorted = GetSortedVirtualSelection();
+                        if (sorted.Count > 0)
+                        {
+                            editor.SelectEventControls(sorted);
+                        }
+                        break;
+                    case 1:
+                        // 将当前选区添加到虚拟选区
+                        if (editor.selectedControls != null && editor.selectedControls.Count > 0)
+                        {
+                            foreach (var control in editor.selectedControls)
+                            {
+                                virtualSelection.Add(control);
+                            }
+                            virtualSelectionBrowseIndex = -1;
+                        }
+                        break;
+                }
+                CloseVirtualMenu();
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
+                CloseVirtualMenu();
             }
         }
 
@@ -4051,6 +4127,9 @@ scnEditor.instance.SelectEventControls(sortedSelection);
             ["eam.vsel.removed"]                 = "未选择{0}",
             ["eam.vsel.cleared"]                 = "清空虚拟选区",
             ["eam.vsel.empty"]                   = "虚拟选区为空",
+            ["eam.vsel.options"]                = "虚拟选区选项",
+            ["eam.vsel.selectEvents"]           = "选中虚拟选区中的事件",
+            ["eam.vsel.addSelected"]            = "将当前选区添加到虚拟选区",
             // 事件链
             ["eam.chain.noChains"]               = "无可用事件链",
             ["eam.chain.selectPrompt"]           = "选择事件链，上下箭头导航，左右箭头调节倍速，回车确认，Escape取消",
@@ -4204,6 +4283,9 @@ scnEditor.instance.SelectEventControls(sortedSelection);
             ["eam.vsel.removed"]                 = "Deselected {0}",
             ["eam.vsel.cleared"]                 = "Virtual selection cleared",
             ["eam.vsel.empty"]                   = "Virtual selection is empty",
+            ["eam.vsel.options"]                = "Virtual Selection Options",
+            ["eam.vsel.selectEvents"]           = "Select events in virtual selection",
+            ["eam.vsel.addSelected"]            = "Add current selection to virtual selection",
             // Event Chains
             ["eam.chain.noChains"]               = "No event chains available",
             ["eam.chain.selectPrompt"]           = "Select event chain, Up/Down to navigate, Left/Right to adjust speed, Enter to confirm, Escape to cancel",
