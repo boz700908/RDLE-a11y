@@ -17,6 +17,39 @@ namespace RDEventEditorHelper
         public static string Get(string zh, string en) => Lang == "en" ? en : zh;
     }
 
+    /// <summary>
+    /// 助记符辅助方法：为显示名称添加助记符格式
+    /// 格式：{displayName} (&{internalName首字母大写})
+    /// </summary>
+    internal static class MnemonicHelper
+    {
+        /// <summary>
+        /// 为显示名称添加助记符
+        /// </summary>
+        /// <param name="displayName">本地化显示名称</param>
+        /// <param name="internalName">内部属性名（用于提取助记符字母）</param>
+        /// <returns>带助记符的显示名称，如 "小结 (&B)"</returns>
+        public static string AddMnemonic(string displayName, string internalName)
+        {
+            if (string.IsNullOrEmpty(internalName))
+                return displayName;
+
+            // 查找第一个 ASCII 字母作为助记符
+            char mnemonicChar = 'n'; // 默认回退值
+            for (int i = 0; i < internalName.Length; i++)
+            {
+                char c = internalName[i];
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+                {
+                    mnemonicChar = char.ToUpper(c);
+                    break;
+                }
+            }
+
+            return $"{displayName} (&{mnemonicChar})";
+        }
+    }
+
     public class PropertyData
     {
         public string name;
@@ -319,8 +352,8 @@ namespace RDEventEditorHelper
             btnPanel.Height = 60;
             btnPanel.Padding = new Padding(10);
 
-            _btnCancel = new Button { Text = Loc.Get("取消", "Cancel"), Width = 120, Height = 35 };
-            _btnOK = new Button { Text = Loc.Get("确定", "OK"), Width = 120, Height = 35 };
+            _btnCancel = new Button { Text = Loc.Get("取消(&c)", "&Cancel"), Width = 120, Height = 35 };
+            _btnOK = new Button { Text = Loc.Get("确定(&o)", "&OK"), Width = 120, Height = 35 };
 
             _btnOK.Click += (s, e) =>
             {
@@ -444,7 +477,7 @@ namespace RDEventEditorHelper
             // --- 类型下拉 ---
             string typeLabelText = !string.IsNullOrEmpty(sd.conditionTypeLabelLocalized)
                 ? sd.conditionTypeLabelLocalized + ":"
-                : Loc.Get("类型:", "Type:");
+                : Loc.Get("类型(&t):", "&Type:");
             var lblType = new Label { Text = typeLabelText, AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
             _panel.Controls.Add(lblType);
 
@@ -465,7 +498,7 @@ namespace RDEventEditorHelper
             // --- 标签（tag）---
             string tagLabelText = !string.IsNullOrEmpty(sd.conditionTagLabelLocalized)
                 ? sd.conditionTagLabelLocalized + ":"
-                : Loc.Get("标签:", "Tag:");
+                : Loc.Get("标签(&t):", "&Tag:");
             var lblTag = new Label { Text = tagLabelText, AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
             _panel.Controls.Add(lblTag);
             string tagAccessibleName = !string.IsNullOrEmpty(sd.conditionTagLabelLocalized)
@@ -479,7 +512,7 @@ namespace RDEventEditorHelper
             // --- 描述（description）---
             string descLabelText = !string.IsNullOrEmpty(sd.conditionDescriptionLabelLocalized)
                 ? sd.conditionDescriptionLabelLocalized + ":"
-                : Loc.Get("描述:", "Description:");
+                : Loc.Get("描述(&d):", "&Description:");
             var lblDesc = new Label { Text = descLabelText, AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
             _panel.Controls.Add(lblDesc);
             string descAccessibleName = !string.IsNullOrEmpty(sd.conditionDescriptionLabelLocalized)
@@ -493,7 +526,7 @@ namespace RDEventEditorHelper
             // --- 持续时间（duration）---
             string durLabelText = !string.IsNullOrEmpty(sd.conditionDurationLabelLocalized)
                 ? sd.conditionDurationLabelLocalized + ":"
-                : Loc.Get("持续时间:", "Duration:");
+                : Loc.Get("持续时间(&d):", "&Duration:");
             var lblDur = new Label { Text = durLabelText, AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
             _panel.Controls.Add(lblDur);
             string durAccessibleName = !string.IsNullOrEmpty(sd.conditionDurationLabelLocalized)
@@ -705,7 +738,7 @@ namespace RDEventEditorHelper
 
                 var group = new GroupBox
                 {
-                    Text = displayName,
+                    Text = MnemonicHelper.AddMnemonic(displayName, prop.name),
                     Width = 440,
                     Height = 55,
                     Padding = new Padding(5),
@@ -739,7 +772,7 @@ namespace RDEventEditorHelper
                             {
                                 var bpmBtn = new Button
                                 {
-                                    Text = Loc.Get("BPM 计算器", "BPM Calculator"),
+                                    Text = Loc.Get("BPM 计算器(&b)", "&BPM Calculator"),
                                     Width = 400,
                                     Height = 30,
                                     Top = txt.Top + txt.Height + 5,
@@ -1032,7 +1065,7 @@ namespace RDEventEditorHelper
                     case "Bool":
                         var chk = new CheckBox
                         {
-                            Text = displayName,
+                            Text = MnemonicHelper.AddMnemonic(displayName, prop.name),
                             Checked = prop.value == "true",
                             Top = 20,
                             Left = 10,
@@ -1235,7 +1268,7 @@ namespace RDEventEditorHelper
 
                         var btnPickColor = new Button
                         {
-                            Text = Loc.Get("选择", "Select"),
+                            Text = Loc.Get("选择(&s)", "&Select"),
                             Width = 60,
                             Height = 23,
                             AccessibleName = displayName + " " + Loc.Get("选择颜色", "Select Color")
@@ -1351,7 +1384,7 @@ namespace RDEventEditorHelper
                         };
                         
                         // 第一行：搜索框
-                        var lblCharSearch = new Label { Text = Loc.Get("搜索:", "Search:"), Width = 80, Top = 5, Left = 0 };
+                        var lblCharSearch = new Label { Text = Loc.Get("搜索(&s):", "&Search:"), Width = 80, Top = 5, Left = 0 };
                         var txtCharSearch = new TextBox { Width = 325, Top = 3, Left = 85, Name = "CharSearchBox" };
                         charPanel.Controls.Add(lblCharSearch);
                         charPanel.Controls.Add(txtCharSearch);
@@ -1636,7 +1669,7 @@ namespace RDEventEditorHelper
             {
                 var actionGroup = new GroupBox
                 {
-                    Text = Loc.Get("操作", "Actions"),
+                    Text = Loc.Get("操作(&a)", "&Actions"),
                     Width = 440,
                     Height = 50 + buttonProps.Count * 40,
                     Padding = new Padding(10),
@@ -1651,7 +1684,7 @@ namespace RDEventEditorHelper
 
                     var actionBtn = new Button
                     {
-                        Text = displayName,
+                        Text = MnemonicHelper.AddMnemonic(displayName, btnProp.methodName ?? btnProp.name),
                         Width = 400,
                         Height = 35,
                         Top = btnTop,
@@ -2071,11 +2104,11 @@ namespace RDEventEditorHelper
             var txtOriginalFilename = new TextBox { Text = filename, Width = 1, Top = 0, Left = 0, Name = "OriginalFilename", Visible = false };
             soundPanel.Controls.Add(txtHiddenFilename);
             soundPanel.Controls.Add(txtOriginalFilename);
-            var lblSearch = new Label { Text = Loc.Get("搜索:", "Search:"), Width = 65, Top = 5, Left = 0 };
+            var lblSearch = new Label { Text = Loc.Get("搜索(&s):", "&Search:"), Width = 65, Top = 5, Left = 0 };
             var txtSearch = new TextBox { Width = hasSoundOptions ? 200 : 320, Top = 3, Left = 70, Name = "SearchBox", AccessibleName = Loc.Get("搜索", "Search") };
             if (canBrowseFile)
             {
-                var btnBrowse = new Button { Text = Loc.Get("浏览文件...", "Browse..."), Width = 100, Top = 2, Left = 260, AccessibleName = Loc.Get("浏览文件", "Browse File") };
+                var btnBrowse = new Button { Text = Loc.Get("浏览(&b)...", "&Browse..."), Width = 100, Top = 2, Left = 260, AccessibleName = Loc.Get("浏览文件", "Browse File") };
                 btnBrowse.Click += (s, e) =>
                 {
                     using (var ofd = new OpenFileDialog())
@@ -2182,7 +2215,7 @@ namespace RDEventEditorHelper
             listView.Items.Add(manualItem);
 
             // 手动输入控件（初始隐藏）
-            var lblManual = new Label { Name = "ManualLabel", Text = Loc.Get("文件名:", "Filename:"), Width = 90, Top = 158, Left = 0, Visible = false };
+            var lblManual = new Label { Name = "ManualLabel", Text = Loc.Get("文件名(&f):", "&Filename:"), Width = 90, Top = 158, Left = 0, Visible = false };
             var txtManual = new TextBox { Name = "ManualInput", Width = 310, Top = 156, Left = 95, Visible = false, AccessibleName = Loc.Get("手动输入文件名", "Enter filename manually") };
             soundPanel.Controls.Add(lblManual);
             soundPanel.Controls.Add(txtManual);
@@ -2278,16 +2311,16 @@ namespace RDEventEditorHelper
                 };
                 this.Shown += shownHandler;
             }
-            soundPanel.Controls.Add(new Label { Text = Loc.Get("音量:", "Volume:"), Width = 80, Top = 185, Left = 0 });
+            soundPanel.Controls.Add(new Label { Text = Loc.Get("音量(&v):", "&Volume:"), Width = 80, Top = 185, Left = 0 });
             soundPanel.Controls.Add(new TextBox { Text = volume, Width = 60, Top = 183, Left = 85, Name = "Volume", AccessibleName = Loc.Get("音量", "Volume") });
             soundPanel.Controls.Add(new Label { Text = "(0-300)", Width = 60, Top = 185, Left = 150 });
-            soundPanel.Controls.Add(new Label { Text = Loc.Get("音调:", "Pitch:"), Width = 80, Top = 185, Left = 215 });
+            soundPanel.Controls.Add(new Label { Text = Loc.Get("音调(&p):", "&Pitch:"), Width = 80, Top = 185, Left = 215 });
             soundPanel.Controls.Add(new TextBox { Text = pitch, Width = 60, Top = 183, Left = 295, Name = "Pitch", AccessibleName = Loc.Get("音调", "Pitch") });
             soundPanel.Controls.Add(new Label { Text = "(0-300)", Width = 60, Top = 185, Left = 285 });
-            soundPanel.Controls.Add(new Label { Text = Loc.Get("声道:", "Pan:"), Width = 65, Top = 210, Left = 0 });
+            soundPanel.Controls.Add(new Label { Text = Loc.Get("声道(&p):", "&Pan:"), Width = 65, Top = 210, Left = 0 });
             soundPanel.Controls.Add(new TextBox { Text = pan, Width = 60, Top = 208, Left = 70, Name = "Pan", AccessibleName = Loc.Get("声道", "Pan") });
             soundPanel.Controls.Add(new Label { Text = "(-100~100)", Width = 65, Top = 210, Left = 135 });
-            soundPanel.Controls.Add(new Label { Text = Loc.Get("偏移:", "Offset:"), Width = 75, Top = 210, Left = 205 });
+            soundPanel.Controls.Add(new Label { Text = Loc.Get("偏移(&o):", "&Offset:"), Width = 75, Top = 210, Left = 205 });
             soundPanel.Controls.Add(new TextBox { Text = offset, Width = 60, Top = 208, Left = 285, Name = "Offset", AccessibleName = Loc.Get("偏移", "Offset") });
             soundPanel.Controls.Add(new Label { Text = Loc.Get("毫秒", "ms"), Width = 55, Top = 180, Left = 350 });
             return soundPanel;
