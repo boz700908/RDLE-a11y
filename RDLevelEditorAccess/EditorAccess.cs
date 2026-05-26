@@ -153,6 +153,9 @@ namespace RDLevelEditorAccess
         // 光标导航修复：记录期望的导航目标，下帧检查游戏是否成功切换
         private LevelEventControl_Base _lastFrameSelectedControl = null;
 
+        // 标签模式状态监听：记录上一次 tagFieldMode 状态，用于检测变化并朗读
+        private bool _lastTagFieldMode = false;
+
         public void Awake()
         {
             Instance = this;
@@ -221,6 +224,15 @@ namespace RDLevelEditorAccess
             }
 
             if (scnEditor.instance == null) return;
+
+            // --- 标签模式状态监听 ---
+            bool currentTagFieldMode = scnEditor.instance.tagFieldMode;
+            if (currentTagFieldMode != _lastTagFieldMode)
+            {
+                _lastTagFieldMode = currentTagFieldMode;
+                string modeKey = currentTagFieldMode ? "eam.tagMode.enabled" : "eam.tagMode.disabled";
+                Narration.Say(RDString.Get(modeKey), NarrationCategory.Notification);
+            }
 
             // --- 虚拟菜单优先处理（最高优先级）---
             if (virtualMenuState != VirtualMenuState.None)
