@@ -739,8 +739,9 @@ namespace RDLevelEditorAccess
                 }
             }
 
-            // 大键盘 0：打开关卡元数据编辑器
-            if (Input.GetKeyDown(KeyCode.Alpha0))
+            // 大键盘 0：打开关卡元数据编辑器（仅当没有按 Shift）
+            if (Input.GetKeyDown(KeyCode.Alpha0) &&
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
             {
                 AccessibilityBridge.EditSettings();
             }
@@ -3605,13 +3606,30 @@ namespace RDLevelEditorAccess
         {
             if (levelEvent == null) return;
 
+            var editor = scnEditor.instance;
+            bool tagMode = editor != null && editor.tagFieldMode;
+
             var bb = new BarAndBeat(levelEvent.bar, levelEvent.beat);
             string summary = GetEventSummary(levelEvent);
+
+            string positionOrTag;
+            if (tagMode)
+            {
+                // 标签模式：朗读标签名
+                positionOrTag = string.IsNullOrEmpty(levelEvent.tag)
+                    ? RDString.Get("eam.tag.noTag")
+                    : levelEvent.tag;
+            }
+            else
+            {
+                // 普通模式：朗读位置
+                positionOrTag = FormatBarAndBeat(bb);
+            }
+
             string announcement = string.IsNullOrEmpty(summary)
-                ? $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}"
-                : $"{eventSelectI18n(levelEvent)}，{FormatBarAndBeat(bb)}，{summary}";
+                ? $"{eventSelectI18n(levelEvent)}，{positionOrTag}"
+                : $"{eventSelectI18n(levelEvent)}，{positionOrTag}，{summary}";
             Narration.Say(announcement, NarrationCategory.Navigation);
-            var editor = scnEditor.instance;
             if (editor != null)
             {
                 var comments = GetCommentsAtPosition(editor, levelEvent.bar, levelEvent.beat, levelEvent);
@@ -4172,6 +4190,9 @@ namespace RDLevelEditorAccess
             ["eam.conditional.descriptionLabel"] = "描述",
             ["eam.playerMode.one"]               = "单人模式",
             ["eam.playerMode.two"]               = "双人模式",
+            ["eam.tagMode.enabled"]              = "标签模式已开启",
+            ["eam.tagMode.disabled"]             = "标签模式已关闭",
+            ["eam.tag.noTag"]                    = "无标签",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -4330,6 +4351,9 @@ namespace RDLevelEditorAccess
             ["eam.conditional.descriptionLabel"] = "Description",
             ["eam.playerMode.one"]               = "Single player mode",
             ["eam.playerMode.two"]               = "Two player mode",
+            ["eam.tagMode.enabled"]              = "Tag mode enabled",
+            ["eam.tagMode.disabled"]             = "Tag mode disabled",
+            ["eam.tag.noTag"]                    = "No tag",
         };
 
         [HarmonyPrefix]
