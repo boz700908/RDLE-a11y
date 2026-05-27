@@ -1,0 +1,255 @@
+version=1
+
+# This file caches language service data to improve the performance of C# Dev Kit.
+# It is not intended for manual editing. It can safely be deleted and will be
+# regenerated automatically. For more information, see https://aka.ms/lscache
+#
+# To control where cache files are stored, use the following VS Code setting:
+#   "dotnet.projectsystem.cacheInProjectFolder": true
+
+[project]
+language=C#
+primary
+lastDtbSucceeded
+
+[properties]
+AssemblyName=RDLevelEditorAccess
+CommandLineArgsForDesignTimeEvaluation=-langversion:8.0 -define:TRACE
+CompilerGeneratedFilesOutputPath=
+MaxSupportedLangVersion=8.0
+ProjectAssetsFile=<PATH>obj/project.assets.json
+RootNamespace=RDLevelEditorAccess
+RunAnalyzers=
+RunAnalyzersDuringLiveAnalysis=
+SolutionPath=<PATH>../RDLE-a11y.sln
+TargetFrameworkIdentifier=.NETStandard
+TargetPath=<PATH>bin/Debug/netstandard2.1/RDLevelEditorAccess.dll
+TargetRefPath=
+TemporaryDependencyNodeTargetIdentifier=netstandard2.1
+
+[commandLineArguments]
+/noconfig
+/unsafe-
+/checked-
+/nowarn:1701,1702,1701,1702
+/fullpaths
+/nostdlib+
+/errorreport:prompt
+/define:TRACE;DEBUG;NETSTANDARD;NETSTANDARD2_1;NETSTANDARD1_0_OR_GREATER;NETSTANDARD1_1_OR_GREATER;NETSTANDARD1_2_OR_GREATER;NETSTANDARD1_3_OR_GREATER;NETSTANDARD1_4_OR_GREATER;NETSTANDARD1_5_OR_GREATER;NETSTANDARD1_6_OR_GREATER;NETSTANDARD2_0_OR_GREATER;NETSTANDARD2_1_OR_GREATER
+/highentropyva+
+/nullable:enable
+/debug+
+/debug:portable
+/filealign:512
+/optimize-
+/out:obj\Debug\netstandard2.1\RDLevelEditorAccess.dll
+/target:library
+/warnaserror-
+/utf8output
+/deterministic+
+/langversion:8.0
+/warnaserror+:NU1605
+
+[sourceFiles]
+AccessibilityModule.cs
+CustomUINavigator.cs
+EditorAccess.cs
+InputFieldReader.cs
+IPC/FileIPC.cs
+obj/Debug/netstandard2.1/
+ .NETStandard,Version=v2.1.AssemblyAttributes.cs
+ RDLevelEditorAccess.AssemblyInfo.cs
+
+[metadataReferences]
+../../../../SteamLibrary/steamapps/common/Rhythm Doctor/BepInEx/core/
+ 0Harmony.dll
+ BepInEx.dll
+ BepInEx.Harmony.dll
+../../../../SteamLibrary/steamapps/common/Rhythm Doctor/Rhythm Doctor_Data/Managed/
+ Assembly-CSharp.dll
+ RDTools.dll
+ Unity.TextMeshPro.dll
+ UnityEngine.AudioModule.dll
+ UnityEngine.CoreModule.dll
+ UnityEngine.dll
+ UnityEngine.InputLegacyModule.dll
+ UnityEngine.InputModule.dll
+ UnityEngine.UI.dll
+<DOTNET>/packs/NETStandard.Library.Ref/2.1.0/ref/netstandard2.1/
+ Microsoft.Win32.Primitives.dll
+ mscorlib.dll
+ netstandard.dll
+ System.AppContext.dll
+ System.Buffers.dll
+ System.Collections.Concurrent.dll
+ System.Collections.dll
+ System.Collections.NonGeneric.dll
+ System.Collections.Specialized.dll
+ System.ComponentModel.dll
+ System.ComponentModel.EventBasedAsync.dll
+ System.ComponentModel.Primitives.dll
+ System.ComponentModel.TypeConverter.dll
+ System.Console.dll
+ System.Core.dll
+ System.Data.Common.dll
+ System.Data.dll
+ System.Diagnostics.Contracts.dll
+ System.Diagnostics.Debug.dll
+ System.Diagnostics.FileVersionInfo.dll
+ System.Diagnostics.Process.dll
+ System.Diagnostics.StackTrace.dll
+ System.Diagnostics.TextWriterTraceListener.dll
+ System.Diagnostics.Tools.dll
+ System.Diagnostics.TraceSource.dll
+ System.Diagnostics.Tracing.dll
+ System.dll
+ System.Drawing.dll
+ System.Drawing.Primitives.dll
+ System.Dynamic.Runtime.dll
+ System.Globalization.Calendars.dll
+ System.Globalization.dll
+ System.Globalization.Extensions.dll
+ System.IO.Compression.dll
+ System.IO.Compression.FileSystem.dll
+ System.IO.Compression.ZipFile.dll
+ System.IO.dll
+ System.IO.FileSystem.dll
+ System.IO.FileSystem.DriveInfo.dll
+ System.IO.FileSystem.Primitives.dll
+ System.IO.FileSystem.Watcher.dll
+ System.IO.IsolatedStorage.dll
+ System.IO.MemoryMappedFiles.dll
+ System.IO.Pipes.dll
+ System.IO.UnmanagedMemoryStream.dll
+ System.Linq.dll
+ System.Linq.Expressions.dll
+ System.Linq.Parallel.dll
+ System.Linq.Queryable.dll
+ System.Memory.dll
+ System.Net.dll
+ System.Net.Http.dll
+ System.Net.NameResolution.dll
+ System.Net.NetworkInformation.dll
+ System.Net.Ping.dll
+ System.Net.Primitives.dll
+ System.Net.Requests.dll
+ System.Net.Security.dll
+ System.Net.Sockets.dll
+ System.Net.WebHeaderCollection.dll
+ System.Net.WebSockets.Client.dll
+ System.Net.WebSockets.dll
+ System.Numerics.dll
+ System.Numerics.Vectors.dll
+ System.ObjectModel.dll
+ System.Reflection.DispatchProxy.dll
+ System.Reflection.dll
+ System.Reflection.Emit.dll
+ System.Reflection.Emit.ILGeneration.dll
+ System.Reflection.Emit.Lightweight.dll
+ System.Reflection.Extensions.dll
+ System.Reflection.Primitives.dll
+ System.Resources.Reader.dll
+ System.Resources.ResourceManager.dll
+ System.Resources.Writer.dll
+ System.Runtime.CompilerServices.VisualC.dll
+ System.Runtime.dll
+ System.Runtime.Extensions.dll
+ System.Runtime.Handles.dll
+ System.Runtime.InteropServices.dll
+ System.Runtime.InteropServices.RuntimeInformation.dll
+ System.Runtime.Numerics.dll
+ System.Runtime.Serialization.dll
+ System.Runtime.Serialization.Formatters.dll
+ System.Runtime.Serialization.Json.dll
+ System.Runtime.Serialization.Primitives.dll
+ System.Runtime.Serialization.Xml.dll
+ System.Security.Claims.dll
+ System.Security.Cryptography.Algorithms.dll
+ System.Security.Cryptography.Csp.dll
+ System.Security.Cryptography.Encoding.dll
+ System.Security.Cryptography.Primitives.dll
+ System.Security.Cryptography.X509Certificates.dll
+ System.Security.Principal.dll
+ System.Security.SecureString.dll
+ System.ServiceModel.Web.dll
+ System.Text.Encoding.dll
+ System.Text.Encoding.Extensions.dll
+ System.Text.RegularExpressions.dll
+ System.Threading.dll
+ System.Threading.Overlapped.dll
+ System.Threading.Tasks.dll
+ System.Threading.Tasks.Extensions.dll
+ System.Threading.Tasks.Parallel.dll
+ System.Threading.Thread.dll
+ System.Threading.ThreadPool.dll
+ System.Threading.Timer.dll
+ System.Transactions.dll
+ System.ValueTuple.dll
+ System.Web.dll
+ System.Windows.dll
+ System.Xml.dll
+ System.Xml.Linq.dll
+ System.Xml.ReaderWriter.dll
+ System.Xml.Serialization.dll
+ System.Xml.XDocument.dll
+ System.Xml.XmlDocument.dll
+ System.Xml.XmlSerializer.dll
+ System.Xml.XPath.dll
+ System.Xml.XPath.XDocument.dll
+<NUGET>/
+ microsoft.bcl.asyncinterfaces/8.0.0/lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll
+ microsoft.bcl.cryptography/10.0.2/lib/netstandard2.1/Microsoft.Bcl.Cryptography.dll
+ microsoft.win32.registry.accesscontrol/10.0.2/lib/netstandard2.0/Microsoft.Win32.Registry.AccessControl.dll
+ microsoft.win32.registry/5.0.0/ref/netstandard2.0/Microsoft.Win32.Registry.dll
+ microsoft.win32.systemevents/10.0.2/lib/netstandard2.0/Microsoft.Win32.SystemEvents.dll
+ system.codedom/10.0.2/lib/netstandard2.0/System.CodeDom.dll
+ system.collections.immutable/8.0.0/lib/netstandard2.0/System.Collections.Immutable.dll
+ system.componentmodel.composition.registration/10.0.2/lib/netstandard2.1/System.ComponentModel.Composition.Registration.dll
+ system.componentmodel.composition/10.0.2/lib/netstandard2.0/System.ComponentModel.Composition.dll
+ system.configuration.configurationmanager/10.0.2/lib/netstandard2.0/System.Configuration.ConfigurationManager.dll
+ system.data.datasetextensions/4.5.0/ref/netstandard2.0/System.Data.DataSetExtensions.dll
+ system.data.odbc/10.0.2/lib/netstandard2.0/System.Data.Odbc.dll
+ system.data.oledb/10.0.2/lib/netstandard2.0/System.Data.OleDb.dll
+ system.data.sqlclient/4.9.0/lib/netstandard2.0/System.Data.SqlClient.dll
+ system.diagnostics.eventlog/10.0.2/lib/netstandard2.0/System.Diagnostics.EventLog.dll
+ system.diagnostics.performancecounter/10.0.2/lib/netstandard2.0/System.Diagnostics.PerformanceCounter.dll
+ system.directoryservices.accountmanagement/10.0.2/lib/netstandard2.0/System.DirectoryServices.AccountManagement.dll
+ system.directoryservices.protocols/10.0.2/lib/netstandard2.0/System.DirectoryServices.Protocols.dll
+ system.directoryservices/10.0.2/lib/netstandard2.0/System.DirectoryServices.dll
+ system.drawing.common/10.0.2/lib/netstandard2.0/System.Drawing.Common.dll
+ system.formats.asn1/10.0.2/lib/netstandard2.0/System.Formats.Asn1.dll
+ system.io.filesystem.accesscontrol/5.0.0/ref/netstandard2.0/System.IO.FileSystem.AccessControl.dll
+ system.io.packaging/10.0.2/lib/netstandard2.0/System.IO.Packaging.dll
+ system.io.pipes.accesscontrol/5.0.0/ref/netstandard2.0/System.IO.Pipes.AccessControl.dll
+ system.io.ports/10.0.2/lib/netstandard2.0/System.IO.Ports.dll
+ system.management/10.0.2/lib/netstandard2.0/System.Management.dll
+ system.reflection.context/10.0.2/lib/netstandard2.1/System.Reflection.Context.dll
+ system.runtime.caching/10.0.2/lib/netstandard2.0/System.Runtime.Caching.dll
+ system.runtime.compilerservices.unsafe/6.1.2/lib/netstandard2.0/System.Runtime.CompilerServices.Unsafe.dll
+ system.security.accesscontrol/6.0.0/lib/netstandard2.0/System.Security.AccessControl.dll
+ system.security.cryptography.cng/5.0.0/ref/netstandard2.1/System.Security.Cryptography.Cng.dll
+ system.security.cryptography.pkcs/10.0.2/lib/netstandard2.1/System.Security.Cryptography.Pkcs.dll
+ system.security.cryptography.protecteddata/10.0.2/lib/netstandard2.0/System.Security.Cryptography.ProtectedData.dll
+ system.security.cryptography.xml/10.0.2/lib/netstandard2.0/System.Security.Cryptography.Xml.dll
+ system.security.permissions/10.0.2/lib/netstandard2.0/System.Security.Permissions.dll
+ system.security.principal.windows/5.0.0/ref/netstandard2.0/System.Security.Principal.Windows.dll
+ system.servicemodel.http/8.1.2/ref/netstandard2.0/System.ServiceModel.Http.dll
+ system.servicemodel.nettcp/8.1.2/ref/netstandard2.0/System.ServiceModel.NetTcp.dll
+ system.servicemodel.primitives/8.1.2/ref/netstandard2.0/
+  System.ServiceModel.Duplex.dll
+  System.ServiceModel.Primitives.dll
+  System.ServiceModel.Security.dll
+ system.servicemodel.syndication/10.0.2/lib/netstandard2.0/System.ServiceModel.Syndication.dll
+ system.serviceprocess.servicecontroller/10.0.2/lib/netstandard2.0/System.ServiceProcess.ServiceController.dll
+ system.speech/10.0.2/lib/netstandard2.0/System.Speech.dll
+ system.text.encoding.codepages/10.0.2/lib/netstandard2.0/System.Text.Encoding.CodePages.dll
+ system.text.encodings.web/8.0.0/lib/netstandard2.0/System.Text.Encodings.Web.dll
+ system.text.json/8.0.5/lib/netstandard2.0/System.Text.Json.dll
+ system.threading.accesscontrol/10.0.2/lib/netstandard2.0/System.Threading.AccessControl.dll
+ system.web.services.description/8.1.2/ref/netstandard2.0/System.Web.Services.Description.dll
+
+[analyzerReferences]
+<NUGET>/system.text.json/8.0.5/analyzers/dotnet/roslyn4.4/cs/System.Text.Json.SourceGeneration.dll
+
+[analyzerConfigFiles]
+obj/Debug/netstandard2.1/RDLevelEditorAccess.GeneratedMSBuildEditorConfig.editorconfig

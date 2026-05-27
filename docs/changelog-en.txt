@@ -1,3 +1,10 @@
+1.8 (2026-05-27)
+Guaranteed compatible game version: 1.1.0 (updated 2026-04-22)
+1. Preliminary support for the game's tag mode. Support is currently very limited. Press shift+number key 0 to toggle tag mode. In tag mode, when browsing events, event positions will not be read out; instead, event tags will be announced. More support for this mode will come in future versions.
+2. Added ctrl+alt+space to open the virtual selection extension menu, with two new operations: "Select all events in virtual selection" and "Add selected events to virtual selection". (See section 4.6.1 of the manual)
+3. The insert event menu now supports quick navigation to corresponding event types via letter shortcuts.
+4. Slightly improved the editing experience in the helper. PS: Oh no, my changelog is starting to get casual too.
+
 1.7 (2026-04-25)
 Guaranteed compatible game version: 1.1.0 (updated 2026-04-22)
 1. Added support for the native editor's grid system, with minor changes to some shortcut behaviors. (See sections 4.4, 4.5, and 4.7.1 of the manual)

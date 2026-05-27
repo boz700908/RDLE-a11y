@@ -386,3 +386,5 @@ RDLevelEditorAccess/Properties/launchSettings.json
 
 # 日志文件
 logs/
+
+.omo/

@@ -2245,7 +2245,7 @@ namespace RDEventEditorHelper
                     if (isManual)
                     {
                         txtHiddenFilename.Text = txtManual.Text;
-                        txtManual.Focus();
+                        // 只显示输入框，不自动获取焦点，用户焦点仍停留在列表
                     }
                     else
                     {
