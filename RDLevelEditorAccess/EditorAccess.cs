@@ -1168,7 +1168,7 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
-        /// Alt+Enter 快捷操作：根据事件类型分发到不同处理逻辑
+        /// Ctrl+Shift+Enter 快捷操作：根据事件类型分发到不同处理逻辑
         /// </summary>
         private void HandleAltEnter(LevelEvent_Base ev)
         {
@@ -1187,7 +1187,7 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
-        /// Oneshot Beat 的 Alt+Enter 操作：
+        /// Oneshot Beat 的快捷操作：
         /// loops>0 → 反射调用 BreakIntoOneshotBeats（已有游戏方法）
         /// loops=0 → 复制事件到编辑光标位置，调整 tick 保持击拍点一致
         /// </summary>
@@ -1280,7 +1280,7 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
-        /// Classic Beat 的 Alt+Enter 操作：通过 Helper 输入分母值来设置 tick
+        /// Classic Beat 的快捷操作：通过 Helper 输入分母值来设置 tick
         /// </summary>
         private void HandleClassicBeatAltEnter(LevelEvent_AddClassicBeat ev)
         {
@@ -4347,8 +4347,8 @@ namespace RDLevelEditorAccess
             ["eam.tagMode.disabled"]             = "标签模式已关闭",
             ["eam.tag.noTag"]                    = "无标签",
 
-            // Alt+Enter 快捷操作
-            ["eam.altEnter.unsupported"]           = "此事件不支持Alt+Enter快捷操作",
+            // 快捷操作
+            ["eam.altEnter.unsupported"]           = "此事件不支持快捷操作",
             ["eam.altEnter.oneshot.broken"]         = "已拆分为 {0} 个单拍事件",
             ["eam.altEnter.oneshot.breakFailed"]    = "拆分操作失败，请先选中事件",
             ["eam.altEnter.oneshot.copied"]         = "已复制事件到编辑光标位置，tick={0}",
@@ -4519,8 +4519,8 @@ namespace RDLevelEditorAccess
             ["eam.tagMode.disabled"]             = "Tag mode disabled",
             ["eam.tag.noTag"]                    = "No tag",
 
-            // Alt+Enter quick action
-            ["eam.altEnter.unsupported"]           = "This event does not support Alt+Enter",
+            // 快捷操作
+            ["eam.altEnter.unsupported"]           = "This event does not support quick action",
             ["eam.altEnter.oneshot.broken"]         = "Broken into {0} oneshot events",
             ["eam.altEnter.oneshot.breakFailed"]    = "Break operation failed, please select the event first",
             ["eam.altEnter.oneshot.copied"]         = "Copied event to cursor position, tick={0}",
