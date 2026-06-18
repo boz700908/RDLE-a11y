@@ -725,9 +725,10 @@ namespace RDLevelEditorAccess
                 }
             }
 
-            // Ctrl+Enter: 打开事件属性编辑器
+            // Ctrl+Enter: 打开事件属性编辑器（排除 Shift 同时按下）
             if (Input.GetKeyDown(KeyCode.Return) && 
-                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)))
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
             {
                 if (editor.selectedControl != null)
                 {
@@ -736,9 +737,10 @@ namespace RDLevelEditorAccess
                 }
             }
 
-            // Shift+Enter: 编辑当前选中的轨道
+            // Shift+Enter: 编辑当前选中的轨道（排除 Ctrl 同时按下）
             if (Input.GetKeyDown(KeyCode.Return) &&
-                (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+                (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) &&
+                !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl))
             {
                 if (editor.currentTab == Tab.Rows && editor.selectedRowIndex >= 0)
                 {
@@ -778,11 +780,10 @@ namespace RDLevelEditorAccess
                 }
             }
 
-            // Alt+Enter: 根据选中事件类型执行快捷操作
+            // Ctrl+Shift+Enter: 根据选中事件类型执行快捷操作
             if (Input.GetKeyDown(KeyCode.Return) &&
-                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)) &&
-                !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl) &&
-                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
             {
                 if (editor.selectedControl != null && editor.selectedControl.levelEvent != null)
                 {
