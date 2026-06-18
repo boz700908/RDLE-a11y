@@ -88,12 +88,24 @@ namespace RDEventEditorHelper
                                 ? Loc.Get("保存事件链", "Save Event Chain")
                                 : editType == "gridCustom"
                                     ? Loc.Get("自定义网格精度", "Custom Grid Size")
-                                    : $"{Loc.Get("编辑事件", "Edit Event")}: {sourceData?.eventType}";
+                                    : editType == "tickInput"
+                                        ? Loc.Get("设置 tick 值", "Set Tick Value")
+                                        : $"{Loc.Get("编辑事件", "Edit Event")}: {sourceData?.eventType}";
                 editorForm.SetData(sourceData?.eventType, sourceData?.properties, title, sourceData?.levelAudioFiles, sourceData?.levelDirectory, sourceData?.localizedLevelAudioFiles, sessionToken, sourceData?.internalSongs);
             }
 
             editorForm.OnOK += (updates) =>
             {
+                // tickInput: 将 denominator 转换为 tick
+                if (editType == "tickInput" && updates.ContainsKey("denominator"))
+                {
+                    if (int.TryParse(updates["denominator"], out int denom) && denom > 0)
+                    {
+                        float tickValue = 1f / denom;
+                        updates["tick"] = tickValue.ToString("F6");
+                    }
+                    updates.Remove("denominator");
+                }
                 var result = new ResultData { token = sessionToken, action = "ok", updates = updates };
                 string resultJson = JsonConvert.SerializeObject(result, Formatting.Indented);
                 File.WriteAllText(ResultPath, resultJson);

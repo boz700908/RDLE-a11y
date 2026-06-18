@@ -162,6 +162,15 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
+        /// 打开 tick 输入对话框（Alt+Enter Classic Beat 使用）
+        /// </summary>
+        public static void TickInput(LevelEvent_Base ev)
+        {
+            if (!_isInitialized) return;
+            _fileIPC.StartTickInputEdit(ev);
+        }
+
+        /// <summary>
         /// 注册条件新建/编辑完成后的回调
         /// </summary>
         public static void SetConditionalSavedCallback(Action<int> callback)

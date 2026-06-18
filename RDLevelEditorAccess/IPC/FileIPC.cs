@@ -350,6 +350,10 @@ namespace RDLevelEditorAccess.IPC
                     {
                         ApplyGridCustomResult(resultData.updates);
                     }
+                    else if (_currentEditType == "tickInput")
+                    {
+                        ApplyTickInputResult(resultData.updates);
+                    }
                     else if (_currentEvent != null)
                     {
                         ApplyUpdates(_currentEvent, resultData.updates);
@@ -2863,6 +2867,69 @@ namespace RDLevelEditorAccess.IPC
             _isPolling = true;
         }
 
+        /// <summary>
+        /// 启动 tick 输入对话框（Alt+Enter Classic Beat）
+        /// </summary>
+        public void StartTickInputEdit(LevelEvent_Base ev)
+        {
+            if (_isPolling)
+            {
+                Debug.LogWarning("[FileIPC] 已有编辑会话进行中");
+                return;
+            }
+
+            _currentEvent = ev;
+            _currentRow = null;
+            _currentEditType = "tickInput";
+            _sessionToken = System.Guid.NewGuid().ToString();
+
+            // 从当前 tick 反算默认分母值
+            float currentTick = 1f;
+            if (ev is LevelEvent_AddClassicBeat classic)
+                currentTick = classic.tick;
+            int defaultDenominator = currentTick > 0.0001f
+                ? Mathf.RoundToInt(1f / currentTick)
+                : 1;
+            if (defaultDenominator < 1) defaultDenominator = 1;
+
+            var properties = new List<PropertyData>
+            {
+                new PropertyData
+                {
+                    name = "denominator",
+                    displayName = RDString.Get("eam.altEnter.classic.tickLabel"),
+                    value = defaultDenominator.ToString(),
+                    type = "Int"
+                }
+            };
+
+            var sourceData = new SourceData
+            {
+                editType = "tickInput",
+                eventType = "TickInput",
+                token = _sessionToken,
+                properties = properties,
+                levelDirectory = GetLevelDirectory()
+            };
+
+            try
+            {
+                var opts = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+                sourceData.language = RDString.isChinese ? "zh" : "en";
+                File.WriteAllText(_sourcePath, JsonSerializer.Serialize(sourceData, opts));
+                Debug.Log("[AltEnter] 已写入 source.json (tick输入)");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FileIPC] 写入 source.json 失败: {ex.Message}");
+                return;
+            }
+
+            LaunchHelper();
+            LockKeyboard();
+            _isPolling = true;
+        }
+
         private void ApplyGridCustomResult(Dictionary<string, string> updates)
         {
             if (updates == null || !updates.ContainsKey("denominator")) return;
@@ -2880,6 +2947,33 @@ namespace RDLevelEditorAccess.IPC
             string label = string.Format(RDString.Get("eam.grid.item"), value);
             Narration.Say(label, NarrationCategory.Navigation);
             Debug.Log($"[FileIPC] 自定义网格精度已设为 1/{value}");
+        }
+
+        private void ApplyTickInputResult(Dictionary<string, string> updates)
+        {
+            if (updates == null || !updates.ContainsKey("tick")) return;
+
+            if (!float.TryParse(updates["tick"], out float newTick) || newTick <= 0f)
+            {
+                Narration.Say(RDString.Get("eam.altEnter.classic.tickInvalid"), NarrationCategory.Navigation);
+                return;
+            }
+
+            var editor = scnEditor.instance;
+            if (editor == null || _currentEvent == null) return;
+
+            using (new SaveStateScope())
+            {
+                if (_currentEvent is LevelEvent_AddClassicBeat classic)
+                    classic.tick = newTick;
+            }
+            editor.selectedControl?.UpdateUI();
+            editor.inspectorPanelManager?.GetCurrent()?.UpdateUI(_currentEvent);
+
+            Narration.Say(
+                string.Format(RDString.Get("eam.altEnter.classic.tickSet"), newTick.ToString("F2")),
+                NarrationCategory.Navigation);
+            Debug.Log($"[AltEnter] tick 已设为 {newTick}");
         }
 
         private void ApplyJumpToCursorUpdates(Dictionary<string, string> updates)

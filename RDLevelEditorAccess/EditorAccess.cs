@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
+using System.Reflection;
 using BepInEx;
 using HarmonyLib;
 using RDLevelEditor;
@@ -776,6 +777,23 @@ namespace RDLevelEditorAccess
                 }
             }
 
+            // Alt+Enter: 根据选中事件类型执行快捷操作
+            if (Input.GetKeyDown(KeyCode.Return) &&
+                (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)) &&
+                !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl) &&
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
+            {
+                if (editor.selectedControl != null && editor.selectedControl.levelEvent != null)
+                {
+                    HandleAltEnter(editor.selectedControl.levelEvent);
+                }
+                else
+                {
+                    Narration.Say(RDString.Get("eam.event.noSelection"), NarrationCategory.Navigation);
+                }
+                return;
+            }
+
             // ===================================================================================
             // 属性快速调节快捷键
             // ===================================================================================
@@ -1145,6 +1163,127 @@ namespace RDLevelEditorAccess
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// Alt+Enter 快捷操作：根据事件类型分发到不同处理逻辑
+        /// </summary>
+        private void HandleAltEnter(LevelEvent_Base ev)
+        {
+            switch (ev.type)
+            {
+                case LevelEventType.AddOneshotBeat:
+                    HandleOneshotBeatAltEnter(ev as LevelEvent_AddOneshotBeat);
+                    break;
+                case LevelEventType.AddClassicBeat:
+                    HandleClassicBeatAltEnter(ev as LevelEvent_AddClassicBeat);
+                    break;
+                default:
+                    Narration.Say(RDString.Get("eam.altEnter.unsupported"), NarrationCategory.Navigation);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Oneshot Beat 的 Alt+Enter 操作：
+        /// loops>0 → 反射调用 BreakIntoOneshotBeats（已有游戏方法）
+        /// loops=0 → 复制事件到编辑光标位置，调整 tick 保持击拍点一致
+        /// </summary>
+        private void HandleOneshotBeatAltEnter(LevelEvent_AddOneshotBeat ev)
+        {
+            if (ev == null) return;
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            if (ev.loops > 0)
+            {
+                // 反射调用已有的 BreakIntoOneshotBeats 方法
+                var panel = editor.inspectorPanelManager?.GetCurrent();
+                if (panel != null)
+                {
+                    var method = panel.GetType().GetMethod("BreakIntoOneshotBeats",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (method != null)
+                    {
+                        method.Invoke(panel, null);
+                        int count = ev.loops + 1;
+                        Narration.Say(string.Format(RDString.Get("eam.altEnter.oneshot.broken"), count),
+                            NarrationCategory.Navigation);
+                        return;
+                    }
+                }
+                Narration.Say(RDString.Get("eam.altEnter.oneshot.breakFailed"), NarrationCategory.Navigation);
+            }
+            else
+            {
+                CopyOneshotToCursor(ev, editor);
+            }
+        }
+
+        /// <summary>
+        /// 复制 Oneshot Beat 到编辑光标位置，调整 tick 使击拍点与原事件一致
+        /// 算法使用列空间（Timeline.GetColumnFromBarAndBeat）计算
+        /// </summary>
+        private void CopyOneshotToCursor(LevelEvent_AddOneshotBeat ev, scnEditor editor)
+        {
+            var tl = editor.timeline;
+            if (tl == null) return;
+
+            // 前置条件 b1：光标与事件位置重合
+            float evPosX = tl.GetPosXFromBarAndBeat(ev.barAndBeat);
+            float cursorPosX = tl.GetPosXFromBarAndBeat(_editCursor);
+            if (Mathf.Approximately(evPosX, cursorPosX))
+            {
+                Narration.Say(RDString.Get("eam.altEnter.oneshot.cursorAtEvent"), NarrationCategory.Navigation);
+                return;
+            }
+
+            // 使用列空间计算击拍点位置
+            // 列空间不受缩放影响，正确处理变拍号
+            var cpbEvents = tl.setCrotchetsPerBarEvents;
+            float origHitColumn = Timeline.GetColumnFromBarAndBeat(
+                ev.bar, ev.beat + ev.tick, cpbEvents, debug: false);
+            float cursorColumn = Timeline.GetColumnFromBarAndBeat(
+                _editCursor.bar, _editCursor.beat, cpbEvents, debug: false);
+            float newTick = origHitColumn - cursorColumn;
+
+            // 前置条件 b2：光标晚于击拍点（newTick 为负）
+            if (newTick < -0.0001f)
+            {
+                Narration.Say(RDString.Get("eam.altEnter.oneshot.cursorAfterHit"), NarrationCategory.Navigation);
+                return;
+            }
+
+            // Clamp tick ≥ 0（tick=0 允许）
+            newTick = Mathf.Max(0f, newTick);
+
+            // 创建副本：CopyFrom(copyBarAndBeat:false) 复制所有属性，然后手动设置位置和 tick
+            var clone = new LevelEvent_AddOneshotBeat();
+            clone.CopyFrom(ev, copyBarAndBeat: false);
+            clone.bar = _editCursor.bar;
+            clone.beat = _editCursor.beat;
+            clone.tick = newTick;
+
+            LevelEventControl_Base newControl;
+            using (new SaveStateScope())
+            {
+                newControl = editor.CreateEventControl(clone, Tab.Rows);
+                newControl.UpdateUI();
+            }
+
+            editor.SelectEventControl(newControl, sound: false);
+            Narration.Say(
+                string.Format(RDString.Get("eam.altEnter.oneshot.copied"), newTick.ToString("F2")),
+                NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// Classic Beat 的 Alt+Enter 操作：通过 Helper 输入分母值来设置 tick
+        /// </summary>
+        private void HandleClassicBeatAltEnter(LevelEvent_AddClassicBeat ev)
+        {
+            if (ev == null) return;
+            AccessibilityBridge.TickInput(ev);
         }
 
         /// <summary>
@@ -4205,6 +4344,17 @@ namespace RDLevelEditorAccess
             ["eam.tagMode.enabled"]              = "标签模式已开启",
             ["eam.tagMode.disabled"]             = "标签模式已关闭",
             ["eam.tag.noTag"]                    = "无标签",
+
+            // Alt+Enter 快捷操作
+            ["eam.altEnter.unsupported"]           = "此事件不支持Alt+Enter快捷操作",
+            ["eam.altEnter.oneshot.broken"]         = "已拆分为 {0} 个单拍事件",
+            ["eam.altEnter.oneshot.breakFailed"]    = "拆分操作失败，请先选中事件",
+            ["eam.altEnter.oneshot.copied"]         = "已复制事件到编辑光标位置，tick={0}",
+            ["eam.altEnter.oneshot.cursorAtEvent"]  = "编辑光标与事件位置重合",
+            ["eam.altEnter.oneshot.cursorAfterHit"] = "编辑光标晚于击拍点，无法复制",
+            ["eam.altEnter.classic.tickLabel"]      = "分母（tick = 1/N拍）",
+            ["eam.altEnter.classic.tickSet"]        = "tick 已设为 {0}",
+            ["eam.altEnter.classic.tickInvalid"]    = "无效分母值",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -4366,6 +4516,17 @@ namespace RDLevelEditorAccess
             ["eam.tagMode.enabled"]              = "Tag mode enabled",
             ["eam.tagMode.disabled"]             = "Tag mode disabled",
             ["eam.tag.noTag"]                    = "No tag",
+
+            // Alt+Enter quick action
+            ["eam.altEnter.unsupported"]           = "This event does not support Alt+Enter",
+            ["eam.altEnter.oneshot.broken"]         = "Broken into {0} oneshot events",
+            ["eam.altEnter.oneshot.breakFailed"]    = "Break operation failed, please select the event first",
+            ["eam.altEnter.oneshot.copied"]         = "Copied event to cursor position, tick={0}",
+            ["eam.altEnter.oneshot.cursorAtEvent"]  = "Edit cursor is at the same position as the event",
+            ["eam.altEnter.oneshot.cursorAfterHit"] = "Cursor is after the hit point, cannot copy",
+            ["eam.altEnter.classic.tickLabel"]      = "Denominator (tick = 1/N beat)",
+            ["eam.altEnter.classic.tickSet"]        = "tick set to {0}",
+            ["eam.altEnter.classic.tickInvalid"]    = "Invalid denominator value",
         };
 
         [HarmonyPrefix]
