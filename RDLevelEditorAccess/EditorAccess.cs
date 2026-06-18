@@ -762,7 +762,8 @@ namespace RDLevelEditorAccess
             // NEW: Return (无修饰符)：跳转到选中事件所在的小节并开始播放
             if (Input.GetKeyDown(KeyCode.Return) &&
                 !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl) &&
-                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift) &&
+                !Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.RightAlt))
             {
                 if (editor.selectedControl != null && editor.selectedControl.levelEvent != null)
                 {
