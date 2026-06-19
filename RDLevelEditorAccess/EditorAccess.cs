@@ -4278,30 +4278,33 @@ namespace RDLevelEditorAccess
             if (Mathf.Abs(offsetX) < 0.01f) return;
 
             // 移动所有选中事件
-            using (new SaveStateScope())
+            // 不使用 SaveStateScope 包裹，因为游戏的 Paste 方法已经在一个 SaveStateScope 中
+            // 记录了粘贴前的状态。如果这里再创建 SaveStateScope，会产生两个独立的撤销点，
+            // 导致用户需要按两次 Ctrl+Z 才能完全撤销粘贴操作。
+            // 由于 Postfix 在游戏的 SaveStateScope Dispose 之后执行（changingState == 0），
+            // 这里的位置修改会被包含在游戏的粘贴撤销点中——撤销粘贴时，DecodeData 会恢复
+            // 粘贴前的完整状态，这些移动后的事件自然会被一并撤销。
+            foreach (var control in __instance.selectedControls)
             {
-                foreach (var control in __instance.selectedControls)
-                {
-                    if (control?.levelEvent == null) continue;
+                if (control?.levelEvent == null) continue;
 
-                    // 获取当前位置的X坐标
-                    float currentX = tl.GetPosXFromBarAndBeat(control.levelEvent.barAndBeat);
+                // 获取当前位置的X坐标
+                float currentX = tl.GetPosXFromBarAndBeat(control.levelEvent.barAndBeat);
 
-                    // 应用偏移
-                    float newX = Mathf.Max(0f, currentX + offsetX);
+                // 应用偏移
+                float newX = Mathf.Max(0f, currentX + offsetX);
 
-                    // 转换回BarAndBeat
-                    var newPos = tl.GetBarAndBeatWithPosX(newX);
+                // 转换回BarAndBeat
+                var newPos = tl.GetBarAndBeatWithPosX(newX);
 
-                    // 更新位置
-                    control.bar = newPos.bar;
-                    control.beat = newPos.beat;
-                    control.UpdateUI();
-                }
-
-                // 更新时间轴UI
-                tl.UpdateUI();
+                // 更新位置
+                control.bar = newPos.bar;
+                control.beat = newPos.beat;
+                control.UpdateUI();
             }
+
+            // 更新时间轴UI
+            tl.UpdateUI();
 
             // 更新 inspector 面板以持久化更改（防止取消选择时回退）
             if (firstControl != null)
