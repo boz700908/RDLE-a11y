@@ -171,6 +171,23 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
+        /// 打开 Helper 编辑事件标签（支持批量）
+        /// </summary>
+        public static void EditTag(List<LevelEventControl_Base> controls)
+        {
+            if (!_isInitialized)
+            {
+                Debug.LogError("[AccessibilityBridge] 未初始化");
+                return;
+            }
+
+            if (controls == null || controls.Count == 0) return;
+
+            Debug.Log($"[RDEditorAccess] 打开标签编辑器: {controls.Count} 个事件");
+            _fileIPC.StartTagEditing(controls);
+        }
+
+        /// <summary>
         /// 注册条件新建/编辑完成后的回调
         /// </summary>
         public static void SetConditionalSavedCallback(Action<int> callback)

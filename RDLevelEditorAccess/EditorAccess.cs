@@ -735,10 +735,45 @@ namespace RDLevelEditorAccess
                 (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
                 !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift))
             {
-                if (editor.selectedControl != null)
+                bool tagMode = editor != null && editor.tagFieldMode;
+
+                if (tagMode)
                 {
-                    AccessibilityBridge.EditEvent(editor.selectedControl.levelEvent);
-                    //Narration.Say(RDString.Get("eam.editor.openPropEditor"), NarrationCategory.Instruction);// 过于冗余，去掉。
+                    // 标签模式：Ctrl+Enter 打开标签编辑器
+                    if (editor.selectedControls.Count == 0)
+                    {
+                        Narration.Say(RDString.Get("eam.tag.noSelection"), NarrationCategory.Navigation);
+                    }
+                    else if (editor.selectedControls.Count == 1)
+                    {
+                        // 单选：直接编辑该事件的标签
+                        AccessibilityBridge.EditTag(new List<LevelEventControl_Base> { editor.selectedControls[0] });
+                    }
+                    else
+                    {
+                        // 多选：检查标签一致性
+                        bool consistent;
+                        string commonTag;
+                        ModUtils.CheckTagConsistency(editor.selectedControls, out consistent, out commonTag);
+                        if (consistent)
+                        {
+                            // 标签一致（含全部无标签）：打开批量标签编辑器
+                            AccessibilityBridge.EditTag(editor.selectedControls);
+                        }
+                        else
+                        {
+                            // 标签不一致：禁止编辑并告知原因
+                            Narration.Say(RDString.Get("eam.tag.inconsistent"), NarrationCategory.Navigation);
+                        }
+                    }
+                }
+                else
+                {
+                    // 非标签模式：打开完整属性编辑器（保留 tag 字段）
+                    if (editor.selectedControl != null)
+                    {
+                        AccessibilityBridge.EditEvent(editor.selectedControl.levelEvent);
+                    }
                 }
             }
 
@@ -3883,6 +3918,40 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
+        /// 检查多个事件的标签一致性
+        /// </summary>
+        /// <param name="controls">待检查的控件列表</param>
+        /// <param name="consistent">是否全部一致</param>
+        /// <param name="commonTag">共同标签值（null 表示均无标签，仅当 consistent=true 时有效）</param>
+        public static void CheckTagConsistency(List<LevelEventControl_Base> controls, out bool consistent, out string commonTag)
+        {
+            consistent = true;
+            commonTag = null;
+
+            if (controls == null || controls.Count == 0)
+            {
+                consistent = true;
+                return;
+            }
+
+            // 以第一个事件为基准
+            string firstTag = controls[0].levelEvent?.tag ?? "";
+
+            for (int i = 1; i < controls.Count; i++)
+            {
+                string tag = controls[i].levelEvent?.tag ?? "";
+                if (tag != firstTag)
+                {
+                    consistent = false;
+                    return;
+                }
+            }
+
+            consistent = true;
+            commonTag = firstTag;
+        }
+
+        /// <summary>
         /// 朗读事件选择信息（事件名称、位置和属性摘要）
         /// </summary>
         public static void AnnounceEventSelection(LevelEvent_Base levelEvent)
@@ -4060,7 +4129,19 @@ namespace RDLevelEditorAccess
         public static void AddEventControlToSelectionPostfix(LevelEventControl_Base newControl)
         {
             if (newControl?.levelEvent == null) return;
-            Narration.Say("已选择" + ModUtils.eventSelectI18n(newControl.levelEvent), NarrationCategory.Navigation);
+
+            var editor = scnEditor.instance;
+            bool tagMode = editor != null && editor.tagFieldMode;
+
+            if (tagMode && editor.selectedControls.Count >= 2)
+            {
+                // 标签模式多选：使用标准播报
+                Narration.Say("已选择" + ModUtils.eventSelectI18n(newControl.levelEvent), NarrationCategory.Navigation);
+            }
+            else
+            {
+                Narration.Say("已选择" + ModUtils.eventSelectI18n(newControl.levelEvent), NarrationCategory.Navigation);
+            }
         }
     }
 
@@ -4479,6 +4560,15 @@ namespace RDLevelEditorAccess
             ["eam.tagMode.enabled"]              = "标签模式已开启",
             ["eam.tagMode.disabled"]             = "标签模式已关闭",
             ["eam.tag.noTag"]                    = "无标签",
+            ["eam.tag.noSelection"]              = "请先选择事件",
+            ["eam.tag.inconsistent"]             = "标签不一致，无法批量编辑",
+            ["eam.tag.conditionalTagMenu"]       = "快捷标签菜单",
+            ["eam.tag.builtin.onMiss"]            = "未击中时触发",
+            ["eam.tag.builtin.onHit"]             = "击中时触发",
+            ["eam.tag.builtin.onHeldPressHit"]    = "长按击中时触发",
+            ["eam.tag.builtin.onHeldPressMiss"]   = "长按未击中时触发",
+            ["eam.tag.builtin.onHeldReleaseHit"]  = "长按释放击中时触发",
+            ["eam.tag.builtin.onHeldReleaseMiss"] = "长按释放未击中时触发",
 
             // 快捷操作
             ["eam.altEnter.unsupported"]           = "此事件不支持快捷操作",
@@ -4655,6 +4745,15 @@ namespace RDLevelEditorAccess
             ["eam.tagMode.enabled"]              = "Tag mode enabled",
             ["eam.tagMode.disabled"]             = "Tag mode disabled",
             ["eam.tag.noTag"]                    = "No tag",
+            ["eam.tag.noSelection"]              = "Please select an event first",
+            ["eam.tag.inconsistent"]             = "Tags are inconsistent, cannot batch edit",
+            ["eam.tag.conditionalTagMenu"]       = "Quick Tag Menu",
+            ["eam.tag.builtin.onMiss"]            = "Triggers on miss",
+            ["eam.tag.builtin.onHit"]             = "Triggers on hit",
+            ["eam.tag.builtin.onHeldPressHit"]    = "Triggers on held press hit",
+            ["eam.tag.builtin.onHeldPressMiss"]   = "Triggers on held press miss",
+            ["eam.tag.builtin.onHeldReleaseHit"]  = "Triggers on held release hit",
+            ["eam.tag.builtin.onHeldReleaseMiss"] = "Triggers on held release miss",
 
             // 快捷操作
             ["eam.altEnter.unsupported"]           = "This event does not support quick action",

@@ -28,13 +28,15 @@ namespace RDLevelEditorAccess.IPC
         private bool _isPolling;
         private Process _helperProcess;  // 当前运行的 Helper 进程（用于紧急终止）
         private string _sessionToken;  // 会话特征码
-        private string _currentEditType = "event";  // 当前编辑类型: "event"、"row"、"condition" 等
+        private string _currentEditType = "event";  // 当前编辑类型: "event"、"row"、"condition"、"tag" 等
         private MonoBehaviour _owner;  // 用于启动协程
         private bool _isPlayingSoundCoroutineRunning;  // 防止重入
         // 条件编辑专用
         private string _conditionalEditMode;  // "create" 或 "edit"
         private int _editingConditionalId;    // edit 模式时的目标条件 ID
         private LevelEvent_Base _conditionalTargetEvent;  // 新建时自动附加的目标事件
+        // 标签编辑专用
+        private List<LevelEventControl_Base> _tagEditControls;  // 标签编辑的目标控件列表（支持批量）
 
         /// <summary>
         /// 是否正在等待 Helper 返回结果
@@ -353,6 +355,10 @@ namespace RDLevelEditorAccess.IPC
                     else if (_currentEditType == "tickInput")
                     {
                         ApplyTickInputResult(resultData.updates);
+                    }
+                    else if (_currentEditType == "tag")
+                    {
+                        ApplyTagResult(resultData);
                     }
                     else if (_currentEvent != null)
                     {
@@ -2457,6 +2463,185 @@ namespace RDLevelEditorAccess.IPC
             WriteAndLaunch(sourceData, "条件编辑");
         }
 
+        /// <summary>
+        /// 打开 Helper 编辑事件标签（支持批量）
+        /// </summary>
+        public void StartTagEditing(List<LevelEventControl_Base> controls)
+        {
+            if (_isPolling)
+            {
+                Debug.LogWarning("[FileIPC] 已有编辑会话进行中");
+                return;
+            }
+
+            if (controls == null || controls.Count == 0)
+            {
+                Debug.LogWarning("[FileIPC] 标签编辑：没有选中事件");
+                return;
+            }
+
+            _currentEvent = null;
+            _currentRow = null;
+            _currentEditType = "tag";
+            _tagEditControls = new List<LevelEventControl_Base>(controls);
+            _sessionToken = System.Guid.NewGuid().ToString();
+
+            // 获取第一个事件的标签值作为默认值
+            var firstEvent = controls[0].levelEvent;
+            string commonTag = firstEvent.tag ?? "";
+            bool commonTagRunNormally = firstEvent.tagRunNormally;
+
+            // 直接构造仅含标签属性的列表（不经过 ExtractProperties）
+            var properties = new List<PropertyData>
+            {
+                new PropertyData
+                {
+                    name = "tag",
+                    displayName = RDString.Get("editor.tag"),
+                    value = commonTag,
+                    type = "String"
+                },
+                new PropertyData
+                {
+                    name = "tagRunNormally",
+                    displayName = "Tag Run Normally",
+                    value = commonTagRunNormally.ToString().ToLower(),
+                    type = "Bool"
+                },
+                new PropertyData
+                {
+                    name = "_showConditionalTagMenu",
+                    displayName = RDString.Get("eam.tag.conditionalTagMenu"),
+                    value = "",
+                    type = "Button",
+                    methodName = "showConditionalTagMenu"
+                }
+            };
+
+            // 收集条件标签选项
+            var conditionalTagOptions = CollectConditionalTagOptions();
+
+            var sourceData = new SourceData
+            {
+                editType = "tag",
+                eventType = "TagEdit",
+                token = _sessionToken,
+                properties = properties,
+                conditionalTagOptions = conditionalTagOptions
+            };
+
+            WriteAndLaunch(sourceData, "标签编辑");
+        }
+
+        /// <summary>
+        /// 游戏内置的事件触发标签（硬编码在游戏玩法代码中，通过 RunTagContaining 调用）
+        /// 注意：description 在每次调用时通过 RDString.Get 获取，因为静态初始化时 Harmony patch 可能尚未注入
+        /// </summary>
+        private static readonly string[] BuiltInEventTagNames = new[]
+        {
+            "[onMiss]",
+            "[onHit]",
+            "[onHeldPressHit]",
+            "[onHeldPressMiss]",
+            "[onHeldReleaseHit]",
+            "[onHeldReleaseMiss]",
+        };
+
+        private static readonly string[] BuiltInEventTagDescriptionKeys = new[]
+        {
+            "eam.tag.builtin.onMiss",
+            "eam.tag.builtin.onHit",
+            "eam.tag.builtin.onHeldPressHit",
+            "eam.tag.builtin.onHeldPressMiss",
+            "eam.tag.builtin.onHeldReleaseHit",
+            "eam.tag.builtin.onHeldReleaseMiss",
+        };
+
+        /// <summary>
+        /// 收集标签编辑器的快速选择选项（内置游戏标签 + 关卡中已使用的标签）
+        /// </summary>
+        private ConditionalTagOption[] CollectConditionalTagOptions()
+        {
+            var options = new List<ConditionalTagOption>();
+            var seenTags = new HashSet<string>();
+
+            // 添加内置游戏标签（延迟获取本地化文本，确保 Harmony patch 已注入）
+            for (int i = 0; i < BuiltInEventTagNames.Length; i++)
+            {
+                string tagName = BuiltInEventTagNames[i];
+                seenTags.Add(tagName);
+                options.Add(new ConditionalTagOption
+                {
+                    tag = tagName,
+                    description = RDString.Get(BuiltInEventTagDescriptionKeys[i])
+                });
+            }
+
+            var editor = scnEditor.instance;
+            if (editor == null) return options.ToArray();
+
+            try
+            {
+                // 添加 [rowX] 标签（X = 0-based 行号，运行时通过 RunTagContaining 匹配）
+                // 描述复用 BuildConditionRowNames 的格式：行号 + 角色名 + 房间
+                if (editor.rowsData != null)
+                {
+                    for (int i = 0; i < editor.rowsData.Count; i++)
+                    {
+                        string rowTag = $"[row{i}]";
+                        seenTags.Add(rowTag);
+
+                        var row = editor.rowsData[i];
+                        string charName = row.character == Character.Custom
+                            ? (row.customCharacterName ?? "?")
+                            : RDString.Get($"enum.Character.{row.character}.short");
+                        string roomDisplay = RDString.Get("editor.roomIndex").Replace("[index]", (row.room + 1).ToString());
+                        string desc = $"{i + 1} {charName} {roomDisplay}";
+
+                        options.Add(new ConditionalTagOption
+                        {
+                            tag = rowTag,
+                            description = desc
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FileIPC] 收集行标签选项失败: {ex.Message}");
+            }
+            
+            try
+            {
+                // 收集关卡中已使用的标签（从事件控件中提取）
+                if (editor.eventControls != null)
+                {
+                    foreach (var control in editor.eventControls)
+                    {
+                        if (control?.levelEvent == null) continue;
+                        string tag = control.levelEvent.tag;
+                        if (string.IsNullOrEmpty(tag)) continue;
+                        
+                        // 去重
+                        if (seenTags.Contains(tag)) continue;
+                        seenTags.Add(tag);
+                        
+                        options.Add(new ConditionalTagOption
+                        {
+                            tag = tag,
+                            description = ""  // 用户自定义标签没有额外描述
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[FileIPC] 收集已使用标签选项失败: {ex.Message}");
+            }
+
+            return options.ToArray();
+        }
+
         private SourceData BuildConditionSourceData(string mode, int id, string type, string tag, string description, float duration)
         {
             var allTypeProps = BuildAllTypeProperties();
@@ -2738,6 +2923,81 @@ namespace RDLevelEditorAccess.IPC
             string mode = _conditionalEditMode;
             OnConditionalSaved?.Invoke(id);
             Debug.Log($"[FileIPC] 条件{(mode == "edit" ? "编辑" : "新建")}完成，ID={id}");
+        }
+
+        /// <summary>
+        /// 应用标签编辑结果（支持批量修改多个事件）
+        /// </summary>
+        private void ApplyTagResult(ResultData resultData)
+        {
+            if (resultData?.action == "cancel")
+            {
+                Debug.Log("[FileIPC] 标签编辑已取消");
+                _tagEditControls = null;
+                return;
+            }
+
+            var updates = resultData?.updates;
+            if (updates == null || _tagEditControls == null || _tagEditControls.Count == 0)
+            {
+                _tagEditControls = null;
+                return;
+            }
+
+            var editor = scnEditor.instance;
+            if (editor == null)
+            {
+                _tagEditControls = null;
+                return;
+            }
+
+            // 使用外层 SaveStateScope 包裹所有修改（单一 undo 点）
+            // 多选时 SaveData() 是 no-op（changingState > 0 且 Count > 1），
+            // 所以 SaveStateScope 的 SaveState() 在构造时捕获 pre-batch 状态即可
+            try
+            {
+                using (new SaveStateScope())
+                {
+                    foreach (var control in _tagEditControls)
+                    {
+                        if (control == null || control.levelEvent == null) continue;
+
+                        var ev = control.levelEvent;
+                        
+                        if (updates.ContainsKey("tag"))
+                        {
+                            string tagValue = updates["tag"];
+                            ev.tag = string.IsNullOrEmpty(tagValue) ? null : tagValue;
+                        }
+                        
+                        if (updates.ContainsKey("tagRunNormally"))
+                        {
+                            ev.tagRunNormally = updates["tagRunNormally"] == "true";
+                        }
+                    }
+                } // SaveStateScope.Dispose → changingState 回零，pre-batch 状态已在 undo 栈上
+
+                // UI 更新在 scope 外（状态已稳定）
+                foreach (var control in _tagEditControls)
+                {
+                    if (control == null || control.levelEvent == null) continue;
+                    control.UpdateUI();
+                }
+
+                // 刷新 InspectorPanel
+                if (editor.selectedControl != null)
+                {
+                    editor.inspectorPanelManager?.GetCurrent()?.UpdateUI(editor.selectedControl.levelEvent);
+                }
+
+                Debug.Log($"[FileIPC] 已应用标签更改到 {_tagEditControls.Count} 个事件");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FileIPC] 应用标签更改失败: {ex.Message}");
+            }
+
+            _tagEditControls = null;
         }
 
         private void ApplySettingsUpdates(Dictionary<string, string> updates)
@@ -3457,7 +3717,7 @@ namespace RDLevelEditorAccess.IPC
         private class SourceData
         {
             public string language;   // "zh" or "en"
-            public string editType;  // "event"、"row"、"condition" 等
+            public string editType;  // "event"、"row"、"condition"、"tag" 等
             public string eventType;
             public string token;  // 会话特征码
             public List<PropertyData> properties;
@@ -3481,6 +3741,18 @@ namespace RDLevelEditorAccess.IPC
             public string conditionDescriptionLabelLocalized; // "描述" 标签
             public float conditionalDuration;                 // 事件当前的持续时间（拍）
             public string conditionDurationLabelLocalized;    // "持续时间" 标签
+            // 标签编辑专用字段
+            public ConditionalTagOption[] conditionalTagOptions;  // 条件标签选项列表（用于标签编辑器的快速选择菜单）
+        }
+
+        /// <summary>
+        /// 条件标签选项（用于标签编辑器中的条件标签快速选择菜单）
+        /// </summary>
+        [Serializable]
+        private class ConditionalTagOption
+        {
+            public string tag;          // 条件标签名
+            public string description;  // 条件描述（辅助辨识）
         }
 
         [Serializable]
