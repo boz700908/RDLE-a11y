@@ -99,7 +99,7 @@ namespace RDLevelEditorAccess
 
         // Beat Modifier 拍型选择菜单相关字段
         private LevelEvent_SetRowXs? _beatModifierTargetEvent = null;
-        private static readonly string[] BeatModifierPatterns = { "-x-x-x", "-xx-xx", "xx----" };
+        private static readonly string[] BeatModifierPatterns = { "------", "-x-x-x", "-xx-xx", "xx----" };
 
         // 紧急回退：Helper 卡死时快速按 Esc 5 次强制取消
         private int _emergencyEscCount = 0;
@@ -1403,7 +1403,7 @@ namespace RDLevelEditorAccess
             else
             {
                 // 数字键 1~3 直接跳到对应选项
-                for (int i = 1; i <= 3; i++)
+                for (int i = 1; i <= 4; i++)
                 {
                     if (Input.GetKeyDown(KeyCode.Alpha0 + i))
                     {
