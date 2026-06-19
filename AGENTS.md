@@ -1,274 +1,208 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Compact guidance for AI agents working in this repo. For full architecture details, see `CLAUDE.md`.
 
-## Project Overview
+## What This Project Is
 
-RDMods: Unity C# modding project for **Rhythm Doctor**, adds accessibility to level editor. Two projects via IPC:
+Unity C# mod for **Rhythm Doctor** level editor — adds keyboard navigation and screen reader support. Two separate .NET projects communicating via file-based IPC:
 
-- **RDLevelEditorAccess** (.NET Standard 2.1): BepInEx mod inside Unity, screen reader support
-- **RDEventEditorHelper** (.NET Framework 4.8): Standalone WinForms app for accessible event editing
+- **RDLevelEditorAccess** (.NET Standard 2.1): BepInEx mod running inside Unity
+- **RDEventEditorHelper** (.NET Framework 4.8): Standalone WinForms property editor
 
-**Architecture**: Mod ↔ Helper via file-based IPC: `temp/source.json` / `temp/result.json`.
-
-## Setup
-
-Copy `Directory.Build.user.props.example` → `Directory.Build.user.props`, set `<GameDir>` to RD install path.
-
-## Build Commands
+## Setup (Required Before Building)
 
 ```bash
-dotnet build RDLE-a11y.sln              # Debug (auto-deploys to GameDir)
-dotnet build RDLE-a11y.sln -c Release
-dotnet build RDLevelEditorAccess/RDLevelEditorAccess.csproj  # Individual project
-dotnet build RDEventEditorHelper/RDEventEditorHelper.csproj
-dotnet clean RDLE-a11y.sln
-./release.sh                            # Build Release + package into release/main/
+cp Directory.Build.user.props.example Directory.Build.user.props
+# Edit Directory.Build.user.props — set <GameDir> to RD install path
+# Example: C:\Program Files (x86)\Steam\steamapps\common\Rhythm Doctor
 ```
 
-**Auto-deployment**: `Directory.Build.props` copies on every build:
-- Mod DLL → `{GameDir}/BepInEx/plugins/`
+Builds auto-deploy to GameDir on every `dotnet build`. Without GameDir configured, build succeeds but nothing deploys.
+
+## Build & Release
+
+```bash
+dotnet build RDLE-a11y.sln              # Debug (auto-deploys)
+dotnet build RDLE-a11y.sln -c Release
+dotnet build RDLevelEditorAccess/RDLevelEditorAccess.csproj  # Single project
+dotnet build RDEventEditorHelper/RDEventEditorHelper.csproj
+./release.sh                            # Release build + package into release/main/
+```
+
+Auto-deployment targets (from `Directory.Build.props`):
+- Mod DLL + PDB → `{GameDir}/BepInEx/plugins/`
 - Helper EXE → `{GameDir}/`
 
-## Project Structure
+No test suite exists. `EditorFormTests.cs.bak` in Helper project is a disabled test file.
 
-```
-RDLevelEditorAccess/
-├── EditorAccess.cs           # BepInEx plugin entry, Harmony patches, AccessLogic MonoBehaviour (core, ~4000 lines)
-├── AccessibilityModule.cs    # Public API (AccessibilityBridge) + UnityDispatcher
-├── CustomUINavigator.cs      # Disables native UI navigation
-├── InputFieldReader.cs       # Text-to-speech for input fields
-└── IPC/
-    └── FileIPC.cs            # File-based IPC with Helper
+## Architecture Quick Reference
 
-RDEventEditorHelper/
-├── Program.cs                # Entry point, reads source.json, writes result.json
-└── EditorForm.cs             # WinForms property editor UI
+### Source Files (all that exist)
 
-agents references/Assembly-CSharp/
-└── RDLevelEditor/            # Decompiled game code (349 files)
-    ├── scnEditor.cs          # Main editor controller (~4000 lines)
-    ├── LevelEvent_Base.cs    # Base class for all events
-    ├── LevelEventInfo.cs     # Event metadata system
-    ├── BasePropertyInfo.cs   # Property type system
-    └── InspectorPanel.cs     # Property panel base
+| File | Role |
+|------|------|
+| `RDLevelEditorAccess/EditorAccess.cs` | **Core (~4200 lines)**: BepInEx plugin (`EditorAccess`), main logic (`AccessLogic`), `ModUtils`, `RDStringPatch` |
+| `RDLevelEditorAccess/AccessibilityModule.cs` | Public API (`AccessibilityBridge`) + `UnityDispatcher` |
+| `RDLevelEditorAccess/IPC/FileIPC.cs` | File-based IPC (~3200 lines), all Helper launch/result handling |
+| `RDLevelEditorAccess/CustomUINavigator.cs` | Disables Unity native directional key navigation |
+| `RDLevelEditorAccess/InputFieldReader.cs` | TTS for input fields (state diffing) |
+| `RDEventEditorHelper/Program.cs` | Entry point, reads source.json, writes result.json |
+| `RDEventEditorHelper/EditorForm.cs` | WinForms property editor UI (~2200 lines) |
 
-docs/
-├── manual-cn.md / manual-en.md        # User manuals (also .html versions)
-├── changelog-cn.txt / changelog-en.txt
-```
+### Execution Flow
 
-## Keyboard Shortcuts
+`EditorAccess.Awake()` → Harmony patches + scene loaded handler → `AccessLogic` MonoBehaviour created → `AccessLogic.Update()` dispatches to:
+1. `HandleGeneralUINavigation` (Unity UI menus open)
+2. `HandleTimelineNavigation` (default)
+3. `HandleVirtualMenu` (when `virtualMenuState != None`)
 
-| Shortcut | Function |
-|----------|----------|
-| **Insert** or **F2** | Add event at current timeline position |
-| **Ctrl+Insert** or **Ctrl+F2** | Add row/sprite (context-dependent) |
-| **Return** | Activate selected item / Open property editor |
-| **Arrow Keys** | Navigate timeline / Move events |
-| **Alt+Arrow** | Fine adjustment (0.01 beat) |
-| **Shift+Arrow** | Medium adjustment (0.1 beat) |
-| **Plain Arrow** | Coarse adjustment (1/denominator beat) |
-| **Alt+G** | Open grid size menu |
-| **Tab** | Navigate UI elements in menus |
+### Harmony Patches (all in EditorAccess.cs)
 
-`virtualMenuState != None`: arrow keys navigate virtual menus, not timeline.
-
-## Key Architecture Concepts
-
-### AccessLogic — core of mod
-
-`AccessLogic` (`EditorAccess.cs`): MonoBehaviour injected into scene. `Update()` dispatches to one of three mutually exclusive handlers:
-
-- **`HandleGeneralUINavigation`** — Unity UI menu open; Tab/Arrow/Enter in UI elements
-- **`HandleTimelineNavigation`** — default; event selection, movement, insertion/deletion
-- **`HandleVirtualMenu`** — `virtualMenuState != None`; arrow keys drive keyboard menu
-
-Key fields: `_editCursor` (BarAndBeat), `virtualMenuState` (VirtualMenuState enum), `virtualMenuIndex`, `virtualSelection` (multi-event set).
-
-### VirtualMenuState
-
-```csharp
-private enum VirtualMenuState
-{
-    None,
-    CharacterSelect,   // Adding row/sprite
-    EventTypeSelect,   // Selecting event type
-    LinkSelect,        // Selecting hyperlink target
-    EventChainSelect,  // Selecting saved event chain (;)
-    ConditionalSelect, // Browsing/toggling conditions on an event
-    GridSelect         // Grid size selection
-}
-```
-
-### Game Code Reference
-
-**CRITICAL**: Check `agents references/Assembly-CSharp/` before modifying code. Old版 subfolders = old decompiled code; unmarked = latest.
-
-Key concepts:
-- **Tab system**: Song(0), Rows(1), Actions(2), Rooms(3), Sprites(4), Windows(5)
-- **onlyUI properties**: `onlyUI = true` → NOT saved to level files
-- **PropertyInfo types**: Bool, Int, Float, String, Enum, Color, SoundData, Nullable, Array
-
-### SoundData Panel Sentinel Values
-
-`CreateSoundDataPanel()` in `EditorForm.cs`:
-
-| Tag | Meaning | Serialized as |
-|-----|---------|---------------|
-| `"__track_default__"` | Use track default (nullable SoundData) | `""` |
-| `"__manual__"` | Manual filename input mode | value from `ManualInput` TextBox |
-
-Guard against both sentinels in ListView selection / sound preview.
-
-### Localization
-
-Game built-in keys in `agents references/localization/` (`.bytes` files). Check before creating `eam.*` keys; use native keys when available.
-
-Native key locations:
-- Enum names: `Enums.bytes` — e.g. `enum.ConditionalType.Custom`
-- Editor UI labels: `LevelEditor.bytes` — e.g. `editor.Conditionals.expression`
-- Character names: `Enums.bytes` — e.g. `enum.Character.Ian.short`
-
-- `RDString.Get(key)` — goes through `RDStringPatch`, supports `eam.*`
-- `RDString.GetWithCheck(key, out bool exists)` — bypasses patch; use for native keys existence check. Do **not** use for `eam.*` keys.
-
-**Helper `displayName` localization**: pass single-language text via `RDString.Get("eam.*")` — no bilingual concatenation needed.
+| Patch Class | Target | Type | Purpose |
+|---|---|---|---|
+| `EditorPatch` | `scnEditor.SelectEventControl` | Postfix | Announce selection |
+| `EditorPatch` | `scnEditor.AddEventControlToSelection` | Postfix | Announce multi-select |
+| `VirtualMenuInputBlockPatch` | `scnEditor.userIsEditingAnInputField` | Postfix | Block input while virtual menu open |
+| `TabSectionPatch` | `TabSection.ChangePage` | Postfix | Announce tab page change |
+| `TabSwitchPatch` | `scnEditor.ShowTabSection` | Postfix | Announce tab switch |
+| `TimelinePatch` | `Timeline.PreviousPage` / `NextPage` | Postfix | Announce timeline page |
+| `TimelineNavigationPatch` | `scnEditor.PreviousButtonClick` / `NextButtonClick` | Postfix | Navigate by page with selection |
+| `CopyVirtualSelectionPatch` | `scnEditor.Copy` | Prefix | Ctrl+Shift+C: copy virtual selection |
+| `CutVirtualSelectionPatch` | `scnEditor.Cut` | Prefix | Ctrl+Shift+X: cut virtual selection |
+| `PasteAlignmentPatch` | `scnEditor.Paste` | Prefix+Postfix | Align pasted events to edit cursor |
+| `RDStringPatch` | `RDString.Get` | Prefix | Inject `eam.*` custom localization keys |
 
 ### IPC Protocol
 
-1. **Mod → temp/source.json**:
-   ```json
-   {
-     "editType": "event",
-     "eventType": "AddClassicBeat",
-     "token": "unique-session-id",
-     "properties": [
-       { "name": "bar", "type": "Int", "value": "1" },
-       { "name": "btn", "type": "Button", "methodName": "DoSomething" }
-     ],
-     "levelAudioFiles": ["song.ogg", "sfx.wav"]
-   }
-   ```
-   - Row editing: `"editType": "row"`, `"eventType": "MakeRow"`
-   - Level settings: `"editType": "settings"`
-   - `levelAudioFiles`: audio files in level dir (for SoundData properties)
+Mod writes `temp/source.json`, launches Helper EXE, polls for `temp/result.json`. Token-based session matching prevents races.
 
-2. Mod launches `RDEventEditorHelper.exe`
-3. Helper shows WinForms editor
-4. **Helper → temp/result.json**:
-   - Save: `{ "token": "...", "action": "ok", "updates": { "bar": "2" } }`
-   - Execute: `{ "token": "...", "action": "execute", "methodName": "DoSomething" }`
-   - Cancel: `{ "token": "...", "action": "cancel" }`
-5. Mod polls for result, applies changes, deletes result file
+Edit types: `"event"`, `"row"`, `"settings"`, `"condition"`, `"jump"`, `"chainName"`, `"gridCustom"`, `"tickInput"`.
 
-`token` matches responses to requests, prevents race conditions.
+Result actions: `"ok"` (with updates dict), `"execute"` (with methodName), `"cancel"`, `"bpmCalculator"` (with updates), `"validateVisibility"` (real-time property visibility check).
 
-`action: "execute"`: mod looks for `methodName` on `LevelEvent` (reflection), falls back to `scnEditor.instance.inspectorPanelManager.GetCurrent()` (hardcoded panel buttons like `BreakIntoOneshotBeats`). Hardcoded panel buttons registered in `HardcodedButtons` dict in `FileIPC.cs`, appended with `type: "Button"`.
+**Never call `FileIPC` directly** — use `AccessibilityBridge` in `AccessibilityModule.cs`.
 
-#### Dynamic UI Visibility
+### Game Code Reference
 
-1. **Helper → temp/validateVisibility.json**:
-   ```json
-   { "token": "...", "enableIfExpression": "rhythm == 'X'", "currentValues": { "rhythm": "X", "bar": "1" } }
-   ```
-2. **Mod → temp/validateVisibilityResponse.json**:
-   ```json
-   { "token": "...", "isVisible": true }
-   ```
+**Always check `agents references/Assembly-CSharp/` before modifying code.** This is decompiled game code. The `RDLevelEditor/` subfolder has ~360 files covering the editor API. Key files:
 
-Properties show/hide real-time without losing focus. Mod announces changes via low-priority screen reader notifications.
+- `scnEditor.cs` — main editor controller
+- `LevelEvent_Base.cs` — base class for all events
+- `LevelEventInfo.cs` / `BasePropertyInfo.cs` — event/property metadata
+- `InspectorPanel.cs` — property panel base
+- `SaveStateScope.cs` — undo scope
 
-### AccessibilityBridge (Public API)
+The `Assembly-CSharp-Old/` folder is an older decompile — use the unmarked one for current game code.
 
-`AccessibilityBridge` in `AccessibilityModule.cs` — entry point; do NOT call `FileIPC` directly:
+## Critical Patterns & Gotchas
+
+### Unity "Fake Null"
 
 ```csharp
-AccessibilityBridge.Initialize(gameObject);       // Call once on startup (from AccessLogic.Awake)
-AccessibilityBridge.EditEvent(levelEvent);         // Open event property editor
-AccessibilityBridge.EditRow(rowIndex);             // Open row property editor
-AccessibilityBridge.EditSettings();               // Open level settings editor
-AccessibilityBridge.CreateCondition(targetEvent); // Open condition creator (attaches to targetEvent)
-AccessibilityBridge.EditCondition(localId);       // Open condition editor for existing condition
-AccessibilityBridge.GridCustomInput(denominator); // Open custom grid size dialog
-AccessibilityBridge.Update();                     // Called every frame from AccessLogic.Update()
-AccessibilityBridge.IsEditing                     // True while Helper window is open
-AccessibilityBridge.SetConditionalSavedCallback(Action<int> callback); // Notify when condition saved
+// WRONG: Unity objects can be "fake null" after Destroy
+if (someUnityObj != null) { }
+
+// RIGHT:
+if (scnEditor.instance == null) return;
+if (menuObj != null && menuObj.activeInHierarchy) { }
 ```
 
-### ModUtils Utilities
+### SaveStateScope for Undo
 
-```csharp
-ModUtils.eventNameI18n(LevelEvent_Base evt)      // Get localized event name
-ModUtils.eventSelectI18n(LevelEvent_Base evt)    // Get selection announcement text
-ModUtils.FormatBarAndBeat(BarAndBeat bb)         // Format bar/beat display
-ModUtils.FormatBeat(float beat)                  // Format beat with smart rounding
-```
+`SaveStateScope` calls `SaveState()` in constructor (saves current state to undo stack), then increments `changingState`. `Dispose()` decrements `changingState`. When `changingState != 0`, `SaveState()` is a no-op — so nested scopes don't create extra undo points.
 
-### InputFieldReader
-
-TTS system for input fields (`InputFieldReader.cs`):
-- State diffing: compare prev/current text + caret
-- Character-by-character reading on type/delete
-- Caret movement: read char at cursor
-- Password: announce "星号"
-- Focus detection: prevent false announcements on focus change
-
-### SaveState Pattern
-
-Wrap programmatic property changes in `SaveStateScope` for undo:
+**Key rules:**
+- Wrap programmatic property changes in `using (new SaveStateScope())` for undo support
+- Call `UpdateUIInternal()` **outside** the scope
+- **Harmony Postfix caveat**: Postfix runs after the original method returns, so the original method's `SaveStateScope` has already disposed and `changingState` is back to 0. If you create a new `SaveStateScope` in Postfix, it will produce a **separate** undo point. This means one logical operation (e.g. paste+align) requires two Ctrl+Z to undo. **Do not wrap Postfix modifications in `SaveStateScope`** if they should be atomic with the original method's changes — the undo from `DecodeData` will already restore the pre-method state.
 
 ```csharp
 using (new SaveStateScope())
 {
     levelEvent.someProperty = newValue;
 }
+// UI update goes here, OUTSIDE the scope
+selectedControl.UpdateUIInternal();  // on LevelEventControl_Base
 ```
 
-Call `UpdateUIInternal()` **outside** scope — UI updates must not be part of saved state.
+### SoundData Sentinel Values
 
-### Unity + BepInEx Pattern
+In `EditorForm.cs`, `CreateSoundDataPanel()` uses two sentinel tags:
+- `"__track_default__"` → nullable SoundData, serialized as `""`
+- `"__manual__"` → manual filename input mode
 
-Two-part init: `EditorAccess` (BepInEx plugin, Harmony patches in `Awake`) + `AccessLogic` (MonoBehaviour, per-frame `Update`). All patches use `[HarmonyPostfix]`. `RDStringPatch` intercepts `RDString.Get` to inject `eam.*` keys.
+Guard against both in ListView selection / sound preview.
 
-### Grid Quantization
+### Localization
 
-Snap (C / Ctrl+/) and cursor step (`,`/`.`) use `scnEditor.instance.denominator` (1/N beat). Alt+G opens `GridSelect` virtual menu. Custom denominator via Helper dialog (`editType: "gridCustom"`). Access private fields via reflection cache in `EditorAccess.cs`; write via public `CycleSnapValues(int)`.
+- Game native keys live in `agents references/localization/auto/` (`.bytes` files)
+- `RDString.Get(key)` — goes through `RDStringPatch`, supports `eam.*` custom keys
+- `RDString.GetWithCheck(key, out bool exists)` — bypasses patch; use for checking native key existence only. **Never use for `eam.*` keys.**
+- Custom `eam.*` keys defined in `RDStringPatch` class (`EditorAccess.cs` bottom)
+- Check native keys first before adding new `eam.*` keys
+
+### Narration API
+
+```csharp
+Narration.Say("text", NarrationCategory.Navigation);
+Narration.Say("text", NarrationCategory.Navigation,
+              flipCategoryQueueBehaviour: true);  // queue after current speech
+```
+
+### Accessing Private Game Fields
+
+Use reflection cache pattern from `EditorAccess.cs`. Write via public methods like `CycleSnapValues(int)` when available.
+
+### Ctrl+Shift+Enter Quick Action
+
+`HandleAltEnter()` dispatches by event type. When adding support for a new event type, add a case to the switch in `HandleAltEnter()`.
+
+**Key modifier exclusion**: Ctrl+Enter and Shift+Enter handlers must exclude the other modifier to avoid Ctrl+Shift+Enter being intercepted:
+```csharp
+if (Input.GetKeyDown(KeyCode.Return) && ctrl && !shift) { ... }   // Ctrl+Enter
+if (Input.GetKeyDown(KeyCode.Return) && shift && !ctrl) { ... }   // Shift+Enter
+if (Input.GetKeyDown(KeyCode.Return) && ctrl && shift) { ... }    // Ctrl+Shift+Enter
+```
+
+### Virtual Menu Pattern
+
+To add a new virtual menu:
+1. Add value to `VirtualMenuState` enum
+2. Add `Start*()` method: set `virtualMenuState`, `virtualMenuIndex`, call `SetFakeInputField()`, announce
+3. Add `Handle*()` method: Up/Down navigate, Enter confirm, Escape cancel, optional number keys
+4. Add case in `HandleVirtualMenu()` switch
+5. On confirm: wrap changes in `SaveStateScope`, call `selectedControl.UpdateUIInternal()`, then `CloseVirtualMenu()`
+
+Current `VirtualMenuState` values: None, CharacterSelect, EventTypeSelect, LinkSelect, EventChainSelect, ConditionalSelect, GridSelect, VirtualSelectionOptions, BeatModifierPatternSelect.
+
+### Beat Modifier (SetRowXs) Pattern Property
+
+`LevelEvent_SetRowXs.pattern` is a 6-char string. Each position represents a beat in the measure:
+- `-` = normal (beat plays), `x` = skip (beat muted)
+- `u`/`d` = up/down arrow, `b`/`r` = pull/release (rare, right/middle click)
+
+Semantic naming follows `Narration.GetSkipSpeech` logic: list 1-indexed positions of `x` chars. E.g. `"-x-x-x"` → "X拍2 4 6".
 
 ## Code Style
 
-- Chinese comments standard; XML docs for public APIs; `[ModuleName]` prefix in logs
+- **Chinese comments** are standard; XML docs for public APIs
+- `[ModuleName]` prefix in log messages
 - Private fields: camelCase or `_prefix`; methods/classes/properties: PascalCase
-- Import groups: System → BepInEx/Harmony → Unity → RDLevelEditor, alphabetical within
-- `using Button = UnityEngine.UI.Button;` / `using Button = System.Windows.Forms.Button;` for namespace conflicts
+- Import order: System → BepInEx/Harmony → Unity → RDLevelEditor, alphabetical within
+- Namespace conflict resolution: `using Button = UnityEngine.UI.Button;` or `using Button = System.Windows.Forms.Button;`
 - Section separators: `// ==================...`
-
-## Unity-Specific
-
-### Null Checking (MANDATORY)
-
-Unity objects can be "fake null":
-
-```csharp
-if (scnEditor.instance == null) return;
-if (menuObj != null && menuObj.activeInHierarchy) { }
-```
-
-### Screen Reader
-
-```csharp
-Narration.Say("已选中按钮", NarrationCategory.Navigation);
-Narration.Say("菜单项", NarrationCategory.Navigation,
-              itemIndex: 2, itemsLength: 5,
-              elementType: ElementType.Button);
-```
+- Git commits: short Chinese — `添加 XX 功能` / `修复 XX 问题` / `重构 XX 模块`
 
 ## Debugging
 
 - Mod logs: `{GameDir}/BepInEx/LogOutput.log`
-- Helper logs: `{GameDir}/temp/RDEventEditorHelper.log` (overwrites on each launch)
+- Helper logs: `{GameDir}/temp/RDEventEditorHelper.log` (overwrites each launch)
 - Manual Helper test: create `temp/source.json`, run `RDEventEditorHelper.exe` from `{GameDir}`
+- PDB files auto-deploy alongside DLLs for debugging
 
-## Git Commit Messages
+## Key Game Concepts
 
-Short Chinese: `添加 XX 功能` / `修复 XX 问题` / `重构 XX 模块`
+- **Tab system**: Song(0), Rows(1), Actions(2), Rooms(3), Sprites(4), Windows(5)
+- **onlyUI properties**: `onlyUI = true` → NOT saved to level files
+- **PropertyInfo types**: Bool, Int, Float, String, Enum, Color, SoundData, Nullable, Array
+- **Grid**: `scnEditor.instance.denominator` = 1/N beat snap. Alt+G opens GridSelect menu.
