@@ -90,7 +90,10 @@ namespace RDEventEditorHelper
                                     ? Loc.Get("自定义网格精度", "Custom Grid Size")
                                     : editType == "tickInput"
                                         ? Loc.Get("设置 tick 值", "Set Tick Value")
-                                        : $"{Loc.Get("编辑事件", "Edit Event")}: {sourceData?.eventType}";
+                                        : editType == "tag"
+                                            ? Loc.Get("编辑标签", "Edit Tag")
+                                            : $"{Loc.Get("编辑事件", "Edit Event")}: {sourceData?.eventType}";
+                editorForm.ConditionalTagOptions = sourceData?.conditionalTagOptions;
                 editorForm.SetData(sourceData?.eventType, sourceData?.properties, title, sourceData?.levelAudioFiles, sourceData?.levelDirectory, sourceData?.localizedLevelAudioFiles, sessionToken, sourceData?.internalSongs);
             }
 
@@ -181,6 +184,8 @@ namespace RDEventEditorHelper
             public string conditionDescriptionLabelLocalized;
             public float conditionalDuration;
             public string conditionDurationLabelLocalized;
+            // 标签编辑专用字段
+            public ConditionalTagOption[] conditionalTagOptions;  // 条件标签选项列表
         }
 
         private class ResultData
@@ -195,5 +200,14 @@ namespace RDEventEditorHelper
             public string conditionalDescription;
             public float conditionalDuration = -1f;  // -1 表示未修改
         }
+    }
+
+    /// <summary>
+    /// 条件标签选项（用于标签编辑器中的快速选择菜单）
+    /// </summary>
+    public class ConditionalTagOption
+    {
+        public string tag;          // 条件标签名
+        public string description;  // 条件描述（辅助辨识）
     }
 }

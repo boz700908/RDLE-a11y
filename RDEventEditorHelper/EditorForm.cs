@@ -450,6 +450,18 @@ namespace RDEventEditorHelper
         private TextBox _conditionDescBox;                 // 条件描述输入框
         private TextBox _conditionDurationBox;             // 持续时间输入框
 
+        // 标签编辑专用
+        private ConditionalTagOption[] _conditionalTagOptions;  // 快捷标签选项列表
+
+        /// <summary>
+        /// 快捷标签选项列表（在 SetData 前设置，用于标签编辑器的快速选择菜单）
+        /// </summary>
+        public ConditionalTagOption[] ConditionalTagOptions
+        {
+            get => _conditionalTagOptions;
+            set => _conditionalTagOptions = value;
+        }
+
         /// <summary>
         /// 以条件编辑模式初始化窗口
         /// </summary>
@@ -1699,6 +1711,12 @@ namespace RDEventEditorHelper
                         string method = btn?.Tag as string;
                         if (!string.IsNullOrEmpty(method))
                         {
+                            // 条件标签菜单：在 Helper 内弹出上下文菜单，不关闭窗口
+                            if (method == "showConditionalTagMenu")
+                            {
+                                ShowConditionalTagMenu();
+                                return;
+                            }
                             _pendingExecuteMethod = method;
                             _isClosingByButton = true;
                             OnExecute?.Invoke(method);
@@ -1711,6 +1729,98 @@ namespace RDEventEditorHelper
                 }
 
                 _panel.Controls.Add(actionGroup);
+            }
+
+            // 标签编辑模式：tagRunNormally 根据 tag 内容动态启用/禁用
+            if (_controls.TryGetValue("tag", out var tagCtrl) && tagCtrl is System.Windows.Forms.TextBox tagTxtBox)
+            {
+                if (_controls.TryGetValue("tagRunNormally", out var tagRunCtrl) && tagRunCtrl is System.Windows.Forms.CheckBox tagRunChk)
+                {
+                    // 初始状态
+                    tagRunChk.Enabled = !string.IsNullOrEmpty(tagTxtBox.Text);
+
+                    // 动态联动
+                    tagTxtBox.TextChanged += (s, e) =>
+                    {
+                        tagRunChk.Enabled = !string.IsNullOrEmpty(tagTxtBox.Text);
+                        // tag 从空变为非空时，默认勾选 tagRunNormally
+                        if (!string.IsNullOrEmpty(tagTxtBox.Text) && !tagRunChk.Checked)
+                        {
+                            tagRunChk.Checked = true;
+                        }
+                    };
+                }
+            }
+        }
+
+        /// <summary>
+        /// 显示快捷标签上下文菜单（右键菜单样式）
+        /// </summary>
+        private void ShowConditionalTagMenu()
+        {
+            if (_conditionalTagOptions == null || _conditionalTagOptions.Length == 0)
+            {
+                System.Windows.Forms.MessageBox.Show(
+                    Loc.Get("没有可用的快捷标签", "No quick tags available"),
+                    Loc.Get("快捷标签菜单", "Quick Tag Menu"),
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Information);
+                return;
+            }
+
+            // 找到 tag 文本框控件
+            if (!_controls.TryGetValue("tag", out var tagControl) || !(tagControl is System.Windows.Forms.TextBox tagTextBox))
+            {
+                return;
+            }
+
+            // 创建上下文菜单
+            var menu = new System.Windows.Forms.ContextMenuStrip();
+
+            foreach (var option in _conditionalTagOptions)
+            {
+                string displayText = string.IsNullOrEmpty(option.description)
+                    ? option.tag
+                    : $"{option.tag} — {option.description}";
+
+                var item = new System.Windows.Forms.ToolStripMenuItem(displayText);
+                item.Tag = option.tag;  // 存储实际的标签值
+
+                item.Click += (s, e) =>
+                {
+                    var menuItem = s as System.Windows.Forms.ToolStripMenuItem;
+                    string selectedTag = menuItem?.Tag as string;
+                    if (selectedTag != null)
+                    {
+                        tagTextBox.Text = tagTextBox.Text + selectedTag;
+                        tagTextBox.SelectionStart = tagTextBox.Text.Length;
+                        tagTextBox.SelectionLength = 0;
+                        tagTextBox.Focus();
+
+                        // 启用 tagRunNormally 复选框（如果存在）
+                        if (_controls.TryGetValue("tagRunNormally", out var chkControl) && chkControl is System.Windows.Forms.CheckBox chk)
+                        {
+                            chk.Enabled = true;
+                        }
+                    }
+                };
+
+                menu.Items.Add(item);
+            }
+
+            // 在按钮位置附近显示菜单
+            // 找到触发按钮的位置
+            var buttonControl = _controls.Values.OfType<System.Windows.Forms.Button>()
+                .FirstOrDefault(b => b.Tag as string == "showConditionalTagMenu");
+
+            if (buttonControl != null)
+            {
+                var screenPos = buttonControl.PointToScreen(new System.Drawing.Point(0, buttonControl.Height));
+                menu.Show(screenPos);
+            }
+            else
+            {
+                menu.Show(Cursor.Position);
             }
         }
 
