@@ -88,13 +88,18 @@ namespace RDLevelEditorAccess
             EventChainSelect,     // 事件链选择
             ConditionalSelect,    // 条件选择
             GridSelect,            // 网格精度选择
-            VirtualSelectionOptions  // 虚拟选择选项
+            VirtualSelectionOptions,  // 虚拟选择选项
+            BeatModifierPatternSelect  // Beat Modifier 拍型选择
         }
 
         private VirtualMenuState virtualMenuState = VirtualMenuState.None;
         private int virtualMenuIndex = 0;
         private string virtualMenuPurpose = "";  // "row", "sprite", "event"
         private LevelEventType selectedEventType;
+
+        // Beat Modifier 拍型选择菜单相关字段
+        private LevelEvent_SetRowXs? _beatModifierTargetEvent = null;
+        private static readonly string[] BeatModifierPatterns = { "-x-x-x", "-xx-xx", "xx----" };
 
         // 紧急回退：Helper 卡死时快速按 Esc 5 次强制取消
         private int _emergencyEscCount = 0;
@@ -1180,6 +1185,9 @@ namespace RDLevelEditorAccess
                 case LevelEventType.AddClassicBeat:
                     HandleClassicBeatAltEnter(ev as LevelEvent_AddClassicBeat);
                     break;
+                case LevelEventType.SetRowXs:
+                    StartBeatModifierPatternSelect(ev as LevelEvent_SetRowXs);
+                    break;
                 default:
                     Narration.Say(RDString.Get("eam.altEnter.unsupported"), NarrationCategory.Navigation);
                     break;
@@ -1286,6 +1294,125 @@ namespace RDLevelEditorAccess
         {
             if (ev == null) return;
             AccessibilityBridge.TickInput(ev);
+        }
+
+        // ===================================================================================
+        // Beat Modifier 拍型选择菜单
+        // ===================================================================================
+
+        /// <summary>
+        /// 将 pattern 字符串转换为语义化朗读名称。
+        /// 参考 Narration.GetSkipSpeech 逻辑：遍历 pattern，对 x 位置累加编号。
+        /// 例如 "-x-x-x" → 中文 "X拍2 4 6" / 英文 "Skip beats 2 4 6"
+        /// </summary>
+        private string PatternToReadableName(string pattern)
+        {
+            string nums = "";
+            for (int i = 0; i < pattern.Length; i++)
+            {
+                if (pattern[i] == 'x')
+                {
+                    if (nums.Length > 0) nums += " ";
+                    nums += (i + 1).ToString();
+                }
+            }
+            if (nums.Length == 0)
+                return RDString.Get("eam.altEnter.setRowXs.noSkip");
+            return string.Format(RDString.Get("eam.altEnter.setRowXs.patternName"), nums);
+        }
+
+        /// <summary>
+        /// 开始 Beat Modifier 拍型选择虚拟菜单
+        /// </summary>
+        private void StartBeatModifierPatternSelect(LevelEvent_SetRowXs ev)
+        {
+            if (ev == null) return;
+
+            _beatModifierTargetEvent = ev;
+            virtualMenuState = VirtualMenuState.BeatModifierPatternSelect;
+            virtualMenuIndex = 0;
+            SetFakeInputField();
+
+            Narration.Say(PatternToReadableName(BeatModifierPatterns[0]), NarrationCategory.Navigation);
+            Narration.Say(RDString.Get("eam.altEnter.setRowXs.selectPrompt"), NarrationCategory.Instruction);
+        }
+
+        /// <summary>
+        /// 处理 Beat Modifier 拍型选择菜单的键盘输入
+        /// </summary>
+        private void HandleBeatModifierPatternSelectMenu()
+        {
+            if (_beatModifierTargetEvent == null)
+            {
+                CloseVirtualMenu();
+                return;
+            }
+
+            int count = BeatModifierPatterns.Length;
+
+            void AnnounceCurrentItem()
+            {
+                Narration.Say(PatternToReadableName(BeatModifierPatterns[virtualMenuIndex]),
+                    NarrationCategory.Navigation);
+            }
+
+            void ConfirmSelection()
+            {
+                var ev = _beatModifierTargetEvent;
+                if (ev == null)
+                {
+                    CloseVirtualMenu();
+                    return;
+                }
+
+                string newPattern = BeatModifierPatterns[virtualMenuIndex];
+                using (new SaveStateScope())
+                {
+                    ev.pattern = newPattern;
+                }
+                // 通知编辑器 UI 更新
+                var editor = scnEditor.instance;
+                if (editor?.selectedControl != null)
+                    editor.selectedControl.UpdateUIInternal();
+
+                Narration.Say(
+                    string.Format(RDString.Get("eam.altEnter.setRowXs.applied"), PatternToReadableName(newPattern)),
+                    NarrationCategory.Navigation);
+                CloseVirtualMenu();
+            }
+
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex - 1 + count) % count;
+                AnnounceCurrentItem();
+            }
+            else if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex + 1) % count;
+                AnnounceCurrentItem();
+            }
+            else if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                ConfirmSelection();
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
+                CloseVirtualMenu();
+            }
+            else
+            {
+                // 数字键 1~3 直接跳到对应选项
+                for (int i = 1; i <= 3; i++)
+                {
+                    if (Input.GetKeyDown(KeyCode.Alpha0 + i))
+                    {
+                        virtualMenuIndex = i - 1;
+                        AnnounceCurrentItem();
+                        break;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -1525,6 +1652,9 @@ namespace RDLevelEditorAccess
                     break;
                 case VirtualMenuState.VirtualSelectionOptions:
                     HandleVirtualSelectionOptionsMenu();
+                    break;
+                case VirtualMenuState.BeatModifierPatternSelect:
+                    HandleBeatModifierPatternSelectMenu();
                     break;
             }
         }
@@ -4357,6 +4487,10 @@ namespace RDLevelEditorAccess
             ["eam.altEnter.classic.tickLabel"]      = "分母（tick = 1/N拍）",
             ["eam.altEnter.classic.tickSet"]        = "tick 已设为 {0}",
             ["eam.altEnter.classic.tickInvalid"]    = "无效分母值",
+            ["eam.altEnter.setRowXs.patternName"]   = "X拍{0}",
+            ["eam.altEnter.setRowXs.noSkip"]        = "无X拍",
+            ["eam.altEnter.setRowXs.selectPrompt"]  = "上下键选择拍型，回车确认，Escape取消",
+            ["eam.altEnter.setRowXs.applied"]        = "已设置为{0}",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -4529,6 +4663,10 @@ namespace RDLevelEditorAccess
             ["eam.altEnter.classic.tickLabel"]      = "Denominator (tick = 1/N beat)",
             ["eam.altEnter.classic.tickSet"]        = "tick set to {0}",
             ["eam.altEnter.classic.tickInvalid"]    = "Invalid denominator value",
+            ["eam.altEnter.setRowXs.patternName"]   = "Skip beats {0}",
+            ["eam.altEnter.setRowXs.noSkip"]        = "No skip beats",
+            ["eam.altEnter.setRowXs.selectPrompt"]  = "Up/Down to select pattern, Enter to confirm, Escape to cancel",
+            ["eam.altEnter.setRowXs.applied"]        = "Set to {0}",
         };
 
         [HarmonyPrefix]
