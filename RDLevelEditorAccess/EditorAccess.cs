@@ -1988,7 +1988,7 @@ namespace RDLevelEditorAccess
         /// <summary>
         /// 朗读当前过滤分类名称和选中的选项
         /// </summary>
-        private void AnnounceCurrentFilterOption()
+        private void AnnounceCurrentFilterOption(bool includeCategory = true)
         {
             string categoryName;
             string optionName;
@@ -2002,10 +2002,7 @@ namespace RDLevelEditorAccess
                         if (tab == Tab.None)
                             optionName = RDString.Get("eam.filter.option.all");
                         else
-                        {
-                            string localized = RDString.GetWithCheck("editor." + tab.ToString(), out bool exists);
-                            optionName = exists ? localized : tab.ToString();
-                        }
+                            optionName = RDString.Get("editor." + tab.ToString().ToLower().Replace("song", "sounds"));
                     }
                     break;
                 case 1: // 事件类型
@@ -2046,7 +2043,7 @@ namespace RDLevelEditorAccess
                     return;
             }
 
-            Narration.Say(categoryName + " " + optionName, NarrationCategory.Navigation);
+            Narration.Say(includeCategory ? categoryName + " " + optionName : optionName, NarrationCategory.Navigation);
         }
 
         /// <summary>
@@ -2155,7 +2152,7 @@ namespace RDLevelEditorAccess
             if (changed)
             {
                 _filterCategoryIndices[_virtualMenuCategoryIndex] = virtualMenuIndex;
-                AnnounceCurrentFilterOption();
+                AnnounceCurrentFilterOption(includeCategory: false);
                 return;
             }
 
