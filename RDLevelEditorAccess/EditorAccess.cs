@@ -5035,8 +5035,8 @@ namespace RDLevelEditorAccess
             ["eam.filter.selectPrompt"]        = "按回车确认过滤规则并跳转，Escape取消",
             ["eam.filter.confirmed"]           = "过滤规则已确认，跳转到匹配事件",
             ["eam.filter.noMatch"]             = "没有符合过滤规则的事件",
-            ["eam.filter.lastMatch"]           = "已到最后一个匹配事件",
-            ["eam.filter.firstMatch"]          = "已到第一个匹配事件",
+            ["eam.filter.lastMatch"]           = "向后没有匹配的事件",
+            ["eam.filter.firstMatch"]          = "向前没有匹配的事件",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -5235,8 +5235,8 @@ namespace RDLevelEditorAccess
             ["eam.filter.selectPrompt"]        = "Press Enter to confirm filter and jump, Escape to cancel",
             ["eam.filter.confirmed"]           = "Filter confirmed, jumping to matching event",
             ["eam.filter.noMatch"]             = "No events match the filter rules",
-            ["eam.filter.lastMatch"]           = "Reached last matching event",
-            ["eam.filter.firstMatch"]          = "Reached first matching event",
+            ["eam.filter.lastMatch"]           = "No matching events backward",
+            ["eam.filter.firstMatch"]          = "No matching events forward",
         };
 
         [HarmonyPrefix]
