@@ -89,7 +89,8 @@ namespace RDLevelEditorAccess
             ConditionalSelect,    // 条件选择
             GridSelect,            // 网格精度选择
             VirtualSelectionOptions,  // 虚拟选择选项
-            BeatModifierPatternSelect  // Beat Modifier 拍型选择
+            BeatModifierPatternSelect,  // Beat Modifier 拍型选择
+            EventFilterSelect          // 事件过滤选择
         }
 
         private VirtualMenuState virtualMenuState = VirtualMenuState.None;
@@ -108,6 +109,20 @@ namespace RDLevelEditorAccess
 
         // 虚拟菜单激活时为 true，用于屏蔽游戏原生快捷键
         internal static bool IsVirtualMenuActive = false;
+
+        // 事件过滤规则
+        private Tab _filterRuleTab = Tab.None;         // Tab.None 表示"所有"
+        private LevelEventType _filterRuleEventType = LevelEventType.None; // None 表示"所有"
+        private string _filterRuleTag = null;           // null 表示"所有"，"" 表示"无"
+        private int _filterRuleRoom = -1;               // -1 表示"所有"，-2 表示"无"，0-3 表示房间
+        private int _virtualMenuCategoryIndex = 0;      // 双层导航：分类维度索引（0-3）
+
+        // 事件过滤菜单临时数据
+        private List<Tab> _filterTabOptions;             // 标签页选项列表
+        private List<LevelEventType> _filterEventTypeOptions; // 事件类型选项列表
+        private List<string> _filterTagOptions;           // 标签选项列表
+        private List<int> _filterRoomOptions;             // 房间选项列表（-1=所有, -2=无, 0-3）
+        private int[] _filterCategoryIndices;             // 每个分类当前选中的子选项索引
 
         // 条件选择菜单相关字段
         private struct ConditionalEntry
@@ -833,6 +848,36 @@ namespace RDLevelEditorAccess
                 {
                     Narration.Say(RDString.Get("eam.event.noSelection"), NarrationCategory.Navigation);
                 }
+                return;
+            }
+
+            // Ctrl+F: 打开事件过滤菜单
+            if (Input.GetKeyDown(KeyCode.F) &&
+                (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) &&
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift) &&
+                !Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.RightAlt))
+            {
+                StartEventFilterSelect();
+                return;
+            }
+
+            // Shift+F3: 跳转到上一个匹配事件（必须在F3之前检测）
+            if (Input.GetKeyDown(KeyCode.F3) &&
+                (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) &&
+                !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl) &&
+                !Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.RightAlt))
+            {
+                JumpToNextFilteredEvent(forward: false);
+                return;
+            }
+
+            // F3: 跳转到下一个匹配事件
+            if (Input.GetKeyDown(KeyCode.F3) &&
+                !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.RightShift) &&
+                !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.RightControl) &&
+                !Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.RightAlt))
+            {
+                JumpToNextFilteredEvent(forward: true);
                 return;
             }
 
@@ -1691,6 +1736,9 @@ namespace RDLevelEditorAccess
                 case VirtualMenuState.BeatModifierPatternSelect:
                     HandleBeatModifierPatternSelectMenu();
                     break;
+                case VirtualMenuState.EventFilterSelect:
+                    HandleEventFilterSelectMenu();
+                    break;
             }
         }
 
@@ -1866,6 +1914,262 @@ namespace RDLevelEditorAccess
             }
             
             // Escape 取消
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
+                CloseVirtualMenu();
+            }
+        }
+
+        // ===================================================================================
+        // 事件过滤选择菜单
+        // ===================================================================================
+
+        /// <summary>
+        /// 构建过滤选项列表（基于当前关卡中实际存在的事件类型和标签）
+        /// </summary>
+        private void BuildFilterOptions()
+        {
+            var editor = scnEditor.instance;
+
+            // 标签页选项：[None, Song, Rows, Actions, Rooms, Sprites, Windows]
+            _filterTabOptions = new List<Tab>
+            {
+                Tab.None, Tab.Song, Tab.Rows, Tab.Actions, Tab.Rooms, Tab.Sprites, Tab.Windows
+            };
+
+            // 事件类型选项：None（"所有"）+ 关卡中出现的所有事件类型，按枚举值排序
+            _filterEventTypeOptions = new List<LevelEventType> { LevelEventType.None };
+            if (editor != null && editor.eventControls != null)
+            {
+                var typeSet = new HashSet<LevelEventType>();
+                foreach (var ctrl in editor.eventControls)
+                {
+                    if (ctrl?.levelEvent != null)
+                        typeSet.Add(ctrl.levelEvent.type);
+                }
+                var sorted = typeSet.OrderBy(t => (int)t).ToList();
+                _filterEventTypeOptions.AddRange(sorted);
+            }
+
+            // 标签选项：[null（"所有"）, ""（"无"）] + 关卡中所有非空标签，按字母排序
+            _filterTagOptions = new List<string> { null, "" };
+            if (editor != null && editor.eventControls != null)
+            {
+                var tagSet = new HashSet<string>();
+                foreach (var ctrl in editor.eventControls)
+                {
+                    if (ctrl?.levelEvent != null && !string.IsNullOrWhiteSpace(ctrl.levelEvent.tag))
+                        tagSet.Add(ctrl.levelEvent.tag);
+                }
+                var sorted = tagSet.OrderBy(t => t).ToList();
+                _filterTagOptions.AddRange(sorted);
+            }
+
+            // 房间选项：[-1（"所有"）, -2（"无"）, 0, 1, 2, 3]
+            _filterRoomOptions = new List<int> { -1, -2, 0, 1, 2, 3 };
+        }
+
+        /// <summary>
+        /// 获取当前过滤分类的选项数量
+        /// </summary>
+        private int GetCurrentFilterCategoryCount()
+        {
+            switch (_virtualMenuCategoryIndex)
+            {
+                case 0: return _filterTabOptions?.Count ?? 0;
+                case 1: return _filterEventTypeOptions?.Count ?? 0;
+                case 2: return _filterTagOptions?.Count ?? 0;
+                case 3: return _filterRoomOptions?.Count ?? 0;
+                default: return 0;
+            }
+        }
+
+        /// <summary>
+        /// 朗读当前过滤分类名称和选中的选项
+        /// </summary>
+        private void AnnounceCurrentFilterOption()
+        {
+            string categoryName;
+            string optionName;
+
+            switch (_virtualMenuCategoryIndex)
+            {
+                case 0: // 标签页
+                    categoryName = RDString.Get("eam.filter.category.tab");
+                    {
+                        var tab = _filterTabOptions[virtualMenuIndex];
+                        if (tab == Tab.None)
+                            optionName = RDString.Get("eam.filter.option.all");
+                        else
+                        {
+                            string localized = RDString.GetWithCheck("editor." + tab.ToString(), out bool exists);
+                            optionName = exists ? localized : tab.ToString();
+                        }
+                    }
+                    break;
+                case 1: // 事件类型
+                    categoryName = RDString.Get("eam.filter.category.eventType");
+                    {
+                        var type = _filterEventTypeOptions[virtualMenuIndex];
+                        if (type == LevelEventType.None)
+                            optionName = RDString.Get("eam.filter.option.all");
+                        else
+                            optionName = GetEventTypeName(type);
+                    }
+                    break;
+                case 2: // 标签
+                    categoryName = RDString.Get("eam.filter.category.tag");
+                    {
+                        var tag = _filterTagOptions[virtualMenuIndex];
+                        if (tag == null)
+                            optionName = RDString.Get("eam.filter.option.all");
+                        else if (tag == "")
+                            optionName = RDString.Get("eam.filter.option.noTag");
+                        else
+                            optionName = tag;
+                    }
+                    break;
+                case 3: // 房间
+                    categoryName = RDString.Get("eam.filter.category.room");
+                    {
+                        var room = _filterRoomOptions[virtualMenuIndex];
+                        if (room == -1)
+                            optionName = RDString.Get("eam.filter.option.all");
+                        else if (room == -2)
+                            optionName = RDString.Get("eam.filter.option.none");
+                        else
+                            optionName = RDString.Get("eam.filter.room" + (room + 1));
+                    }
+                    break;
+                default:
+                    return;
+            }
+
+            Narration.Say(categoryName + " " + optionName, NarrationCategory.Navigation);
+        }
+
+        /// <summary>
+        /// 将当前菜单中的选择应用到过滤规则字段
+        /// </summary>
+        private void ApplyFilterRules()
+        {
+            _filterRuleTab = _filterTabOptions[_filterCategoryIndices[0]];
+            _filterRuleEventType = _filterEventTypeOptions[_filterCategoryIndices[1]];
+            _filterRuleTag = _filterTagOptions[_filterCategoryIndices[2]];
+            _filterRuleRoom = _filterRoomOptions[_filterCategoryIndices[3]];
+        }
+
+        /// <summary>
+        /// 开始事件过滤选择虚拟菜单（Ctrl+F）
+        /// </summary>
+        private void StartEventFilterSelect()
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            BuildFilterOptions();
+
+            // 初始化每个分类的选中索引（基于当前过滤规则）
+            _filterCategoryIndices = new int[4];
+
+            // 分类0（标签页）：查找 _filterRuleTab 在选项列表中的位置
+            _filterCategoryIndices[0] = _filterTabOptions.IndexOf(_filterRuleTab);
+            if (_filterCategoryIndices[0] < 0) _filterCategoryIndices[0] = 0;
+
+            // 分类1（事件类型）：查找 _filterRuleEventType 在选项列表中的位置
+            _filterCategoryIndices[1] = _filterEventTypeOptions.IndexOf(_filterRuleEventType);
+            if (_filterCategoryIndices[1] < 0) _filterCategoryIndices[1] = 0;
+
+            // 分类2（标签）：null→0 "所有"，""→1 "无"，其他→查找匹配
+            if (_filterRuleTag == null)
+                _filterCategoryIndices[2] = 0;
+            else if (_filterRuleTag == "")
+                _filterCategoryIndices[2] = 1;
+            else
+            {
+                _filterCategoryIndices[2] = _filterTagOptions.IndexOf(_filterRuleTag);
+                if (_filterCategoryIndices[2] < 0) _filterCategoryIndices[2] = 0;
+            }
+
+            // 分类3（房间）：_filterRoomOptions = [-1, -2, 0, 1, 2, 3]，直接查找
+            _filterCategoryIndices[3] = _filterRoomOptions.IndexOf(_filterRuleRoom);
+            if (_filterCategoryIndices[3] < 0) _filterCategoryIndices[3] = 0;
+
+            virtualMenuState = VirtualMenuState.EventFilterSelect;
+            _virtualMenuCategoryIndex = 0;
+            virtualMenuIndex = _filterCategoryIndices[0];
+            SetFakeInputField();
+
+            AnnounceCurrentFilterOption();
+            Narration.Say(RDString.Get("eam.filter.selectPrompt"), NarrationCategory.Instruction);
+        }
+
+        /// <summary>
+        /// 处理事件过滤选择菜单的键盘输入
+        /// Tab/Shift+Tab 切换分类维度，上下光标切换子选项，
+        /// Home/End 跳到首/尾，Enter 确认并跳转，Escape 取消
+        /// </summary>
+        private void HandleEventFilterSelectMenu()
+        {
+            // Tab / Shift+Tab：切换分类维度
+            if (Input.GetKeyDown(KeyCode.Tab))
+            {
+                if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                    _virtualMenuCategoryIndex = (_virtualMenuCategoryIndex - 1 + 4) % 4;
+                else
+                    _virtualMenuCategoryIndex = (_virtualMenuCategoryIndex + 1) % 4;
+
+                virtualMenuIndex = _filterCategoryIndices[_virtualMenuCategoryIndex];
+                AnnounceCurrentFilterOption();
+                return;
+            }
+
+            int count = GetCurrentFilterCategoryCount();
+            if (count == 0) return;
+
+            bool changed = false;
+
+            // 上下光标导航
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex - 1 + count) % count;
+                changed = true;
+            }
+            else if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                virtualMenuIndex = (virtualMenuIndex + 1) % count;
+                changed = true;
+            }
+            else if (Input.GetKeyDown(KeyCode.Home))
+            {
+                virtualMenuIndex = 0;
+                changed = true;
+            }
+            else if (Input.GetKeyDown(KeyCode.End))
+            {
+                virtualMenuIndex = count - 1;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                _filterCategoryIndices[_virtualMenuCategoryIndex] = virtualMenuIndex;
+                AnnounceCurrentFilterOption();
+                return;
+            }
+
+            // Enter：确认过滤规则并跳转
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                ApplyFilterRules();
+                CloseVirtualMenu();
+                Narration.Say(RDString.Get("eam.filter.confirmed"), NarrationCategory.Navigation);
+                JumpToNextFilteredEvent(forward: true);
+                return;
+            }
+
+            // Escape：取消
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 Narration.Say(RDString.Get("eam.action.cancelled"), NarrationCategory.Navigation);
@@ -3585,6 +3889,143 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
+        /// 获取所有匹配当前过滤规则的事件（扫描所有标签页、四维度过滤、sortOrder 排序）
+        /// </summary>
+        private List<LevelEventControl_Base> GetAllFilteredEvents()
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return new List<LevelEventControl_Base>();
+
+            var results = new List<LevelEventControl_Base>();
+
+            void ScanList(List<LevelEventControl_Base> list)
+            {
+                if (list == null) return;
+                foreach (var ctrl in list)
+                {
+                    if (ctrl == null || ctrl.isBase) continue;
+                    var evt = ctrl.levelEvent;
+                    if (evt == null) continue;
+
+                    // Tab 过滤：_filterRuleTab == Tab.None 表示"所有"
+                    if (_filterRuleTab != Tab.None && evt.tab != _filterRuleTab) continue;
+
+                    // 事件类型过滤：_filterRuleEventType == LevelEventType.None 表示"所有"
+                    if (_filterRuleEventType != LevelEventType.None && evt.type != _filterRuleEventType) continue;
+
+                    // 标签过滤：_filterRuleTag == null 表示"所有"，"" 表示"无标签"
+                    if (_filterRuleTag != null)
+                    {
+                        if (_filterRuleTag == "")
+                        {
+                            if (!string.IsNullOrEmpty(evt.tag)) continue;
+                        }
+                        else
+                        {
+                            if (evt.tag != _filterRuleTag) continue;
+                        }
+                    }
+
+                    // 房间过滤：_filterRuleRoom == -1 表示"所有"，-2 表示"无"
+                    if (_filterRuleRoom != -1)
+                    {
+                        if (_filterRuleRoom == -2)
+                        {
+                            if (evt.roomsUsage != RoomsUsage.NotUsed && evt.rooms.Length > 0) continue;
+                        }
+                        else
+                        {
+                            if (evt.roomsUsage == RoomsUsage.NotUsed) continue;
+                            if (!Array.Exists(evt.rooms, r => r == _filterRuleRoom)) continue;
+                        }
+                    }
+
+                    results.Add(ctrl);
+                }
+            }
+
+            // 扫描所有标签页
+            ScanList(editor.eventControls_sounds);
+            if (editor.eventControls_rows != null)
+            {
+                foreach (var row in editor.eventControls_rows) ScanList(row);
+            }
+            ScanList(editor.eventControls_actions);
+            ScanList(editor.eventControls_rooms);
+            if (editor.eventControls_sprites != null)
+            {
+                foreach (var spr in editor.eventControls_sprites) ScanList(spr);
+            }
+            ScanList(editor.eventControls_windows);
+
+            // 按 sortOrder 升序，再按 y 升序
+            return results.OrderBy(c => c.levelEvent.sortOrder).ThenBy(c => c.levelEvent.y).ToList();
+        }
+
+        /// <summary>
+        /// 跳转到下一个/上一个匹配过滤规则的事件（复用 NavigateToEventControl）
+        /// </summary>
+        private void JumpToNextFilteredEvent(bool forward)
+        {
+            var editor = scnEditor.instance;
+            if (editor == null) return;
+
+            var matches = GetAllFilteredEvents();
+            if (matches == null || matches.Count == 0)
+            {
+                Narration.Say(RDString.Get("eam.filter.noMatch"), NarrationCategory.Navigation);
+                return;
+            }
+
+            // 参考位置：当前选中事件 > 编辑光标
+            int refSortOrder;
+            int refY;
+            var selected = editor.selectedControl;
+            if (selected != null && selected.levelEvent != null)
+            {
+                refSortOrder = selected.levelEvent.sortOrder;
+                refY = selected.levelEvent.y;
+            }
+            else
+            {
+                // 用编辑光标近似 sortOrder 作为比较基准
+                refSortOrder = (int)(_editCursor.bar * 10000 + _editCursor.beat * 100);
+                refY = 0;
+            }
+
+            LevelEventControl_Base target = null;
+
+            if (forward)
+            {
+                // 找第一个 sortOrder > refSortOrder 或同 sortOrder 但 y > refY 的事件
+                target = matches.FirstOrDefault(c =>
+                    c.levelEvent.sortOrder > refSortOrder ||
+                    (c.levelEvent.sortOrder == refSortOrder && c.levelEvent.y > refY));
+
+                if (target == null)
+                {
+                    Narration.Say(RDString.Get("eam.filter.lastMatch"), NarrationCategory.Navigation);
+                    return;
+                }
+            }
+            else
+            {
+                // 找最后一个 sortOrder < refSortOrder 或同 sortOrder 但 y < refY 的事件
+                target = matches.LastOrDefault(c =>
+                    c.levelEvent.sortOrder < refSortOrder ||
+                    (c.levelEvent.sortOrder == refSortOrder && c.levelEvent.y < refY));
+
+                if (target == null)
+                {
+                    Narration.Say(RDString.Get("eam.filter.firstMatch"), NarrationCategory.Navigation);
+                    return;
+                }
+            }
+
+            NavigateToEventControl(target);
+        }
+
+        /// <summary>
         /// 兼容创建 SoundDataStruct（稳定版无 used 字段时回退到 5 参数构造）
         /// </summary>
         private static SoundDataStruct CreateSoundDataStructCompat(
@@ -4584,6 +5025,25 @@ namespace RDLevelEditorAccess
             ["eam.altEnter.setRowXs.noSkip"]        = "无X拍",
             ["eam.altEnter.setRowXs.selectPrompt"]  = "上下键选择拍型，回车确认，Escape取消",
             ["eam.altEnter.setRowXs.applied"]        = "已设置为{0}",
+
+            // 事件过滤
+            ["eam.filter.title"]               = "事件过滤",
+            ["eam.filter.category.tab"]        = "标签页",
+            ["eam.filter.category.eventType"]  = "事件类型",
+            ["eam.filter.category.tag"]        = "标签",
+            ["eam.filter.category.room"]       = "房间",
+            ["eam.filter.option.all"]          = "所有",
+            ["eam.filter.option.none"]         = "无",
+            ["eam.filter.option.noTag"]        = "无标签",
+            ["eam.filter.selectPrompt"]        = "按回车确认过滤规则并跳转，Escape取消",
+            ["eam.filter.confirmed"]           = "过滤规则已确认，跳转到匹配事件",
+            ["eam.filter.noMatch"]             = "没有符合过滤规则的事件",
+            ["eam.filter.lastMatch"]           = "已到最后一个匹配事件",
+            ["eam.filter.firstMatch"]          = "已到第一个匹配事件",
+            ["eam.filter.room0"]               = "房间1",
+            ["eam.filter.room1"]               = "房间2",
+            ["eam.filter.room2"]               = "房间3",
+            ["eam.filter.room3"]               = "房间4",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -4769,6 +5229,25 @@ namespace RDLevelEditorAccess
             ["eam.altEnter.setRowXs.noSkip"]        = "No skip beats",
             ["eam.altEnter.setRowXs.selectPrompt"]  = "Up/Down to select pattern, Enter to confirm, Escape to cancel",
             ["eam.altEnter.setRowXs.applied"]        = "Set to {0}",
+
+            // Event filter
+            ["eam.filter.title"]               = "Event Filter",
+            ["eam.filter.category.tab"]        = "Tab",
+            ["eam.filter.category.eventType"]  = "Event Type",
+            ["eam.filter.category.tag"]        = "Tag",
+            ["eam.filter.category.room"]       = "Room",
+            ["eam.filter.option.all"]          = "All",
+            ["eam.filter.option.none"]         = "None",
+            ["eam.filter.option.noTag"]        = "No Tag",
+            ["eam.filter.selectPrompt"]        = "Press Enter to confirm filter and jump, Escape to cancel",
+            ["eam.filter.confirmed"]           = "Filter confirmed, jumping to matching event",
+            ["eam.filter.noMatch"]             = "No events match the filter rules",
+            ["eam.filter.lastMatch"]           = "Reached last matching event",
+            ["eam.filter.firstMatch"]          = "Reached first matching event",
+            ["eam.filter.room0"]               = "Room 1",
+            ["eam.filter.room1"]               = "Room 2",
+            ["eam.filter.room2"]               = "Room 3",
+            ["eam.filter.room3"]               = "Room 4",
         };
 
         [HarmonyPrefix]
