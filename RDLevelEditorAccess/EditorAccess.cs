@@ -3974,11 +3974,15 @@ namespace RDLevelEditorAccess
                 return;
             }
 
-            // 参考位置：当前选中事件 > 编辑光标
+            // 参考位置：选中且符合规则的事件 > 编辑光标
+            // 当选中的事件不符合匹配规则或没有选中事件时，先尝试光标位置上的匹配事件
+            var selected = editor.selectedControl;
+            bool hasValidSelection = selected != null && selected.levelEvent != null
+                && matches.Contains(selected);
             int refSortOrder;
             int refY;
-            var selected = editor.selectedControl;
-            if (selected != null && selected.levelEvent != null)
+
+            if (hasValidSelection)
             {
                 refSortOrder = selected.levelEvent.sortOrder;
                 refY = selected.levelEvent.y;
@@ -3988,6 +3992,15 @@ namespace RDLevelEditorAccess
                 // 用编辑光标近似 sortOrder 作为比较基准
                 refSortOrder = (int)(_editCursor.bar * 10000 + _editCursor.beat * 100);
                 refY = 0;
+
+                // 先尝试跳转到光标位置上的匹配事件
+                var atCursor = matches.FirstOrDefault(c =>
+                    c.levelEvent.sortOrder == refSortOrder);
+                if (atCursor != null)
+                {
+                    NavigateToEventControl(atCursor);
+                    return;
+                }
             }
 
             LevelEventControl_Base target = null;
