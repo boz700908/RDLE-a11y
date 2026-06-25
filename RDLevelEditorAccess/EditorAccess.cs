@@ -2039,7 +2039,7 @@ namespace RDLevelEditorAccess
                         else if (room == -2)
                             optionName = RDString.Get("eam.filter.option.none");
                         else
-                            optionName = RDString.Get("eam.filter.room" + (room + 1));
+                            optionName = $"{RDString.Get("editor.room")} {room + 1}";
                     }
                     break;
                 default:
@@ -5040,10 +5040,6 @@ namespace RDLevelEditorAccess
             ["eam.filter.noMatch"]             = "没有符合过滤规则的事件",
             ["eam.filter.lastMatch"]           = "已到最后一个匹配事件",
             ["eam.filter.firstMatch"]          = "已到第一个匹配事件",
-            ["eam.filter.room0"]               = "房间1",
-            ["eam.filter.room1"]               = "房间2",
-            ["eam.filter.room2"]               = "房间3",
-            ["eam.filter.room3"]               = "房间4",
         };
 
         private static readonly Dictionary<string, string> _en = new Dictionary<string, string>
@@ -5244,10 +5240,6 @@ namespace RDLevelEditorAccess
             ["eam.filter.noMatch"]             = "No events match the filter rules",
             ["eam.filter.lastMatch"]           = "Reached last matching event",
             ["eam.filter.firstMatch"]          = "Reached first matching event",
-            ["eam.filter.room0"]               = "Room 1",
-            ["eam.filter.room1"]               = "Room 2",
-            ["eam.filter.room2"]               = "Room 3",
-            ["eam.filter.room3"]               = "Room 4",
         };
 
         [HarmonyPrefix]
