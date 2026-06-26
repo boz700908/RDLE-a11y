@@ -1,17 +1,25 @@
+1.9 (2026-06-27)
+Guaranteed compatible game version: 1.1.1 (updated 2026-06-16)
+1. Improved support for tag mode. In tag mode, ctrl+enter will now open a dedicated tag editing page that supports more detailed tag editing.
+2. Added event search functionality. You can quickly locate events matching specific criteria based on configurable match rules. (See section 5.3 of the manual)
+3. Added ctrl+shift+enter quick action feature, which performs different actions depending on the type of selected event. (See section 4.4.4 of the manual)
+4. Major reorganization of the user manual.
+5. Fixed an issue where ctrl+v paste required two undos to revert.
+
 1.8 (2026-05-27)
 Guaranteed compatible game version: 1.1.0 (updated 2026-04-22)
 1. Preliminary support for the game's tag mode. Support is currently very limited. Press shift+number key 0 to toggle tag mode. In tag mode, when browsing events, event positions will not be read out; instead, event tags will be announced. More support for this mode will come in future versions.
-2. Added ctrl+alt+space to open the virtual selection extension menu, with two new operations: "Select all events in virtual selection" and "Add selected events to virtual selection". (See section 4.6.1 of the manual)
+2. Added ctrl+alt+space to open the virtual selection extension menu, with two new operations: "Select all events in virtual selection" and "Add selected events to virtual selection". (See section 5.1.1 of the manual)
 3. The insert event menu now supports quick navigation to corresponding event types via letter shortcuts.
 4. Slightly improved the editing experience in the helper. PS: Oh no, my changelog is starting to get casual too.
 
 1.7 (2026-04-25)
 Guaranteed compatible game version: 1.1.0 (updated 2026-04-22)
-1. Added support for the native editor's grid system, with minor changes to some shortcut behaviors. (See sections 4.4, 4.5, and 4.7.1 of the manual)
+1. Added support for the native editor's grid system, with minor changes to some shortcut behaviors. (See sections 4.5, 4.6, and 4.4.1 of the manual)
 2. Attempted to fix a bug where the helper would crash frequently.
 3. Improved helper localization.
 4. Added backtick (`) to toggle single/two-player mode, for testing how the level behaves in different modes.
-5. Reorganized section 8.2 of the manual, categorizing shortcuts for easier reference.
+5. Reorganized section 9.2 of the manual, categorizing shortcuts for easier reference.
 
 1.6.3 (2026-04-21)
 Guaranteed compatible game version: 1.1.0 (updated 2026-04-21)
@@ -34,7 +42,7 @@ Guaranteed compatible game version: 1.0.5 (updated 2026-03-26)
 1.6 (2026-04-01)
 Note: Starting from this version, the mod will only guarantee compatibility with the latest public beta of the game. The compatible version will be noted in the changelog with each update. The mod may still work in other game versions, but not all features are guaranteed to function correctly. When reporting issues, please make sure you are using the compatible version or above.
 Guaranteed compatible game version: 1.0.5 (updated 2026-03-26)
-1. Added support for the conditions system. (See section 4.8 of the manual)
+1. Added support for the conditions system. (See section 5.2 of the manual)
 2. When previewing sounds in the helper, pressing space again on the currently playing audio will stop playback. Closing the helper will also stop all sounds currently being previewed.
 
 1.5.1 (2026-03-28)
@@ -44,7 +52,7 @@ Guaranteed compatible game version: 1.0.5 (updated 2026-03-26)
 4. Added support for the native editor's BPM calculator.
 
 1.5 (2026-03-25)
-1. Added virtual selection and event chain features, improving efficiency when performing complex event selections and additions. (See section 4.6 of the manual)
+1. Added virtual selection and event chain features, improving efficiency when performing complex event selections and additions. (See section 5.1 of the manual)
 2. Possibly fixed an issue where music offset had a chance of becoming 0.
 
 1.4.0.2 (2026-03-22)
@@ -70,7 +78,7 @@ Fixed a bug introduced in v1.4 where left/right cursor navigation would switch t
 3. Fixed an issue with floating-point precision loss.
 
 1.3 (2026-03-07)
-1. Added a set of shortcuts to perform simple edits on event properties without opening the helper. (See section 4.7.2 of the manual)
+1. Added a set of shortcuts to perform simple edits on event properties without opening the helper. (See section 4.4.2 of the manual)
 2. Optimized row editing, now supports more properties.
 3. When selecting music, you can now choose from all built-in music in the game.
 4. Fixed a bug where audio files in the level directory could not be previewed.

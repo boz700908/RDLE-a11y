@@ -1,8 +1,6 @@
 ﻿# Rhythm Doctor Level Editor Accessibility Mod User Manual
 
-- -----
-
-<!-- MarkdownEditor:TOC min=2 max=6 numbered=false -->
+------
 
 # Table of Contents
 
@@ -22,60 +20,63 @@
     - [3.1.4 Rooms](#314-rooms)
   - [3.2 First Launch](#32-first-launch)
   - [3.3 Preparation Before Creating a Level](#33-preparation-before-creating-a-level)
-- [4. Operation Instructions](#4-operation-instructions)
+- [4. Basic Operations](#4-basic-operations)
   - [4.1 Menu/Dialog Navigation](#41-menudialog-navigation)
   - [4.2 Timeline Navigation](#42-timeline-navigation)
   - [4.3 Creating Rows and Events](#43-creating-rows-and-events)
-  - [4.4 Grid System](#44-grid-system)
-  - [4.5 Edit Cursor](#45-edit-cursor)
-  - [4.6 Virtual Selection and Event Chains](#46-virtual-selection-and-event-chains)
-    - [4.6.1 Virtual Selection](#461-virtual-selection)
-    - [4.6.2 Event Chains](#462-event-chains)
-  - [4.7 Editing Events](#47-editing-events)
-    - [4.7.1 Moving Events](#471-moving-events)
-    - [4.7.2 Editing Event Properties](#472-editing-event-properties)
-    - [4.7.3 Advanced Editing](#473-advanced-editing)
-  - [4.8 Conditions System](#48-conditions-system)
-  - [4.9 Editing Level Metadata](#49-editing-level-metadata)
-- [5. External Editor (RDEventEditorHelper)](#5-external-editor-rdeventeditorhelper)
-  - [5.1 What is this?](#51-what-is-this)
-  - [5.2 How to use?](#52-how-to-use)
-- [6. Known Issues and Limitations](#6-known-issues-and-limitations)
-- [7. FAQ](#7-faq)
+  - [4.4 Editing Events](#44-editing-events)
+    - [4.4.1 Moving Events](#441-moving-events)
+    - [4.4.2 Editing Event Properties](#442-editing-event-properties)
+    - [4.4.3 Advanced Editing](#443-advanced-editing)
+    - [4.4.4 Quick Actions](#444-quick-actions)
+  - [4.5 Grid System](#45-grid-system)
+  - [4.6 Edit Cursor](#46-edit-cursor)
+- [5. Advanced Features](#5-advanced-features)
+  - [5.1 Virtual Selection and Event Chains](#51-virtual-selection-and-event-chains)
+    - [5.1.1 Virtual Selection](#511-virtual-selection)
+    - [5.1.2 Event Chains](#512-event-chains)
+  - [5.2 Conditions System](#52-conditions-system)
+  - [5.3 Event Search](#53-event-search)
+  - [5.4 Tag Mode](#54-tag-mode)
+  - [5.5 Editing Level Metadata](#55-editing-level-metadata)
+- [6. External Editor (RDEventEditorHelper)](#6-external-editor-rdeventeditorhelper)
+  - [6.1 What is this?](#61-what-is-this)
+  - [6.2 How to use?](#62-how-to-use)
+- [7. Known Issues and Limitations](#7-known-issues-and-limitations)
+- [8. FAQ](#8-faq)
   - [How to switch the game to the beta branch?](#how-to-switch-the-game-to-the-beta-branch)
   - [How to report issues effectively?](#how-to-report-issues-effectively)
   - [Why isn't the mod loading?](#why-isnt-the-mod-loading)
   - [Why won't the helper open?](#why-wont-the-helper-open)
   - [Why does the game freeze after the save dialog pops up?](#why-does-the-game-freeze-after-the-save-dialog-pops-up)
   - [Why do all native editor shortcuts stop working after I click cancel in the save dialog when exiting the level editor?](#why-do-all-native-editor-shortcuts-stop-working-after-i-click-cancel-in-the-save-dialog-when-exiting-the-level-editor)
-- [8. Appendix](#8-appendix)
-  - [8.1 Native Editor Common Shortcuts Reference](#81-native-editor-common-shortcuts-reference)
-  - [8.2 Mod Shortcuts Reference](#82-mod-shortcuts-reference)
+- [9. Appendix](#9-appendix)
+  - [9.1 Native Editor Common Shortcuts Reference](#91-native-editor-common-shortcuts-reference)
+  - [9.2 Mod Shortcuts Reference](#92-mod-shortcuts-reference)
     - [Menu Operations](#menu-operations)
     - [Basic Operations](#basic-operations)
     - [Editing Operations](#editing-operations)
     - [Edit Cursor](#edit-cursor)
     - [Virtual Selection and Event Chains](#virtual-selection-and-event-chains)
-  - [8.3 Contact Information](#83-contact-information)
-  - [8.4 Sponsorship](#84-sponsorship)
+  - [9.3 Contact Information](#93-contact-information)
+  - [9.4 Sponsorship](#94-sponsorship)
 
-<!-- /MarkdownEditor:TOC -->
 
-- -----
+------
 
 # Main Content
 
-# # 0. TL;DR Version
+## 0. TL;DR Version
 
 If you don't like reading my ~~time-wasting nonsense~~ professional hardcore user manual, or if you prefer to explore on your own, here are some important sections. I think it's still better to read them.
 
 - [1.3 Important Notes](#13-important-notes)
-- [6. Known Issues and Limitations](#6-known-issues-and-limitations)
-- [8. Appendix](#8-appendix)
+- [7. Known Issues and Limitations](#7-known-issues-and-limitations)
+- [9. Appendix](#9-appendix)
 
-# # 1. Basic Introduction
+## 1. Basic Introduction
 
-## # 1.1 What is this?
+### 1.1 What is this?
 
 That's a good question. This proves you've touched upon the most fundamental and important core concept of this project. So what exactly is it?
 
@@ -83,23 +84,23 @@ Isn't that obvious? The name says it all. No need to ask such simple questions. 
 
 Well, after my detailed introduction, I'm sure you already know what this project is for, so let's continue. ~~Actually, I didn't say anything at all~~
 
-## # 1.2 Main Features
+### 1.2 Main Features
 
 - No mouse required (full keyboard navigation support)
 - Complete voice feedback (shares the same narration module as the native game)
 - Provides Chinese and English localization support (automatically determined based on game settings)
 - More to be added when I think of them
 
-## # 1.3 Important Notes
+### 1.3 Important Notes
 
 To prevent you from thinking the manual is too long and not wanting to read it, I need to state some important notes upfront.
 
 1. This mod currently has certain limitations, especially for visual features (such as window dance, sprites, etc.) which are not yet fully supported.
 2. Although the mod is relatively stable, it's still recommended that you develop a habit of **saving frequently**. I've encountered inexplicable crashes before (see details [here](#why-does-the-game-freeze-after-the-save-dialog-pops-up)), but fortunately I had this good habit. Well, I was forced to develop it.
 
-# # 2. Installation
+## 2. Installation
 
-## # 2.1 System Requirements
+### 2.1 System Requirements
 
 - Windows system (don't ask me which specific version, as long as the game can run, the mod should probably run too)
 - Rhythm Doctor game (1.0+, standalone editor not supported)
@@ -109,35 +110,35 @@ Note: It is recommended to use the latest public beta of the game for the best c
 
 [Click here to see how to switch](#how-to-switch-the-game-to-the-beta-branch)
 
-## # 2.2 Installation Steps
+### 2.2 Installation Steps
 
 After extracting, besides this manual, you should also see the **main** folder. Go into it, select all, copy to the directory where your rhythm doctor.exe is located, and paste. That's it. The next time you run the game, the mod will run smoothly.
 
-# # 3. Quick Start
+## 3. Quick Start
 
-## # 3.1 Editor Basic Concepts
+### 3.1 Editor Basic Concepts
 
 Before really starting to explain how to use the mod, you need to understand some basic concepts of the native editor. I'm actually not very knowledgeable in this area either, so I'll just briefly summarize. If you don't want to read it, just skip ahead.
 
-### # 3.1.1 Tabs
+#### 3.1.1 Tabs
 
 There are six tabs in the editor, which can be switched by pressing number keys 1-6 on the main keyboard. They are: 1 Sounds, 2 Rows, 3 Actions, 4 Rooms, 5 Sprites, and 6 Windows. Each tab manages different types of events.
 
-### # 3.1.2 Events
+#### 3.1.2 Events
 
 You can think of events as instructions that tell the game what to do and when.
 
 Various actions in a level can be called events. For example, playing music, nurse voice prompts, various effects, dialogues, and various beats.
 
-### # 3.1.3 Rows
+#### 3.1.3 Rows
 
 Rows are equivalent to the "patients" you need to "treat". All beat events occur on rows.
 
-### # 3.1.4 Rooms
+#### 3.1.4 Rooms
 
 Rooms are used to control screen splitting and layout display, somewhat similar to split-screen. A level can only have four rooms at the same time. Each room can only have a maximum of four rows. In other words, a level can have a maximum of 16 rows.
 
-## # 3.2 First Launch
+### 3.2 First Launch
 
 In the main menu, find **Level Editor, this feature is still not compatible with narration.**, and press enter to enter.
 
@@ -149,7 +150,7 @@ Ahem, let's get back to the topic. When you press enter, you'll definitely notic
 
 After agreeing to the terms, you can try pressing left and right arrows to browse the events in the current tab. However, this demo level only has three events, located in the Sounds, Rows, and Actions tabs. If you can hear the screen reader announce the event name and location, that proves you've successfully entered the editor.
 
-## # 3.3 Preparation Before Creating a Level
+### 3.3 Preparation Before Creating a Level
 
 If you can't wait to show off your skills and create a level, please don't rush. Before that, you need to understand the following preparation work:
 
@@ -157,21 +158,21 @@ If you can't wait to show off your skills and create a level, please don't rush.
 2. In the editor, press ctrl+n to create a new level, and set the save location to the folder you just created.
 3. Alright, now you can start.
 
-# # 4. Operation Instructions
+## 4. Basic Operations
 
-## # 4.1 Menu/Dialog Navigation
+### 4.1 Menu/Dialog Navigation
 
 In any dialog/menu, you can press arrow keys to browse controls, and enter to confirm. Press tab to switch between clickable items. If there are links in the text, you can press the space key to open the link list, use up/down arrows to select a link, and press enter to open it in the browser.
 
 When in the level editor main interface, you can press f10 to open/close the editor's main menu. In this menu, you can create new levels, open levels, publish levels, and other operations. Of course, most of these operations have more convenient shortcuts, see the appendix.
 
-## # 4.2 Timeline Navigation
+### 4.2 Timeline Navigation
 
 On the editing page, left/right arrow keys switch between events in the current tab, enter jumps to the event's location and plays.
 
 However, there are two exceptions. When you're in the Rows or Sprites tab, you need to first press up/down arrows to switch to a row or sprite, then you can press left/right arrows to browse events. At the same time, you can also press shift+enter to edit rows. Editing sprites is not currently supported.
 
-## # 4.3 Creating Rows and Events
+### 4.3 Creating Rows and Events
 
 Press insert or f2 under a tab, and a menu will pop up listing the available event types for the current tab. Use up/down arrows to select, and press enter to create. If you're in the Rows tab, the created event will be placed on the currently selected row by default.
 
@@ -179,7 +180,51 @@ In the Rows or Sprites tab, press ctrl+insert or ctrl+f2 to create a new row or 
 
 Tip: When adding an event, pressing ctrl+enter directly will create the event and automatically open the event editor at the same time.
 
-## # 4.4 Grid System
+### 4.4 Editing Events
+
+#### 4.4.1 Moving Events
+
+The mod provides a simple set of shortcuts to adjust the beat position of events. This set of shortcuts, aside from different keys and different adjustment targets, has a lot in common with the edit cursor. As follows:
+
+- z, move event forward by 1 grid unit (also supports modifier keys)
+- x, move event backward by 1 grid unit (also supports modifier keys)
+- c, snap event to the nearest grid
+
+Note 1: If the selected event doesn't have a beat property, pressing z and x will change to moving forward/backward by 1 bar, and modifier keys are not supported.
+
+Note 2: The above shortcuts are effective for all selected events.
+
+Note 3: If the selected events include both events with beat properties and events without beat properties, they cannot be moved.
+
+#### 4.4.2 Editing Event Properties
+
+There is also a set of shortcuts to quickly adjust some basic properties of events. As follows:
+
+- e/shift+e, switch the target property to adjust
+- r/t, adjust the property value (if the property has multiple options, it switches between options; if it's a toggle, it switches between enabled/disabled; if it's an integer, the adjustment step is 1 and modifier keys are not supported; if it's a float, the default step is 0.1, add shift for 0.01, add alt for 0.001, add shift and alt for 0.0001)
+
+#### 4.4.3 Advanced Editing
+
+Although the above two sets of shortcuts are convenient, they also have some shortcomings:
+
+1. They cannot adjust all properties.
+2. Although the mod provides modifier keys to increase adjustment precision, it's still not enough in some cases.
+
+Therefore, if you need more precise adjustment, you can press ctrl+enter to open the external editor for editing. For more information about the external editor, please refer to Chapter 6.
+
+#### 4.4.4 Quick Actions
+
+Now let me introduce a special shortcut: ctrl+shift+enter. Depending on the type of event you currently have selected, it performs several different actions. They are as follows:
+
+- For a oneshot beat with a loop count greater than 0, pressing it will automatically split it into multiple independent oneshot beats.
+- For a single independent oneshot beat, pressing it will create a new oneshot beat with the same parameters at the edit cursor position, and sync the hit point with the selected oneshot beat.
+- For a classic beat, pressing it will bring up a grid size input dialog. After confirming, the beat length will be automatically adjusted to match the corresponding grid size.
+- For a Beat Modifier, pressing it will bring up a menu that lets you quickly set common x-beat patterns in one go.
+- Quick actions for more event types will be added over time.
+
+The quick actions above may not be perfect. If you have any ideas for improvement, feel free to give me your feedback.
+
+### 4.5 Grid System
 
 The grid divides the timeline into equal units at a fixed ratio, helping you align beats more precisely. If you've used a digital audio workstation, this concept should be familiar.
 
@@ -197,7 +242,7 @@ You might ask: the grid is set up, but how do I use it?
 
 Patience — you'll find out shortly.
 
-## # 4.5 Edit Cursor
+### 4.6 Edit Cursor
 
 To make it more convenient for visually impaired players, the mod introduces the edit cursor feature. The edit cursor is a player-controllable temporary anchor point that doesn't move with playback and can be freely adjusted in position, making it convenient for players to quickly locate when creating events and other scenarios. Below are its shortcut key instructions.
 
@@ -217,9 +262,11 @@ In addition to quick jumping, the edit cursor's applicable scope also includes:
 - The target position when pasting events
 - More scenarios below
 
-## # 4.6 Virtual Selection and Event Chains
+## 5. Advanced Features
 
-### # 4.6.1 Virtual Selection
+### 5.1 Virtual Selection and Event Chains
+
+#### 5.1.1 Virtual Selection
 
 Virtual selection is a more flexible selection system than the native editor's, independent of the native editor's selection. Using both selections together can improve efficiency when performing complex event selections. Hopefully this can somewhat compensate for the inability of visually impaired players to use mouse drag selection.
 
@@ -242,7 +289,7 @@ Meananing: Let the editor actually select all events in the virtual selection, s
 
 Meaning: Add all events currently selected in the editor to the virtual selection, making it easier to create event chains, etc. (see below for details).
 
-### # 4.6.2 Event Chains
+#### 5.1.2 Event Chains
 
 The event chain feature allows you to save fixed combinations of events as presets, so when you need to reuse them, you don't have to insert each event one by one — just insert a pre-created event chain and all events will automatically appear in the level. Event chains for each level are stored independently and cannot be used across levels. If your level has custom game mechanics, this feature might be helpful.
 
@@ -257,39 +304,7 @@ When selecting an event chain, you can press left/right arrows to adjust the spe
 
 Note: Event chains are stored in the **.RDLEAccess/EventChains** folder under the current level directory. If you want to use them in another level, you need to copy them manually. This is for easier organization and management.
 
-# # 4.7 Editing Events
-
-## # 4.7.1 Moving Events
-
-The mod provides a simple set of shortcuts to adjust the beat position of events. This set of shortcuts, aside from different keys and different adjustment targets, has a lot in common with the edit cursor. As follows:
-
-- z, move event forward by 1 grid unit (also supports modifier keys)
-- x, move event backward by 1 grid unit (also supports modifier keys)
-- c, snap event to the nearest grid
-
-Note 1: If the selected event doesn't have a beat property, pressing z and x will change to moving forward/backward by 1 bar, and modifier keys are not supported.
-
-Note 2: The above shortcuts are effective for all selected events.
-
-Note 3: If the selected events include both events with beat properties and events without beat properties, they cannot be moved.
-
-## # 4.7.2 Editing Event Properties
-
-There is also a set of shortcuts to quickly adjust some basic properties of events. As follows:
-
-- e/shift+e, switch the target property to adjust
-- r/t, adjust the property value (if the property has multiple options, it switches between options; if it's a toggle, it switches between enabled/disabled; if it's an integer, the adjustment step is 1 and modifier keys are not supported; if it's a float, the default step is 0.1, add shift for 0.01, add alt for 0.001, add shift and alt for 0.0001)
-
-## # 4.7.3 Advanced Editing
-
-Although the above two sets of shortcuts are convenient, they also have some shortcomings:
-
-1. They cannot adjust all properties.
-2. Although the mod provides modifier keys to increase adjustment precision, it's still not enough in some cases.
-
-Therefore, if you need more precise adjustment, you can press ctrl+enter to open the external editor for editing. For more information about the external editor, please refer to the next chapter.
-
-## # 4.8 Conditions System
+### 5.2 Conditions System
 
 If you want certain event(s) to only trigger when specific conditions are met, you can use conditions. The following only covers how to use the conditions system through the mod; for more detailed rules on writing conditions, please search for RDLE tutorials on your own.
 
@@ -303,17 +318,36 @@ Select an event, then press alt+c to open the conditions menu. The following ope
 
 Yes, this section is that short. After all, the operations themselves aren't difficult — the tricky part is planning and writing the conditions. So the rest is up to you to find tutorials. This is a mod user manual, not an editor user manual.
 
-## # 4.9 Editing Level Metadata
+### 5.3 Event Search
+
+As levels grow larger, finding the event you're looking for among a sea of events becomes increasingly difficult. Therefore, the mod provides a feature that quickly matches events based on rules you define.
+
+In the editor, press ctrl+f to open the search dialog, where you can set filtering rules for events. In this menu, press tab/shift+tab to switch between various options, up/down arrows to adjust the value of an option, and enter to attempt matching events that meet the criteria and automatically select them.
+
+Once you've set up your match rules, you can press f3 and shift+f3 at any time to search backward/forward from the edit cursor for events matching the criteria. If you want to change the match rules, simply press ctrl+f again to readjust.
+
+### 5.4 Tag Mode
+
+In the editor, you can press shift+main keyboard 0 to toggle tag mode. This is a feature of the native editor itself, but the mod handles it differently from the original. When tag mode is enabled, the mod's behavior changes as follows:
+
+- When browsing events, instead of announcing the event's position, it announces the event's tag.
+- Pressing ctrl+enter will open a dialog that only supports tag editing.
+
+In the dedicated tag editing dialog, in addition to manually entering tags, you can also quickly insert some commonly used tags. Feel free to explore.
+
+Note: Support for tag mode is experimental. I'm not sure if this is necessary, and I hope to hear your feedback.
+
+### 5.5 Editing Level Metadata
 
 On the main page, you can press number key 0 on the main keyboard at any time to open the metadata editing page. Here you can edit some basic information about the level.
 
-# # 5. External Editor (RDEventEditorHelper)
+## 6. External Editor (RDEventEditorHelper)
 
-## # 5.1 What is this?
+### 6.1 What is this?
 
 Because the official inspector panel is quite complex and troublesome to adapt, I simply made a separate external editor. This editor is completely rendered using Windows native UI, so screen readers can operate it very conveniently. It is currently used to edit events, rows, and metadata.
 
-## # 5.2 How to use?
+### 6.2 How to use?
 
 When you select an event or row in the level editor, or press number key 0 on the main keyboard, the helper will launch. It will generate UI based on the object currently being edited, and you can directly use the screen reader to navigate between properties. After editing is complete, just click the OK button to apply it to the game. If you want to abandon the edit, just press esc or click the Cancel button.
 
@@ -321,7 +355,7 @@ Additionally, if the focus is on a sound list, you can press the space key to pl
 
 During editing, if the helper freezes or fails to launch for any reason and you cannot perform any operations, you can quickly press esc five times in the game to force terminate it. Note: Do not do this if the helper is working normally, or all changes you made in the helper will be lost.
 
-# # 6. Known Issues and Limitations
+## 7. Known Issues and Limitations
 
 This mod still has many features waiting to be improved. The following lists currently known issues and limitations. The issues in the list will be attempted to be resolved one by one in future versions.
 
@@ -334,9 +368,9 @@ But then again, I hope the official version will support accessibility soon, so 
 5. Event multi-selection support is not flexible enough.
 6. Since a separate property editor was written, the operation should not be as smooth as the original version (although I don't know exactly how smooth the original version is).
 
-# # 7. FAQ
+## 8. FAQ
 
-## # How to switch the game to the beta branch?
+### How to switch the game to the beta branch?
 
 If you have the Steam version of the game, follow these steps:
 
@@ -346,9 +380,9 @@ If you have the Steam version of the game, follow these steps:
 4. Select the second entry in the list, i.e. beta public beta testing.
 5. Restart the game.
 
-## # How to report issues effectively?
+### How to report issues effectively?
 
-You can find ways to contact me in [8.3 Contact Information](#83-contact-information).
+You can find ways to contact me in [9.3 Contact Information](#93-contact-information).
 
 First, please describe your problem and steps to reproduce it in detail. Also, it's best to attach the logs from when the problem occurred.
 
@@ -361,27 +395,27 @@ How to view logs:
 5. After successfully reproducing the problem, switch to the console window and check whether there are any log entries with an **Error** prefix. If there are, provide me with that log entry and some nearby entries. If not, provide the most recent entries anyway — you never know, it might reveal the issue.
 6. If you don't want the console window to appear every time the game starts, refer to step 2 and set ``Enabled = false``.
 
-## # Why isn't the mod loading?
+### Why isn't the mod loading?
 
 Please make sure your execution steps are: enter the main folder, select all and copy, paste in the game's main program directory, rather than directly copying the entire main folder over.
 
-## # Why won't the helper open?
+### Why won't the helper open?
 
 If you're just randomly trying to open it by pressing enter, it's perfectly normal that it won't open; if you can't open it when you want to edit an event in the game, and there's an error dialog, please download
 [.NET Framework 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)
 and try installing it.
 
-## # Why does the game freeze after the save dialog pops up?
+### Why does the game freeze after the save dialog pops up?
 
 This is a low-probability event, and I'm not sure what the problem is. This is why I mentioned earlier about developing the good habit of saving frequently. If you have this habit, then you're lucky; if not...
 
-## # Why do all native editor shortcuts stop working after I click cancel in the save dialog when exiting the level editor?
+### Why do all native editor shortcuts stop working after I click cancel in the save dialog when exiting the level editor?
 
 After my testing, this seems to be a problem with the game itself? Because I tried the same operation without running the mod, and the problem can still be reproduced. You can only press alt+f4, then save or discard, exit the game and re-enter to solve it. But this is much better than the previous situation, isn't it?
 
-# # 8. Appendix
+## 9. Appendix
 
-## # 8.1 Native Editor Common Shortcuts Reference
+### 9.1 Native Editor Common Shortcuts Reference
 
 Note: This only lists some commonly used shortcuts, not a complete list. If you want to see a more complete one, it's better to look for official documentation.
 
@@ -417,12 +451,12 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | shift+end | Select all events after the currently selected event in the current tab (or row) | I also know this is convoluted too. |
 | ctrl+shift+home | Select all events before the currently selected event | This is much better. |
 | ctrl+shift+end | Select all events after the currently selected event | This too. |
-| shift+0 | Toggle tag mode | The mod currently has limited support for tag mode. When in this mode, while using arrow keys to browse events, the mod no longer announces event positions, but instead announces event tags. |
+| shift+0 | Toggle tag mode | See [5.4 Tag Mode](#54-tag-mode) for details. The mod currently has limited support for tag mode. When in this mode, while using arrow keys to browse events, the mod no longer announces event positions, but instead announces event tags. |
 | esc | Exit Full Screen/Deselect | None |
 
-## # 8.2 Mod Shortcuts Reference
+### 9.2 Mod Shortcuts Reference
 
-### # Menu Operations
+#### Menu Operations
 
 | Shortcut | Function | Notes |
 | --- | --- | --- |
@@ -430,7 +464,7 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | enter | Activate selected item | None |
 | space | Open link | None |
 
-### # Basic Operations
+#### Basic Operations
 
 | Shortcut | Function | Notes |
 | --- | --- | --- |
@@ -439,24 +473,27 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | Left/Right arrows | Browse events in current tab (or row) | None |
 | Up/Down arrows | Switch rows/sprites in Rows/Sprites tab | None |
 | enter | Jump to selected event's position and start playing | None |
-| alt+g | Open grid settings menu | See [4.4 Grid System](#44-grid-system) for details. |
+| alt+g | Open grid settings menu | See [4.5 Grid System](#45-grid-system) for details. |
+| ctrl+f | Open search dialog | See [5.3 Event Search](#53-event-search) for details. |
+| f3/shift+f3 | Search backward/forward from edit cursor for events matching search rules | None |
 
-### # Editing Operations
+#### Editing Operations
 
 | Shortcut | Function | Notes |
 | --- | --- | --- |
 | ctrl+enter | Open helper to edit event | None |
+| ctrl+shift+enter | Execute quick action for the corresponding event | See [4.4.4 Quick Actions](#444-quick-actions) for details. |
 | shift+enter | Open helper to edit row | None |
 | Number key 0 | Open helper to edit metadata | None |
 | insert or f2 | Insert event at edit cursor | None |
 | ctrl+insert or ctrl+f2 | Add row/sprite to room (only valid in Rows/Sprites tab) | None |
-| z/x | Move selected event forward/backward by 1 grid unit (or 1 bar) | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. See [4.7.1 Moving Events](#471-moving-events) for details. |
+| z/x | Move selected event forward/backward by 1 grid unit (or 1 bar) | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. See [4.4.1 Moving Events](#441-moving-events) for details. |
 | c | Snap event to nearest grid | None |
-| e/shift+e | Switch target property to adjust | See [4.7.2 Editing Event Properties](#472-editing-event-properties) for details. |
-| r/t | Adjust property value | Supports modifier keys, see [4.7.2 Editing Event Properties](#472-editing-event-properties) for details. |
-| alt+c | Open the conditions menu for the selected event | See [4.8 Conditions System](#48-conditions-system) for details. |
+| e/shift+e | Switch target property to adjust | See [4.4.2 Editing Event Properties](#442-editing-event-properties) for details. |
+| r/t | Adjust property value | Supports modifier keys, see [4.4.2 Editing Event Properties](#442-editing-event-properties) for details. |
+| alt+c | Open the conditions menu for the selected event | See [5.2 Conditions System](#52-conditions-system) for details. |
 
-### # Edit Cursor
+#### Edit Cursor
 
 | Shortcut | Function | Notes |
 | --- | --- | --- |
@@ -467,7 +504,7 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | alt+/ | Jump to edit cursor's position and start playing | None |
 | , (comma) and . (period) | Move edit cursor forward/backward by 1 grid unit | Add shift for 0.1 beat, add alt for 0.01 beat, add shift and alt for 1 bar. |
 
-### # Virtual Selection and Event Chains
+#### Virtual Selection and Event Chains
 
 | Shortcut | Function | Notes |
 | --- | --- | --- |
@@ -480,7 +517,7 @@ Note: This only lists some commonly used shortcuts, not a complete list. If you 
 | ctrl+; (semicolon) | Save all events in virtual selection as an event chain | None |
 | ; | Insert an event chain at the current edit cursor position | None |
 
-## # 8.3 Contact Information
+### 9.3 Contact Information
 
 Email: [huangzitong94@gmail.com](mailto:huangzitong94@gmail.com)
 
@@ -492,7 +529,7 @@ QQ: 1528344627
 
 [AudioGames forum thread](https://forum.audiogames.net/post/954352/#p954352)
 
-## # 8.4 Sponsorship
+### 9.4 Sponsorship
 
 If this mod has been helpful to you and you'd like to support my development work, in addition to recommending it to more people, you can also consider giving me some financial support. Please note that sponsorship here is directed to me **personally** and has nothing to do with **7th Beat Games**.
 
