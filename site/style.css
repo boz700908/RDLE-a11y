@@ -1,0 +1,154 @@
+/* RDLE-a11y */
+
+:root {
+  --bg: #1a1a2e;
+  --surface: #222240;
+  --border: #33335a;
+  --text: #ddd;
+  --text-dim: #999;
+  --accent: #e94560;
+  --accent-soft: #c23152;
+  --link: #7eb8da;
+  --max-w: 680px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+}
+
+a { color: var(--link); }
+a:hover { text-decoration: underline; }
+
+.wrap {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 3rem 1.5rem 2rem;
+}
+
+/* ---- header ---- */
+header {
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+header h1 span {
+  color: var(--accent);
+}
+
+header p {
+  margin-top: 0.5rem;
+  color: var(--text-dim);
+  font-size: 1.05rem;
+}
+
+/* ---- sections ---- */
+section { margin-bottom: 2.5rem; }
+
+section h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  color: var(--accent);
+}
+
+section p {
+  color: var(--text-dim);
+  margin-bottom: 0.75rem;
+}
+
+section p:last-child { margin-bottom: 0; }
+
+/* ---- install ---- */
+ol.install {
+  padding-left: 1.4rem;
+  color: var(--text-dim);
+}
+
+ol.install li {
+  margin-bottom: 0.4rem;
+}
+
+ol.install li strong {
+  color: var(--text);
+}
+
+.req {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  margin-top: 0.6rem;
+}
+
+/* ---- docs ---- */
+.docs ul {
+  list-style: none;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.docs li a {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.docs li a:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+.docs li a small {
+  display: block;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+}
+
+/* ---- contact ---- */
+.contact ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  color: var(--text-dim);
+}
+
+.contact li a {
+  color: var(--link);
+}
+
+/* ---- footer ---- */
+footer {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+footer a { color: var(--text-dim); }
+footer a:hover { color: var(--link); }
+
+/* ---- mobile ---- */
+@media (max-width: 600px) {
+  .wrap { padding: 2rem 1rem 1.5rem; }
+  header h1 { font-size: 1.5rem; }
+  .docs ul { flex-direction: column; }
+}

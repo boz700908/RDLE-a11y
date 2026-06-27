@@ -18,10 +18,11 @@ RDLE-a11y is an accessibility mod for **Rhythm Doctor** level editor, providing 
 
 ### Installation
 
-1. Install [BepInEx 5.x](https://github.com/BepInEx/BepInEx/releases) for Rhythm Doctor
-2. Download the latest release from [Releases](../../releases)
-3. Extract to your Rhythm Doctor installation directory
-4. Launch the game
+1. Download the latest release from [Releases](../../releases)
+2. Extract the archive, go into the **main** folder, select all and copy to your Rhythm Doctor game directory (where `rhythm doctor.exe` is located)
+3. Launch the game — the mod will run automatically
+
+System requirements: Windows, Rhythm Doctor 1.0+ (standalone editor not supported). Using the latest public beta branch is recommended for best compatibility.
 
 ### Development Setup
 
@@ -36,7 +37,7 @@ RDLE-a11y is an accessibility mod for **Rhythm Doctor** level editor, providing 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/white-rice94/RDLE-a11y.git
+   git clone https://github.com/white-rice94/rhythm-doctor-level-editor-accessibility-mod.git
    cd RDLE-a11y
    ```
 
@@ -92,10 +93,11 @@ RDLE-a11y 是 **Rhythm Doctor** 关卡编辑器的无障碍 mod，提供完整�
 
 ### 安装
 
-1. 为 Rhythm Doctor 安装 [BepInEx 5.x](https://github.com/BepInEx/BepInEx/releases)
-2. 从 [Releases](../../releases) 下载最新版本
-3. 解压到 Rhythm Doctor 安装目录
-4. 启动游戏
+1. 从 [Releases](../../releases) 下载最新版本的压缩包
+2. 解压后，进入 **main** 文件夹，全选复制到 Rhythm Doctor 游戏根目录（rhythm doctor.exe 所在目录）粘贴
+3. 启动游戏，mod 即自动运行
+
+系统要求：Windows 系统、Rhythm Doctor 1.0+（不支持独立版编辑器）。推荐使用游戏的最新公开测试版以获得最佳兼容性。
 
 ### 开发环境配置
 
@@ -110,7 +112,7 @@ RDLE-a11y 是 **Rhythm Doctor** 关卡编辑器的无障碍 mod，提供完整�
 
 1. 克隆仓库：
    ```bash
-   git clone https://github.com/white-rice94/RDLE-a11y.git
+   git clone https://github.com/white-rice94/rhythm-doctor-level-editor-accessibility-mod.git
    cd RDLE-a11y
    ```
 

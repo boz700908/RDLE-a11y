@@ -524,7 +524,7 @@ qq： 1528344627
 
 [itch.io 页面](https://white-rice94.itch.io/rdle-access)
 
-[github](https://github.com/white-rice94/RDLE-a11y)
+[github](https://github.com/white-rice94/rhythm-doctor-level-editor-accessibility-mod)
 
 [AudioGames 论坛帖子](https://forum.audiogames.net/post/954352/#p954352)
 

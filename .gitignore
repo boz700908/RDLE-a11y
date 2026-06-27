@@ -388,3 +388,6 @@ RDLevelEditorAccess/Properties/launchSettings.json
 logs/
 
 .omo/
+
+# Pages 站点文档目录（CI 构建时从 docs/ 复制，不提交）
+site/docs/
