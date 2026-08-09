@@ -17,7 +17,7 @@ namespace RDLevelEditorAccess
     // ===================================================================================
     // 第一部分：加载器 (Loader)
     // ===================================================================================
-    [BepInPlugin("com.hzt.rd-editor-access", "RDEditorAccess", "1.9")]
+    [BepInPlugin("com.hzt.rd-editor-access", "RDEditorAccess", "1.10")]
     public class EditorAccess : BaseUnityPlugin
     {
         public void Awake()

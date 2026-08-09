@@ -1,3 +1,9 @@
+1.10 (2026-08-09)
+Guaranteed compatible game version: 1.1.2 (updated 2026-08-02)
+1. Adapted to the game's Sprite-to-Decoration refactor. The game renamed the Sprites tab to Decorations and replaced the sprite event system with a decoration system; all references to the old API have been migrated to the new one.
+2. Decoration tab navigation and announcements now support both sprite decorations (character names) and text decorations (decoration names).
+3. Fixed the mod failing to start on the new game version (the mod now compiles against and runs on the latest game).
+
 1.9 (2026-06-27)
 Guaranteed compatible game version: 1.1.1 (updated 2026-06-16)
 1. Improved support for tag mode. In tag mode, ctrl+enter will now open a dedicated tag editing page that supports more detailed tag editing.
