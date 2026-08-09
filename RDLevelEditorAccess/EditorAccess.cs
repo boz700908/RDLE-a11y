@@ -697,7 +697,9 @@ namespace RDLevelEditorAccess
             if (editor.currentTab != currentTab)
             {
                 currentTab = editor.currentTab;
-                Narration.Say(RDString.Get($"editor.{currentTab.ToString().ToLower().Replace("song", "sounds")}"),NarrationCategory.Navigation);
+                // 新版游戏将 Sprites 页签更名为 Decorations，但本地化键仍为 editor.sprites（值已更新）
+                string tabKey = currentTab == Tab.Decorations ? "editor.sprites" : $"editor.{currentTab.ToString().ToLower().Replace("song", "sounds")}";
+                Narration.Say(RDString.Get(tabKey),NarrationCategory.Navigation);
             }
 
             // 上下箭头切换轨道 (仅在 Rows 和 Sprites Tab)
@@ -802,7 +804,7 @@ namespace RDLevelEditorAccess
                     AccessibilityBridge.EditRow(editor.selectedRowIndex);
                     //Narration.Say(RDString.Get("eam.editor.openTrackEditor"), NarrationCategory.Instruction);// 过于冗余，去掉。
                 }
-                else if (editor.currentTab == Tab.Sprites && !string.IsNullOrEmpty(editor.selectedSprite))
+                else if (editor.currentTab == Tab.Decorations && !string.IsNullOrEmpty(editor.selectedDecoration))
                 {
                     // TODO: 精灵编辑支持
                     Narration.Say(RDString.Get("eam.sprite.editNotSupported"), NarrationCategory.Navigation);
@@ -933,7 +935,7 @@ namespace RDLevelEditorAccess
                 {
                     StartCharacterSelect("row");
                 }
-                else if (editor.currentTab == Tab.Sprites)
+                else if (editor.currentTab == Tab.Decorations)
                 {
                     StartCharacterSelect("sprite");
                 }
@@ -1935,7 +1937,7 @@ namespace RDLevelEditorAccess
             // 标签页选项：[None, Song, Rows, Actions, Rooms, Sprites, Windows]
             _filterTabOptions = new List<Tab>
             {
-                Tab.None, Tab.Song, Tab.Rows, Tab.Actions, Tab.Rooms, Tab.Sprites, Tab.Windows
+                Tab.None, Tab.Song, Tab.Rows, Tab.Actions, Tab.Rooms, Tab.Decorations, Tab.Windows
             };
 
             // 事件类型选项：None（"所有"）+ 关卡中出现的所有事件类型，按枚举值排序
@@ -3248,21 +3250,21 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
-        /// 添加新精灵
+        /// 添加新精灵装饰（新版游戏为 Decorations 页签，精灵装饰对应 LevelEvent_Sprite）
         /// </summary>
         private void AddNewSprite(Character character)
         {
             var editor = scnEditor.instance;
             if (editor == null) return;
 
-            int roomIndex = editor.selectedSpritesTabPageIndex;
+            int roomIndex = editor.selectedDecorationsTabPageIndex;
             
-            var spriteData = new LevelEvent_MakeSprite();
+            var spriteData = new LevelEvent_Sprite();
             spriteData.rooms = new int[1] { roomIndex };
             spriteData.character = character;
             
-            editor.AddNewSprite(spriteData);
-            editor.tabSection_sprites.UpdateUI();
+            editor.AddNewDecoration(spriteData);
+            editor.tabSection_decorations.UpdateUI();
             
                 Narration.Say(string.Format(RDString.Get("eam.sprite.added"), GetCharacterName(character)), NarrationCategory.Navigation);
         }
@@ -3391,7 +3393,7 @@ namespace RDLevelEditorAccess
             if (editor == null) return;
 
             // 仅在 Rows 和 Sprites Tab 时处理
-            if (editor.currentTab != Tab.Rows && editor.currentTab != Tab.Sprites) return;
+            if (editor.currentTab != Tab.Rows && editor.currentTab != Tab.Decorations) return;
 
             bool upPressed = Input.GetKeyDown(KeyCode.UpArrow);
             bool downPressed = Input.GetKeyDown(KeyCode.DownArrow);
@@ -3402,7 +3404,7 @@ namespace RDLevelEditorAccess
             {
                 HandleRowNavigation(editor, upPressed ? -1 : 1);
             }
-            else if (editor.currentTab == Tab.Sprites)
+            else if (editor.currentTab == Tab.Decorations)
             {
                 HandleSpriteNavigation(editor, upPressed ? -1 : 1);
             }
@@ -3446,7 +3448,7 @@ namespace RDLevelEditorAccess
         /// </summary>
         private void HandleSpriteNavigation(scnEditor editor, int direction)
         {
-            var pageSprites = editor.currentPageSpritesData;
+            var pageSprites = editor.currentPageDecorationsData;
             if (pageSprites == null || pageSprites.Count == 0)
             {
                 Narration.Say(RDString.Get("eam.sprite.noAvailable"), NarrationCategory.Navigation);
@@ -3493,12 +3495,12 @@ namespace RDLevelEditorAccess
         /// </summary>
         private int GetCurrentSpriteIndexInPage(scnEditor editor)
         {
-            if (string.IsNullOrEmpty(editor.selectedSprite)) return -1;
+            if (string.IsNullOrEmpty(editor.selectedDecoration)) return -1;
 
-            var pageSprites = editor.currentPageSpritesData;
+            var pageSprites = editor.currentPageDecorationsData;
             for (int i = 0; i < pageSprites.Count; i++)
             {
-                if (pageSprites[i].spriteId == editor.selectedSprite)
+                if (pageSprites[i].decorationId == editor.selectedDecoration)
                     return i;
             }
             return -1;
@@ -3532,21 +3534,21 @@ namespace RDLevelEditorAccess
         /// <summary>
         /// 根据索引选择 Sprite
         /// </summary>
-        private void SelectSpriteByIndex(int indexInPage, List<LevelEvent_MakeSprite> pageSprites)
+        private void SelectSpriteByIndex(int indexInPage, List<LevelEvent_MakeDecorationBase> pageSprites)
         {
             if (indexInPage < 0 || indexInPage >= pageSprites.Count) return;
 
             var spriteData = pageSprites[indexInPage];
 
-            // 使用 SpriteHeader.ShowPanel 选择精灵
-            SpriteHeader.ShowPanel(spriteData.spriteId);
+            // 使用 DecorationHeader.ShowPanel 选择精灵
+            DecorationHeader.ShowPanel(spriteData.decorationId);
 
             // 获取事件数量
             int eventCount = 0;
-            int spriteIndex = editor.spritesData.IndexOf(spriteData);
-            if (spriteIndex >= 0 && spriteIndex < editor.eventControls_sprites.Count)
+            int spriteIndex = editor.decorationsData.IndexOf(spriteData);
+            if (spriteIndex >= 0 && spriteIndex < editor.eventControls_decorations.Count)
             {
-                eventCount = editor.eventControls_sprites[spriteIndex].Count;
+                eventCount = editor.eventControls_decorations[spriteIndex].Count;
             }
 
             // 朗读精灵信息
@@ -3567,15 +3569,20 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
-        /// 获取 Sprite 的显示名称
+        /// 获取 Sprite 的显示名称（装饰物页签通用，区分精灵与文本装饰）
         /// </summary>
-        private string GetSpriteDisplayName(LevelEvent_MakeSprite spriteData)
+        private string GetSpriteDisplayName(LevelEvent_MakeDecorationBase spriteData)
         {
-            if (spriteData.character == Character.Custom)
+            if (spriteData is LevelEvent_Sprite sprite)
             {
-                return spriteData.filename ?? "自定义";
+                if (sprite.character == Character.Custom)
+                {
+                    return sprite.filename ?? "自定义";
+                }
+                return RDString.Get($"enum.Character.{sprite.character}.short");
             }
-            return RDString.Get($"enum.Character.{spriteData.character}.short");
+            // LevelEvent_Text：使用文本装饰名称
+            return (spriteData as LevelEvent_Text)?.decoName ?? "装饰";
         }
 
         /// <summary>
@@ -3603,7 +3610,7 @@ namespace RDLevelEditorAccess
         /// <summary>
         /// 重新朗读当前 Sprite 信息（边界处理时使用）
         /// </summary>
-        private void ReadCurrentSpriteInfo(scnEditor editor, int currentIndex, List<LevelEvent_MakeSprite> pageSprites)
+        private void ReadCurrentSpriteInfo(scnEditor editor, int currentIndex, List<LevelEvent_MakeDecorationBase> pageSprites)
         {
             if (currentIndex < 0 || currentIndex >= pageSprites.Count) return;
 
@@ -3611,10 +3618,10 @@ namespace RDLevelEditorAccess
 
             // 获取事件数量
             int eventCount = 0;
-            int spriteIndex = editor.spritesData.IndexOf(spriteData);
-            if (spriteIndex >= 0 && spriteIndex < editor.eventControls_sprites.Count)
+            int spriteIndex = editor.decorationsData.IndexOf(spriteData);
+            if (spriteIndex >= 0 && spriteIndex < editor.eventControls_decorations.Count)
             {
-                eventCount = editor.eventControls_sprites[spriteIndex].Count;
+                eventCount = editor.eventControls_decorations[spriteIndex].Count;
             }
 
             // 朗读精灵信息
@@ -3858,13 +3865,13 @@ namespace RDLevelEditorAccess
                     RowHeader.ShowPanel(levelEvent.row);
                 }
             }
-            else if (targetTab == Tab.Sprites && levelEvent.row >= 0
-                     && levelEvent.row < editor.spritesData.Count)
+            else if (targetTab == Tab.Decorations && levelEvent.row >= 0
+                     && levelEvent.row < editor.decorationsData.Count)
             {
-                string spriteId = editor.spritesData[levelEvent.row].spriteId;
-                if (editor.selectedSprite != spriteId)
+                string spriteId = editor.decorationsData[levelEvent.row].decorationId;
+                if (editor.selectedDecoration != spriteId)
                 {
-                    SpriteHeader.ShowPanel(spriteId);
+                    DecorationHeader.ShowPanel(spriteId);
                 }
             }
 
@@ -3949,9 +3956,9 @@ namespace RDLevelEditorAccess
             }
             ScanList(editor.eventControls_actions);
             ScanList(editor.eventControls_rooms);
-            if (editor.eventControls_sprites != null)
+            if (editor.eventControls_decorations != null)
             {
-                foreach (var spr in editor.eventControls_sprites) ScanList(spr);
+                foreach (var spr in editor.eventControls_decorations) ScanList(spr);
             }
             ScanList(editor.eventControls_windows);
 
@@ -4201,7 +4208,7 @@ namespace RDLevelEditorAccess
                     return GetSelectedRowList(editor);
                 case Tab.Rooms:
                     return editor.eventControls_rooms;
-                case Tab.Sprites:
+                case Tab.Decorations:
                     return GetSelectedSpriteList(editor);
                 case Tab.Windows:
                     return editor.eventControls_windows;
@@ -4226,31 +4233,31 @@ namespace RDLevelEditorAccess
         }
 
         /// <summary>
-        /// 获取当前选中 sprite 的事件列表
+        /// 获取当前选中装饰（精灵/文本）的事件列表
         /// </summary>
         private List<LevelEventControl_Base> GetSelectedSpriteList(scnEditor editor)
         {
-            string spriteId = editor.selectedSprite;
+            string spriteId = editor.selectedDecoration;
             if (string.IsNullOrEmpty(spriteId))
             {
-                Debug.Log($"[GetSelectedSpriteList] 未选中任何 sprite");
+                Debug.Log($"[GetSelectedSpriteList] 未选中任何装饰");
                 return null;
             }
 
-            // 根据 spriteId 查找对应的索引
-            for (int i = 0; i < editor.spritesData.Count; i++)
+            // 根据 decorationId 查找对应的索引
+            for (int i = 0; i < editor.decorationsData.Count; i++)
             {
-                if (editor.spritesData[i].spriteId == spriteId)
+                if (editor.decorationsData[i].decorationId == spriteId)
                 {
-                    if (i < editor.eventControls_sprites.Count)
+                    if (i < editor.eventControls_decorations.Count)
                     {
-                        return editor.eventControls_sprites[i];
+                        return editor.eventControls_decorations[i];
                     }
                     break;
                 }
             }
 
-            Debug.Log($"[GetSelectedSpriteList] 未找到 sprite: {spriteId}");
+            Debug.Log($"[GetSelectedSpriteList] 未找到装饰: {spriteId}");
             return null;
         }
 
@@ -4306,19 +4313,19 @@ namespace RDLevelEditorAccess
                 var rowEvents = editor.eventControls_rows[rowIndex];
                 return rowEvents != null && rowEvents.Contains(editor.selectedControl);
             }
-            else if (currentTab == Tab.Sprites)
+            else if (currentTab == Tab.Decorations)
             {
-                if (string.IsNullOrEmpty(editor.selectedSprite))
+                if (string.IsNullOrEmpty(editor.selectedDecoration))
                     return false;
 
-                // 根据 selectedSprite 查找对应的索引
-                for (int i = 0; i < editor.spritesData.Count; i++)
+                // 根据 selectedDecoration 查找对应的索引
+                for (int i = 0; i < editor.decorationsData.Count; i++)
                 {
-                    if (editor.spritesData[i].spriteId == editor.selectedSprite)
+                    if (editor.decorationsData[i].decorationId == editor.selectedDecoration)
                     {
-                        if (i < editor.eventControls_sprites.Count)
+                        if (i < editor.eventControls_decorations.Count)
                         {
-                            var spriteEvents = editor.eventControls_sprites[i];
+                            var spriteEvents = editor.eventControls_decorations[i];
                             return spriteEvents != null && spriteEvents.Contains(editor.selectedControl);
                         }
                         break;
@@ -4469,7 +4476,7 @@ namespace RDLevelEditorAccess
             Scan(editor.eventControls_windows, RDString.Get("editor.windows"));
             foreach (var row in editor.eventControls_rows)
                 if (row != null) Scan(row, RDString.Get("editor.rows"));
-            foreach (var spr in editor.eventControls_sprites)
+            foreach (var spr in editor.eventControls_decorations)
                 if (spr != null) Scan(spr, RDString.Get("editor.sprites"));
             return result;
         }
@@ -4621,7 +4628,7 @@ namespace RDLevelEditorAccess
         public static void ChangePagePostfix(TabSection __instance, int index)
         {
             // 只在 Rows 和 Sprites Tab 时朗读房间名称
-            if (__instance.tab == Tab.Rows || __instance.tab == Tab.Sprites)
+            if (__instance.tab == Tab.Rows || __instance.tab == Tab.Decorations)
             {
                 string roomText = RDString.Get("editor.room");
                 Narration.Say($"{roomText} {index + 1}", NarrationCategory.Navigation);
